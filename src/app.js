@@ -3165,17 +3165,12 @@ const HOF_TYPES = {
   award:{label:'Award', medal:'★', cls:'award'}
 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-/* Flat medal with a ribbon. The number sits in HTML on top so it uses the app font (also in exports). */
-const MEDAL_COLORS = {gold:['#C98A00','#FFCF4D','#5C3D00'], silver:['#8391AC','#E2E8F2','#2E3A52'], bronze:['#A85A1C','#F2B47F','#4F2508'], award:['#6A4BD6','#D3C5FF','#2A1773']};
+/* Placement badge used across the app: a metallic disc (gold, silver, bronze, or purple for awards)
+   with the place number in the display font. Same look as the leaderboard position badges. */
+const STAR_SVG = '<svg viewBox="0 0 24 24" width="55%" height="55%" aria-hidden="true"><path d="M12 2.8l2.8 5.7 6.3.9-4.6 4.4 1.1 6.2L12 17l-5.6 3 1.1-6.2-4.6-4.4 6.3-.9z" fill="currentColor"/></svg>';
 function medalHTML(cls, label, size=32){
-  const [rim, face, ink] = MEDAL_COLORS[cls] || MEDAL_COLORS.award;
-  const disc = cls==='award'
-    ? `<path d="M16 13.5l3.1 6.2 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3 1.2-6.9-5-4.9 6.9-1z" fill="${rim}"/><path d="M16 17.3l1.9 3.8 4.2.6-3 3 .7 4.1-3.8-2-3.8 2 .7-4.1-3-3 4.2-.6z" fill="${face}"/>`
-    : `<circle cx="16" cy="25" r="11" fill="${rim}"/><circle cx="16" cy="25" r="8.6" fill="${face}"/><path d="M10.2 22.6a6.6 6.6 0 0 1 4.6-4.1" fill="none" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="1.6" stroke-linecap="round"/>`;
-  return `<span class="medal medal-${cls}" style="--m:${size}px;--ink:${ink}" role="img" aria-label="${esc(HOF_TYPES[cls==='gold'?'champion':cls==='silver'?'runner_up':cls==='bronze'?'third':'award']?.label||'')}">
-    <svg viewBox="0 0 32 37" width="${size}" height="${Math.round(size*37/32)}" aria-hidden="true"><path d="M7 1h7l5.2 13.2-6.6 2.4z" fill="#1463FF"/><path d="M25 1h-7l-5.2 13.2 6.6 2.4z" fill="#0B3FB3"/>${disc}</svg>
-    ${cls==='award' ? '' : `<span class="medal-n">${esc(label)}</span>`}
-  </span>`;
+  const name = HOF_TYPES[cls==='gold'?'champion':cls==='silver'?'runner_up':cls==='bronze'?'third':'award']?.label || '';
+  return `<span class="rk rk-${cls} rk-sz" style="--s:${size}px" role="img" aria-label="${esc(name)}">${cls==='award' ? STAR_SVG : esc(label)}</span>`;
 }
 function hofMedal(type, size){ const t = HOF_TYPES[type] || HOF_TYPES.award; return medalHTML(t.cls, t.medal, size) }
 let hofFilter = {org:'all', player:'all'};

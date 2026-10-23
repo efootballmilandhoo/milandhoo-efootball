@@ -421,3 +421,14 @@
     .topbar-right{flex:0 1 auto;min-width:0;flex-wrap:nowrap}
   }
   .user-chip, .user-chip *{white-space:nowrap}
+
+  /* Sized placement badges (Hall of Fame, forms, exports) */
+  .rk.rk-sz{width:var(--s);min-width:var(--s);height:var(--s);font-size:calc(var(--s) * .56);padding:0}
+  .rk-award{width:28px;padding:0;border-radius:50%;background:linear-gradient(150deg,#E6DCFF 0%,#A98BFF 50%,#6A4BD6 100%);color:#FFFFFF;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 3px 8px -2px rgba(106,75,214,.5)}
+  .hof-type .rk{transition:transform .2s}
+  .hof-type:has(input:checked) .rk{transform:translateY(-2px) scale(1.06)}
+  .dec-table th .rk{display:flex;margin:0 auto 6px}
+  /* Prize cards: the default numbers use the same metallic badges */
+  .prize-card.gold .prize-medal:not(.is-emoji):not(.has-img){background:linear-gradient(150deg,#FFE58A 0%,#F7BC1C 48%,#D99400 100%);color:#4A3200;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),0 4px 10px -3px rgba(217,148,0,.55)}
+  .prize-card.silver .prize-medal:not(.is-emoji):not(.has-img){background:linear-gradient(150deg,#FBFCFE 0%,#D3DAE6 50%,#9FAAC0 100%);color:#253049;box-shadow:inset 0 0 0 2px rgba(255,255,255,.75),0 4px 10px -3px rgba(110,124,153,.5)}
+  .prize-card.bronze .prize-medal:not(.is-emoji):not(.has-img){background:linear-gradient(150deg,#FAD3AE 0%,#DFA06A 50%,#AE6227 100%);color:#3F1D05;box-shadow:inset 0 0 0 2px rgba(255,255,255,.55),0 4px 10px -3px rgba(174,98,39,.5)}
