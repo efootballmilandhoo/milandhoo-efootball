@@ -61,6 +61,7 @@ function checkUpdates(){
   if(mine){ NOTIF.lastRead = Math.max(NOTIF.lastRead, now + fresh.length); nsave('notif_read', NOTIF.lastRead) }
   else if(NOTIF.popups) showAlert(fresh);
   renderBell();
+  if(!mine) ringBell();
   if(NOTIF.open) renderNotifPanel();
 }
 function scheduleUpdateCheck(){ clearTimeout(NOTIF.timer); NOTIF.timer = setTimeout(checkUpdates, 350) }
@@ -217,3 +218,36 @@ function hideInstallBanner(){ nsave('install_hide', true); document.getElementBy
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTIF.open) toggleNotifPanel(false) });
 setInterval(()=>{ if(NOTIF.open) renderNotifPanel() }, 60000);
+
+/* =========================
+   MOTION
+   Entrance animations play only when a page or tab opens (not on live data
+   refreshes), and never while an image export is being captured.
+   ========================= */
+function reduceMotion(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches }catch{ return false } }
+let enterTimer = null;
+function playEnter(){
+  const m = document.getElementById('main'); if(!m || reduceMotion()) return;
+  m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
+  clearTimeout(enterTimer); enterTimer = setTimeout(()=>m.classList.remove('enter'), 1200);
+  countUp(m);
+}
+function countUp(root){
+  root.querySelectorAll('.stat-value').forEach(el=>{
+    const txt = el.textContent.trim();
+    if(!/^\d{1,6}$/.test(txt)) return;
+    const end = +txt; if(end < 2) return;
+    const t0 = performance.now(), dur = Math.min(1100, 500 + end*8);
+    const step = now=>{
+      if(!el.isConnected) return;
+      const k = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = String(Math.round(end*e));
+      if(k < 1) requestAnimationFrame(step); else el.textContent = txt;
+    };
+    el.textContent = '0'; requestAnimationFrame(step);
+  });
+}
+function ringBell(){
+  if(reduceMotion()) return;
+  document.querySelectorAll('[data-bell]').forEach(b=>{ b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring'); setTimeout(()=>b.classList.remove('ring'), 1000) });
+}

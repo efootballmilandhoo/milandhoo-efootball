@@ -259,6 +259,7 @@ function renderOffline(){
 let hashRouted = false;
 function applyHashRoute(){
   if(hashRouted) return; hashRouted = true;
+  playEnter();
   routeTo(location.hash);
 }
 function routeTo(hash){
@@ -570,6 +571,7 @@ function navigate(view, param, opts={}){
   document.getElementById('mobileOverlay').classList.remove('show');
   window.scrollTo(0,0);
   rerender();
+  playEnter();
 }
 
 function setHeader(crumb, title, back){
@@ -1760,6 +1762,8 @@ function switchTab(tabId){
   document.querySelectorAll('#detailTabs .tab').forEach(x=>{ const on = x.dataset.tab===tabId; x.classList.toggle('active', on); x.setAttribute('aria-selected', on) });
   document.querySelectorAll('#main > .tab-panel').forEach(d=>d.classList.toggle('hidden', d.id!==tabId));
   renderChrome();
+  const panel = document.getElementById(tabId);
+  if(panel && !reduceMotion()){ panel.classList.remove('tab-enter'); void panel.offsetWidth; panel.classList.add('tab-enter'); setTimeout(()=>panel.classList.remove('tab-enter'), 900) }
 }
 
 function drawTournament(t){

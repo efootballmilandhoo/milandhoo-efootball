@@ -980,6 +980,104 @@
     .user-chip{flex-shrink:0}
   }
 
+  /* =========================================================
+     MOTION
+     ========================================================= */
+  @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes popIn{0%{opacity:0;transform:translateY(14px) scale(.96)}100%{opacity:1;transform:none}}
+  @keyframes titleIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes shine{0%{transform:translateX(-120%) skewX(-20deg)}55%,100%{transform:translateX(320%) skewX(-20deg)}}
+  @keyframes drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-2%,1.5%,0) scale(1.04)}}
+  @keyframes bellRing{0%,100%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(3deg)}}
+  @keyframes badgePop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+  @keyframes glowWin{0%{background:rgba(20,99,255,.18)}100%{background:transparent}}
+  @keyframes navIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+
+  /* Page entrance: sections rise in one after another */
+  #main.enter > *{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter > *:nth-child(2){animation-delay:.06s}
+  #main.enter > *:nth-child(3){animation-delay:.12s}
+  #main.enter > *:nth-child(4){animation-delay:.18s}
+  #main.enter > *:nth-child(5){animation-delay:.24s}
+  #main.enter > *:nth-child(n+6){animation-delay:.3s}
+  #main.enter .grid > *{animation:popIn .5s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter .grid > *:nth-child(2){animation-delay:.08s}
+  #main.enter .grid > *:nth-child(3){animation-delay:.13s}
+  #main.enter .grid > *:nth-child(4){animation-delay:.18s}
+  #main.enter .grid > *:nth-child(5){animation-delay:.23s}
+  #main.enter .grid > *:nth-child(6){animation-delay:.28s}
+  #main.enter .grid > *:nth-child(n+7){animation-delay:.32s}
+  #main.enter .hof-row, #main.enter .recent-row, #main.enter .top-row, #main.enter tbody tr{animation:fadeSlide .45s ease both}
+  #main.enter .hof-row:nth-child(2), #main.enter .recent-row:nth-child(2), #main.enter tbody tr:nth-child(2){animation-delay:.05s}
+  #main.enter .hof-row:nth-child(3), #main.enter .recent-row:nth-child(3), #main.enter tbody tr:nth-child(3){animation-delay:.1s}
+  #main.enter .hof-row:nth-child(4), #main.enter .recent-row:nth-child(4), #main.enter tbody tr:nth-child(4){animation-delay:.15s}
+  #main.enter .hof-row:nth-child(n+5), #main.enter .recent-row:nth-child(n+5), #main.enter tbody tr:nth-child(n+5){animation-delay:.2s}
+  #main.enter .bracket-round{animation:fadeSlide .5s ease both}
+  #main.enter .bracket-round:nth-child(2){animation-delay:.12s}
+  #main.enter .bracket-round:nth-child(3){animation-delay:.24s}
+  #main.enter .bracket-round:nth-child(4){animation-delay:.36s}
+  #main.enter .bracket-round:nth-child(n+5){animation-delay:.48s}
+  #main.enter .bracket-team.winner{animation:glowWin 1.4s ease .6s both}
+  .tab-panel.tab-enter{animation:fadeSlide .4s cubic-bezier(.2,.8,.2,1) both}
+  .page-title{animation:titleIn .45s cubic-bezier(.2,.8,.2,1) both}
+
+  /* Sidebar items slide in on first load */
+  .sidebar .nav-item{animation:navIn .5s cubic-bezier(.2,.8,.2,1) both}
+  .sidebar .nav-group:first-child .nav-item:nth-child(2){animation-delay:.04s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(3){animation-delay:.08s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(4){animation-delay:.12s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(5){animation-delay:.16s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(6){animation-delay:.2s}
+  .sidebar .nav-group:nth-child(2) .nav-item{animation-delay:.24s}
+  .nav-item{transition:background-color .2s ease, color .2s ease, transform .2s ease}
+  .nav-item:hover:not(.active){transform:translateX(3px)}
+  .nav-item svg{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+  .nav-item:hover svg, .nav-item.active svg{transform:scale(1.12)}
+
+  /* Lift on hover for things you can open */
+  .stat, .player-card, .t-card, .recent-row, .hof-row, .top-row, .ongoing-card{transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .2s ease}
+  @media(hover:hover){
+    .stat:hover, .player-card:hover, .t-card:hover, .ongoing-card:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(11,27,63,.12);border-color:var(--border-2)}
+    .recent-row:hover, .hof-row:hover, .top-row:not(.row-head):hover{transform:translateX(4px)}
+    .stat:hover .stat-icon{transform:rotate(-8deg) scale(1.08)}
+  }
+  .stat-icon{transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
+
+  /* Buttons: press feedback and a light sweep on primary buttons */
+  .btn, .btn-soft, .bell-btn, .user-chip, .export-btn{transition:transform .15s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease}
+  .btn:active, .btn-soft:active, .bell-btn:active, .user-chip:active, .export-btn:active{transform:scale(.96)}
+  .btn-primary{position:relative;overflow:hidden}
+  .btn-primary::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transform:translateX(-120%) skewX(-20deg);pointer-events:none}
+  @media(hover:hover){ .btn-primary:hover::after{animation:shine .9s ease} .btn-primary:hover{box-shadow:0 8px 22px rgba(20,99,255,.35)} }
+
+  /* Hero: slow drifting artwork, pulsing live dot */
+  .hero-art{animation:drift 14s ease-in-out infinite}
+  .live-pill i{animation:pulseRing 2s ease-out infinite}
+  #main.enter .hero-title{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter .hero-sub{animation:rise .7s cubic-bezier(.2,.8,.2,1) .1s both}
+  #main.enter .hero-actions{animation:rise .7s cubic-bezier(.2,.8,.2,1) .2s both}
+
+  /* Trophies float gently and catch the light */
+  .trophy-disc{position:relative;overflow:hidden;animation:floatY 4.5s ease-in-out infinite}
+  .trophy-disc::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:35%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-120%) skewX(-20deg);animation:shine 4.5s ease-in-out 1s infinite;pointer-events:none}
+  .ongoing-trophy{animation:floatY 5s ease-in-out infinite}
+
+  /* Modals and the updates panel pop in */
+  .modal-overlay.show .modal{animation:popIn .32s cubic-bezier(.2,.9,.25,1.1) both}
+  .bell-btn.ring svg{animation:bellRing .9s ease;transform-origin:50% 10%}
+  .bell-btn.ring .bell-badge{animation:badgePop .4s cubic-bezier(.3,1.6,.5,1)}
+  .install-ic svg{animation:floatY 3s ease-in-out infinite}
+
+  /* Exports render still images: no motion inside them */
+  .xs, .xs *, .xs *::before, .xs *::after{animation:none !important;transition:none !important}
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;animation-delay:0s !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+  }
+
 </style>
 </head>
 <body>
@@ -1600,6 +1698,7 @@ function renderOffline(){
 let hashRouted = false;
 function applyHashRoute(){
   if(hashRouted) return; hashRouted = true;
+  playEnter();
   routeTo(location.hash);
 }
 function routeTo(hash){
@@ -1911,6 +2010,7 @@ function navigate(view, param, opts={}){
   document.getElementById('mobileOverlay').classList.remove('show');
   window.scrollTo(0,0);
   rerender();
+  playEnter();
 }
 
 function setHeader(crumb, title, back){
@@ -3101,6 +3201,8 @@ function switchTab(tabId){
   document.querySelectorAll('#detailTabs .tab').forEach(x=>{ const on = x.dataset.tab===tabId; x.classList.toggle('active', on); x.setAttribute('aria-selected', on) });
   document.querySelectorAll('#main > .tab-panel').forEach(d=>d.classList.toggle('hidden', d.id!==tabId));
   renderChrome();
+  const panel = document.getElementById(tabId);
+  if(panel && !reduceMotion()){ panel.classList.remove('tab-enter'); void panel.offsetWidth; panel.classList.add('tab-enter'); setTimeout(()=>panel.classList.remove('tab-enter'), 900) }
 }
 
 function drawTournament(t){
@@ -4813,6 +4915,7 @@ function checkUpdates(){
   if(mine){ NOTIF.lastRead = Math.max(NOTIF.lastRead, now + fresh.length); nsave('notif_read', NOTIF.lastRead) }
   else if(NOTIF.popups) showAlert(fresh);
   renderBell();
+  if(!mine) ringBell();
   if(NOTIF.open) renderNotifPanel();
 }
 function scheduleUpdateCheck(){ clearTimeout(NOTIF.timer); NOTIF.timer = setTimeout(checkUpdates, 350) }
@@ -4969,6 +5072,39 @@ function hideInstallBanner(){ nsave('install_hide', true); document.getElementBy
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTIF.open) toggleNotifPanel(false) });
 setInterval(()=>{ if(NOTIF.open) renderNotifPanel() }, 60000);
+
+/* =========================
+   MOTION
+   Entrance animations play only when a page or tab opens (not on live data
+   refreshes), and never while an image export is being captured.
+   ========================= */
+function reduceMotion(){ try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches }catch{ return false } }
+let enterTimer = null;
+function playEnter(){
+  const m = document.getElementById('main'); if(!m || reduceMotion()) return;
+  m.classList.remove('enter'); void m.offsetWidth; m.classList.add('enter');
+  clearTimeout(enterTimer); enterTimer = setTimeout(()=>m.classList.remove('enter'), 1200);
+  countUp(m);
+}
+function countUp(root){
+  root.querySelectorAll('.stat-value').forEach(el=>{
+    const txt = el.textContent.trim();
+    if(!/^\d{1,6}$/.test(txt)) return;
+    const end = +txt; if(end < 2) return;
+    const t0 = performance.now(), dur = Math.min(1100, 500 + end*8);
+    const step = now=>{
+      if(!el.isConnected) return;
+      const k = Math.min(1, (now - t0)/dur), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = String(Math.round(end*e));
+      if(k < 1) requestAnimationFrame(step); else el.textContent = txt;
+    };
+    el.textContent = '0'; requestAnimationFrame(step);
+  });
+}
+function ringBell(){
+  if(reduceMotion()) return;
+  document.querySelectorAll('[data-bell]').forEach(b=>{ b.classList.remove('ring'); void b.offsetWidth; b.classList.add('ring'); setTimeout(()=>b.classList.remove('ring'), 1000) });
+}
 
 /* Init */
 boot();

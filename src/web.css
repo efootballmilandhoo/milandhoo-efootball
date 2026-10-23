@@ -98,3 +98,101 @@
     .topbar-right .search-box{min-width:0}
     .user-chip{flex-shrink:0}
   }
+
+  /* =========================================================
+     MOTION
+     ========================================================= */
+  @keyframes rise{from{opacity:0;transform:translateY(18px) scale(.985)}to{opacity:1;transform:none}}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes popIn{0%{opacity:0;transform:translateY(14px) scale(.96)}100%{opacity:1;transform:none}}
+  @keyframes titleIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+  @keyframes pulseRing{0%{box-shadow:0 0 0 0 rgba(52,211,153,.55)}70%{box-shadow:0 0 0 9px rgba(52,211,153,0)}100%{box-shadow:0 0 0 0 rgba(52,211,153,0)}}
+  @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+  @keyframes shine{0%{transform:translateX(-120%) skewX(-20deg)}55%,100%{transform:translateX(320%) skewX(-20deg)}}
+  @keyframes drift{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(-2%,1.5%,0) scale(1.04)}}
+  @keyframes bellRing{0%,100%{transform:rotate(0)}15%{transform:rotate(16deg)}30%{transform:rotate(-14deg)}45%{transform:rotate(10deg)}60%{transform:rotate(-6deg)}75%{transform:rotate(3deg)}}
+  @keyframes badgePop{0%{transform:scale(0)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+  @keyframes glowWin{0%{background:rgba(20,99,255,.18)}100%{background:transparent}}
+  @keyframes navIn{from{opacity:0;transform:translateX(-12px)}to{opacity:1;transform:none}}
+
+  /* Page entrance: sections rise in one after another */
+  #main.enter > *{animation:rise .55s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter > *:nth-child(2){animation-delay:.06s}
+  #main.enter > *:nth-child(3){animation-delay:.12s}
+  #main.enter > *:nth-child(4){animation-delay:.18s}
+  #main.enter > *:nth-child(5){animation-delay:.24s}
+  #main.enter > *:nth-child(n+6){animation-delay:.3s}
+  #main.enter .grid > *{animation:popIn .5s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter .grid > *:nth-child(2){animation-delay:.08s}
+  #main.enter .grid > *:nth-child(3){animation-delay:.13s}
+  #main.enter .grid > *:nth-child(4){animation-delay:.18s}
+  #main.enter .grid > *:nth-child(5){animation-delay:.23s}
+  #main.enter .grid > *:nth-child(6){animation-delay:.28s}
+  #main.enter .grid > *:nth-child(n+7){animation-delay:.32s}
+  #main.enter .hof-row, #main.enter .recent-row, #main.enter .top-row, #main.enter tbody tr{animation:fadeSlide .45s ease both}
+  #main.enter .hof-row:nth-child(2), #main.enter .recent-row:nth-child(2), #main.enter tbody tr:nth-child(2){animation-delay:.05s}
+  #main.enter .hof-row:nth-child(3), #main.enter .recent-row:nth-child(3), #main.enter tbody tr:nth-child(3){animation-delay:.1s}
+  #main.enter .hof-row:nth-child(4), #main.enter .recent-row:nth-child(4), #main.enter tbody tr:nth-child(4){animation-delay:.15s}
+  #main.enter .hof-row:nth-child(n+5), #main.enter .recent-row:nth-child(n+5), #main.enter tbody tr:nth-child(n+5){animation-delay:.2s}
+  #main.enter .bracket-round{animation:fadeSlide .5s ease both}
+  #main.enter .bracket-round:nth-child(2){animation-delay:.12s}
+  #main.enter .bracket-round:nth-child(3){animation-delay:.24s}
+  #main.enter .bracket-round:nth-child(4){animation-delay:.36s}
+  #main.enter .bracket-round:nth-child(n+5){animation-delay:.48s}
+  #main.enter .bracket-team.winner{animation:glowWin 1.4s ease .6s both}
+  .tab-panel.tab-enter{animation:fadeSlide .4s cubic-bezier(.2,.8,.2,1) both}
+  .page-title{animation:titleIn .45s cubic-bezier(.2,.8,.2,1) both}
+
+  /* Sidebar items slide in on first load */
+  .sidebar .nav-item{animation:navIn .5s cubic-bezier(.2,.8,.2,1) both}
+  .sidebar .nav-group:first-child .nav-item:nth-child(2){animation-delay:.04s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(3){animation-delay:.08s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(4){animation-delay:.12s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(5){animation-delay:.16s}
+  .sidebar .nav-group:first-child .nav-item:nth-child(6){animation-delay:.2s}
+  .sidebar .nav-group:nth-child(2) .nav-item{animation-delay:.24s}
+  .nav-item{transition:background-color .2s ease, color .2s ease, transform .2s ease}
+  .nav-item:hover:not(.active){transform:translateX(3px)}
+  .nav-item svg{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+  .nav-item:hover svg, .nav-item.active svg{transform:scale(1.12)}
+
+  /* Lift on hover for things you can open */
+  .stat, .player-card, .t-card, .recent-row, .hof-row, .top-row, .ongoing-card{transition:transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease, border-color .2s ease}
+  @media(hover:hover){
+    .stat:hover, .player-card:hover, .t-card:hover, .ongoing-card:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(11,27,63,.12);border-color:var(--border-2)}
+    .recent-row:hover, .hof-row:hover, .top-row:not(.row-head):hover{transform:translateX(4px)}
+    .stat:hover .stat-icon{transform:rotate(-8deg) scale(1.08)}
+  }
+  .stat-icon{transition:transform .3s cubic-bezier(.3,1.6,.5,1)}
+
+  /* Buttons: press feedback and a light sweep on primary buttons */
+  .btn, .btn-soft, .bell-btn, .user-chip, .export-btn{transition:transform .15s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease, color .2s ease}
+  .btn:active, .btn-soft:active, .bell-btn:active, .user-chip:active, .export-btn:active{transform:scale(.96)}
+  .btn-primary{position:relative;overflow:hidden}
+  .btn-primary::after{content:"";position:absolute;top:0;bottom:0;left:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);transform:translateX(-120%) skewX(-20deg);pointer-events:none}
+  @media(hover:hover){ .btn-primary:hover::after{animation:shine .9s ease} .btn-primary:hover{box-shadow:0 8px 22px rgba(20,99,255,.35)} }
+
+  /* Hero: slow drifting artwork, pulsing live dot */
+  .hero-art{animation:drift 14s ease-in-out infinite}
+  .live-pill i{animation:pulseRing 2s ease-out infinite}
+  #main.enter .hero-title{animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+  #main.enter .hero-sub{animation:rise .7s cubic-bezier(.2,.8,.2,1) .1s both}
+  #main.enter .hero-actions{animation:rise .7s cubic-bezier(.2,.8,.2,1) .2s both}
+
+  /* Trophies float gently and catch the light */
+  .trophy-disc{position:relative;overflow:hidden;animation:floatY 4.5s ease-in-out infinite}
+  .trophy-disc::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:35%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.65),transparent);transform:translateX(-120%) skewX(-20deg);animation:shine 4.5s ease-in-out 1s infinite;pointer-events:none}
+  .ongoing-trophy{animation:floatY 5s ease-in-out infinite}
+
+  /* Modals and the updates panel pop in */
+  .modal-overlay.show .modal{animation:popIn .32s cubic-bezier(.2,.9,.25,1.1) both}
+  .bell-btn.ring svg{animation:bellRing .9s ease;transform-origin:50% 10%}
+  .bell-btn.ring .bell-badge{animation:badgePop .4s cubic-bezier(.3,1.6,.5,1)}
+  .install-ic svg{animation:floatY 3s ease-in-out infinite}
+
+  /* Exports render still images: no motion inside them */
+  .xs, .xs *, .xs *::before, .xs *::after{animation:none !important;transition:none !important}
+
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;animation-delay:0s !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+  }
