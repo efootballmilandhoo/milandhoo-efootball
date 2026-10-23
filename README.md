@@ -27,3 +27,8 @@ Vercel redeploys automatically.
 
 Organisers sign in from the Admin Panel with email and password. Only emails on the
 organiser list (Admin Panel → Organisers) can change data; the owner manages that list.
+
+## Deployment
+
+Pushing to `main` deploys automatically through Vercel's GitHub integration
+(production: https://milandhoo-efootball.vercel.app).
