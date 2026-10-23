@@ -59,6 +59,18 @@ function groupTable(t: Obj, g: Obj) {
   return Object.values(rows).sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || y.w - x.w);
 }
 
+// Private Telegram messages go through the telegram function (players who linked the bot).
+// They run in the background so the database trigger gets its answer straight away.
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+function telegramLater(body: Obj) { EdgeRuntime.waitUntil(telegram(body)); }
+async function telegram(body: Obj) {
+  try {
+    const s = await secrets();
+    const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/telegram`, { method: "POST", headers: { "Content-Type": "application/json", "x-hook-secret": s.hook_secret }, body: JSON.stringify(body) });
+    console.log("telegram", body.action, await r.text());
+  } catch (e) { console.error("telegram call failed", e); }
+}
+
 async function eventsFor(body: Obj): Promise<Obj[]> {
   const { coll, id, old: o, new: n } = body;
   const out: Obj[] = [];
@@ -76,6 +88,24 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
   if (!o.groupsDrawn && n.groupsDrawn) out.push({ title: `${tn} has started`, body: "Groups and fixtures are out", url, tag: "t-" + id });
   else if (o.status !== "active" && n.status === "active" && !n.groupsDrawn) out.push({ title: `${tn} has started`, body: "The bracket is out", url, tag: "t-" + id });
   if (n.format === "group_knockout" && !o.knockoutDrawn && n.knockoutDrawn) out.push({ title: `${tn}: knockout draw is out`, body: "See who plays who in the bracket", url, tag: "t-" + id });
+
+  // Telegram: everyone gets their fixtures when groups or the bracket are drawn;
+  // later, the two players of a knockout tie hear as soon as their opponent is known.
+  if (n.status === "active") {
+    const drew = (!o.groupsDrawn && n.groupsDrawn) || (!o.knockoutDrawn && n.knockoutDrawn) || (o.status !== "active" && (n.groupsDrawn || n.knockoutDrawn));
+    if (drew) telegramLater({ action: "auto", tid: id });
+    else if (n.knockoutDrawn && o.knockoutDrawn) {
+      const before = new Map(((o.knockoutBracket || []).flat()).map((m: Obj) => [m.id, m]));
+      const pids: string[] = [];
+      ((n.knockoutBracket || []).flat()).forEach((m: Obj) => {
+        if (!m || m.isBye || !m.team1 || !m.team2 || m.winner) return;
+        const p = before.get(m.id) as Obj | undefined;
+        if (p && p.team1 === m.team1 && p.team2 === m.team2) return;
+        pids.push(m.team1, m.team2);
+      });
+      if (pids.length) telegramLater({ action: "auto", tid: id, pids });
+    }
+  }
 
   const nm = await names();
   const P = (pid: string) => nm[pid] || "TBD";
@@ -140,6 +170,7 @@ async function dueReminders(): Promise<Obj[]> {
     if (t.format !== "single_elimination" && soon(gd) && !t.deadlineProcessed) {
       const left = (t.fixtures || []).filter((f: Obj) => (isLeague || f.group) && !(has(f.score1) && has(f.score2))).length;
       if (left) out.push({
+        tg: { action: "remind", tid: row.id, clock: clock(gd), left: (() => { const m: Obj = {}; (t.fixtures || []).forEach((f: Obj) => { if ((isLeague || f.group) && !(has(f.score1) && has(f.score2))) { m[f.team1] = (m[f.team1] || 0) + 1; m[f.team2] = (m[f.team2] || 0) + 1; } }); return m; })() },
         key: `g:${row.id}:${t.groupDeadline}`,
         title: `⏰ 2 hours left: ${tn}`,
         body: `${isLeague ? "League" : "Group stage"} deadline is ${clock(gd)}. ${left} match${left > 1 ? "es" : ""} still to play; unplayed matches count as 0-0 draws.`,
@@ -156,6 +187,7 @@ async function dueReminders(): Promise<Obj[]> {
       const left = matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).length;
       if (!left) continue;
       out.push({
+        tg: { action: "remind", tid: row.id, round, clock: clock(ms), left: Object.fromEntries(matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).flatMap((m: Obj) => [[m.team1, 1], [m.team2, 1]])) },
         key: `k:${row.id}:${round}:${val}`,
         title: `⏰ 2 hours left: ${tn} · ${round}`,
         body: `${round} deadline is ${clock(ms)}. ${left} match${left > 1 ? "es" : ""} still to be played.`,
@@ -169,7 +201,8 @@ async function dueReminders(): Promise<Obj[]> {
   const done = new Set((sent || []).map((r: Obj) => r.key));
   const due = out.filter((r) => !done.has(r.key));
   if (due.length) await sb.from("deadline_reminders").insert(due.map((r) => ({ key: r.key })));
-  return due.map(({ key: _k, ...ev }) => ev);
+  if (due.length) EdgeRuntime.waitUntil((async () => { for (const r of due) await telegram(r.tg); })());
+  return due.map(({ key: _k, tg: _t, ...ev }) => ev);
 }
 
 Deno.serve(async (req) => {

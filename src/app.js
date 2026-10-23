@@ -1874,6 +1874,7 @@ function renderTournamentDetail(id){
       </div>
       ${admin ? `<div class="toolbar-actions t-actions">
         ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete tournament</button>`:''}
+        ${(t.groupsDrawn || t.knockoutDrawn) && t.status!=='completed' ? `<button type="button" class="btn btn-secondary" onclick="openMessagePlayersModal('${t.id}')">${TG_SVG} Message players</button>` : ''}
         <button type="button" class="btn btn-secondary" onclick="editTournament('${t.id}')">Edit settings</button>
         <button type="button" class="btn btn-danger" onclick="deleteTournament('${t.id}')">Delete</button>
       </div>` : ''}
@@ -3522,9 +3523,97 @@ function exportLeaderboardSheet(){
 }
 
 /* =========================
+   TELEGRAM: players' own fixtures by private message
+   The bot (@MGefootballbot) and its sending run on the server (supabase/functions/telegram).
+   Draws send automatically; organisers can also resend from "Message players".
+   ========================= */
+const TG_BOT_LINK = 'https://t.me/MGefootballbot?start=link';
+const TG_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 4.1 2.9 11.3c-1.3.5-1.2 2.3.1 2.6l4.6 1.4 1.8 5.6c.3 1 1.6 1.3 2.3.5l2.6-2.6 4.6 3.4c.9.6 2.1.1 2.3-.9l3.1-15.1c.3-1.4-1.1-2.6-2.8-2.1zM17 8.3l-7.6 6.9-.3 3.2-1.4-4.4L17 8.3z"/></svg>';
+const WA_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.3-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.3 2.2 2.2 0 0 0 .2-1.3c-.1-.1-.3-.2-.5-.3z"/></svg>';
+const SMS_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+let TG_MSG = {tid:null, players:[]};
+
+async function tgCall(body){
+  if(!AUTH.sb) throw new Error('Still connecting. Try again in a moment.');
+  const {data, error} = await AUTH.sb.functions.invoke('telegram', {body});
+  if(error) throw new Error(error.message || 'The server did not answer');
+  if(data?.error) throw new Error(data.error);
+  return data;
+}
+async function tgLinks(){
+  if(!AUTH.sb) return null;
+  const {data, error} = await AUTH.sb.from('telegram_links').select('player_id,tg_name,linked_at');
+  return error ? null : new Map((data||[]).map(r=>[r.player_id, r]));
+}
+async function renderTgStatus(){
+  const el = document.getElementById('tgStatus'); if(!el) return;
+  const links = await tgLinks();
+  if(!links){ el.innerHTML = '<span class="text-sm text-muted">Could not check linked players right now.</span>'; return }
+  const not = STORE.players.filter(p=>!links.has(p.id)).sort((a,b)=>a.name.localeCompare(b.name));
+  const n = STORE.players.length - not.length;
+  el.innerHTML = `<div class="tg-meter"><div><b>${n}</b> of ${STORE.players.length} players linked</div><span class="tg-bar"><i style="width:${STORE.players.length ? Math.round(n/STORE.players.length*100) : 0}%"></i></span></div>
+    ${not.length ? `<details class="tg-missing"><summary>Not linked yet (${not.length})</summary><div class="tg-chips">${not.map(p=>`<span>${esc(p.name)}${STORE.phones[p.id]?'':' <i>no number</i>'}</span>`).join('')}</div></details>` : '<span class="text-sm" style="color:var(--success-ink);font-weight:600">Everyone is linked.</span>'}`;
+}
+
+function waLink(phone, text){ const n = telegramNumber(phone); return n ? `https://wa.me/${n}?text=${encodeURIComponent(text)}` : '' }
+function smsLink(phone, text){ const n = telegramNumber(phone); return n ? `sms:+${n}${/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent)?'&':'?'}body=${encodeURIComponent(text)}` : '' }
+
+async function openMessagePlayersModal(tid){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  openModal(`<div class="modal-head"><div class="modal-title">Message players</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-body"><div class="text-sm text-muted">Getting each player's fixtures…</div></div>`, 'lg');
+  try{
+    const data = await tgCall({action:'texts', tid});
+    TG_MSG = {tid, players: data.players || []};
+    renderMessagePlayers();
+  }catch(e){
+    const body = document.querySelector('#modal .modal-body'); if(body) body.innerHTML = `<div class="config-helper">Couldn't load the messages: ${esc(e.message)}</div>`;
+  }
+}
+function renderMessagePlayers(){
+  const t = STORE.tournaments.find(x=>x.id===TG_MSG.tid); if(!t) return;
+  const rows = TG_MSG.players.map((x,i)=>({...x, i, p: STORE.players.find(p=>p.id===x.pid) || {name: playerName(x.pid)}})).sort((a,b)=> (a.linked===b.linked ? a.p.name.localeCompare(b.p.name) : a.linked ? 1 : -1));
+  const linked = rows.filter(r=>r.linked && r.text).length;
+  const body = document.querySelector('#modal .modal-body'); if(!body) return;
+  body.innerHTML = `
+    <div class="tg-hero">
+      <div><p style="margin:0"><b>${linked} of ${rows.length}</b> players get their fixtures on Telegram automatically.</p><span>Everyone else: tap WhatsApp or SMS next to their name. Each message only has that player's own fixtures.</span></div>
+      <button type="button" class="btn btn-primary" ${linked?'':'disabled'} onclick="sendTelegramFixtures('${t.id}')">${TG_SVG} Send to ${linked} on Telegram</button>
+    </div>
+    <div class="link-box"><input class="form-input" readonly value="${TG_BOT_LINK}" aria-label="Bot link" onclick="this.select()"><button type="button" class="btn btn-secondary" onclick="copyText('${TG_BOT_LINK}')">Copy bot link</button></div>
+    <div class="msg-list">${rows.map(r=>{ const ph = STORE.phones[r.pid]; return `
+      <div class="msg-row">
+        ${renderAvatar(r.p, 34)}
+        <div class="msg-main"><b>${esc(r.p.name)}</b>${r.text ? `<details><summary>Preview message</summary><pre>${esc(r.text)}</pre></details>` : '<span class="text-xs text-muted">No fixtures to send</span>'}</div>
+        <div class="msg-acts">
+          ${r.linked ? `<span class="tg-chip on">${TG_SVG} Telegram</span>` : ''}
+          ${!r.linked && r.text && ph ? `<a class="btn btn-sm btn-wa" href="${esc(waLink(ph, r.text))}" target="_blank" rel="noopener">${WA_SVG} WhatsApp</a><a class="btn btn-sm btn-secondary" href="${esc(smsLink(ph, r.text))}">${SMS_SVG} SMS</a>` : ''}
+          ${!r.linked && r.text && !ph ? `<span class="tg-chip">No number</span>` : ''}
+          ${r.text ? `<button type="button" class="btn btn-sm btn-ghost" onclick="copyMessage(${r.i})" aria-label="Copy ${esc(r.p.name)}'s message">Copy</button>` : ''}
+        </div>
+      </div>`}).join('')}</div>`;
+}
+async function copyMessage(i){
+  const x = TG_MSG.players[i]; if(!x?.text) return;
+  try{ await navigator.clipboard.writeText(x.text); toast('Message copied') }catch{ toast('Copy is blocked here', true) }
+}
+async function sendTelegramFixtures(tid){
+  const linked = TG_MSG.players.filter(x=>x.linked && x.text).length;
+  const ok = await confirmDialog('Send fixtures on Telegram', `Send ${linked} linked player${linked>1?'s':''} their own fixtures for this tournament now?`, 'Send');
+  if(!ok){ openMessagePlayersModal(tid); return }
+  toast('Sending…');
+  try{
+    const r = await tgCall({action:'send', tid});
+    toast(`Sent to ${r.sent} player${r.sent===1?'':'s'} on Telegram${r.failed?` · ${r.failed} failed (they may have blocked the bot)`:''}`, !!r.failed);
+  }catch(e){ toast('Sending failed: ' + e.message, true) }
+}
+
+/* =========================
    ADMIN
    ========================= */
 function renderAdmin(){
+  setTimeout(()=>{ if(document.getElementById('tgStatus')) renderTgStatus() }, 0);
   const main = document.getElementById('main');
   setHeader('Community', 'Admin Panel');
   const mark = communityMark(64);
@@ -3558,6 +3647,12 @@ function renderAdmin(){
         <h2 class="card-title">Tournaments</h2>
         <p class="page-sub">Create tournaments, enter scores and draw brackets.</p>
         <div class="toolbar-actions" style="margin-top:auto"><button type="button" class="btn btn-primary" onclick="openCreateTournament()">${ICON.plus} New tournament</button><button type="button" class="btn btn-secondary" onclick="navigate('tournaments')">Manage</button></div>
+      </section>
+      <section class="card tg-card" style="display:flex;flex-direction:column;gap:12px">
+        <h2 class="card-title">${TG_SVG} Telegram fixtures bot</h2>
+        <p class="page-sub">Players open the bot once, tap <b>Start</b> and share their phone number. It's matched with the number saved for them, then their groups, fixtures and deadline reminders arrive privately on Telegram whenever a draw is made.</p>
+        <div class="link-box"><input class="form-input" readonly value="${TG_BOT_LINK}" aria-label="Bot link" onclick="this.select()"><button type="button" class="btn btn-primary" onclick="copyText('${TG_BOT_LINK}')">Copy link</button></div>
+        <div id="tgStatus" class="tg-status"><span class="text-sm text-muted">Checking who has linked…</span></div>
       </section>
       <section class="card" style="display:flex;flex-direction:column;gap:12px">
         <h2 class="card-title">Branding</h2>
