@@ -3103,12 +3103,11 @@ function exportRulesSheet(tid, key){
   const width = cols*560 + (cols-1)*18 + 56;
   const pages = groupsOfSecs.map((list, i)=>{
     const body = `<div class="xs-grid" style="grid-template-columns:repeat(${list.length}, 560px)">${list.map(sec=>rulesSectionHTML(t, sec, false)).join('')}</div>`;
-    const what = list.length===1 ? `${list[0].title} rules &amp; match settings` : 'Rules &amp; match settings';
     const dlBits = [];
     if(list.some(s=>s.key==='group') && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
     if(list.some(s=>s.key==='ko')){ const d = t.rules?.roundDeadlines||{}; const fin = d['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
     if(list.some(s=>s.key==='tb')) dlBits.push('Used when a 2-leg tie is level on aggregate');
-    return sheetHeader(t, t.name, `${what} · ${formatLabel(t.format)}${dlBits.length?'<br>'+dlBits.join(' · '):''}`) + body + sheetFoot(i+1, groupsOfSecs.length);
+    return sheetHeader(t, t.name, dlBits.join(' · ')) + body + sheetFoot(i+1, groupsOfSecs.length);
   });
   return renderSheets(pages, width, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
 }

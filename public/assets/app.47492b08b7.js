@@ -3401,12 +3401,11 @@ function exportRulesSheet(tid, key){
   const width = cols*560 + (cols-1)*18 + 56;
   const pages = groupsOfSecs.map((list, i)=>{
     const body = `<div class="xs-grid" style="grid-template-columns:repeat(${list.length}, 560px)">${list.map(sec=>rulesSectionHTML(t, sec, false)).join('')}</div>`;
-    const what = list.length===1 ? `${list[0].title} rules &amp; match settings` : 'Rules &amp; match settings';
     const dlBits = [];
     if(list.some(s=>s.key==='group') && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
     if(list.some(s=>s.key==='ko')){ const d = t.rules?.roundDeadlines||{}; const fin = d['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
     if(list.some(s=>s.key==='tb')) dlBits.push('Used when a 2-leg tie is level on aggregate');
-    return sheetHeader(t, t.name, `${what} · ${formatLabel(t.format)}${dlBits.length?'<br>'+dlBits.join(' · '):''}`) + body + sheetFoot(i+1, groupsOfSecs.length);
+    return sheetHeader(t, t.name, dlBits.join(' · ')) + body + sheetFoot(i+1, groupsOfSecs.length);
   });
   return renderSheets(pages, width, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
 }
@@ -4338,7 +4337,16 @@ function deriveEvents(){
     ev.push({key:'tn:'+t.id, kind:'new', title:`New tournament: ${tn}`, sub: t.status==='open' ? 'Registration is open' : 'Added to tournaments', tid:t.id});
     if(t.startedAt || t.groupsDrawn) ev.push({key:'ts:'+t.id, kind:'start', title:`${tn} has started`, sub: t.groupsDrawn && t.format!=='single_elimination' ? 'Groups and fixtures are out' : 'The bracket is out', tid:t.id});
     if(t.format==='group_knockout' && t.knockoutDrawn) ev.push({key:'kd:'+t.id, kind:'draw', title:`${tn}: knockout draw is out`, sub:'See who plays who in the bracket', tid:t.id});
+    // Group-stage results are not announced one by one; each group is announced once all its fixtures have scores.
+    const quietGroups = t.format==='group_knockout';
+    if(quietGroups) (t.groupData||[]).forEach(g=>{
+      const fx = (t.fixtures||[]).filter(f=>f.group===g.name);
+      if(!fx.length || !fx.every(f=>hasScore(f.score1) && hasScore(f.score2))) return;
+      const top = computeStandings(t, g).slice(0, Math.max(1, t.qualifyPerGroup||1)).map(r=>name(r.playerId));
+      ev.push({key:`gc:${t.id}:${g.name}`, kind:'result', title:`${tn}: Group ${g.name} is complete`, sub: top.length ? `Through to the knockouts: ${top.join(', ')}` : 'See the final group standings', tid:t.id});
+    });
     (t.fixtures||[]).forEach(f=>{
+      if(quietGroups && f.group) return;
       if(!hasScore(f.score1) || !hasScore(f.score2)) return;
       ev.push({key:`fx:${t.id}:${f.id}:${f.score1}-${f.score2}`, kind:'result', title:`${name(f.team1)} ${scoreLine(f.score1,f.score2)} ${name(f.team2)}`, sub:`${tn}${f.group?' · Group '+f.group:''}`, tid:t.id});
     });
@@ -4364,6 +4372,8 @@ function checkUpdates(){
   const seen = LS.get('notif_seen', null);
   if(!seen){ nsave('notif_seen', keys); NOTIF.seeded = true; renderBell(); return }
   const seenSet = new Set(seen);
+  // First run with group-complete notices: groups finished earlier count as already seen.
+  if(!LS.get('notif_gc_v1', false)){ keys.filter(k=>k.startsWith('gc:')).forEach(k=>seenSet.add(k)); nsave('notif_gc_v1', true) }
   const fresh = events.filter(e=>!seenSet.has(e.key));
   nsave('notif_seen', keys);
   NOTIF.seeded = true;
