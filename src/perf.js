@@ -230,11 +230,12 @@ function loadImage(src){
   });
 }
 let iconsRunning = false;
+const ICONS_VERSION = 4;
 async function syncAppIcons(){
   const st = STORE.settings || {}, logo = st.logo;
   if(iconsRunning || !isAdmin() || !AUTH.sb) return;
   if(!logo){ if(st.appIcons) saveSettings({appIcons:null}); return }
-  if(!isMediaUrl(logo) || (st.appIcons && st.appIcons.from===logo)) return;
+  if(!isMediaUrl(logo) || (st.appIcons && st.appIcons.from===logo && st.appIcons.v===ICONS_VERSION)) return;
   iconsRunning = true;
   try{
     // Redraw from the original picture and saved crop for sharp large icons; fall back to the logo itself.
@@ -243,16 +244,24 @@ async function syncAppIcons(){
       if(!st.logoSrc || !st.logoCrop) throw new Error('no source');
       const img = await loadImage(st.logoSrc);
       art = document.createElement('canvas'); art.width = art.height = 1024;
-      paintCrop({img, opts:LOGO_OPTS, zoom:st.logoCrop.zoom||1, x:st.logoCrop.x||0, y:st.logoCrop.y||0, ready:true}, art.getContext('2d'), 1024, null);
+      paintCrop({img, opts:LOGO_OPTS, zoom:st.logoCrop.zoom||1, x:st.logoCrop.x||0, y:st.logoCrop.y||0, ready:true}, art.getContext('2d'), 1024, 1024, null);
     }catch{ art = await loadImage(logo) }
     const draw = (size, scale)=>{
       const c = document.createElement('canvas'); c.width = c.height = size;
       const g = c.getContext('2d'); g.fillStyle = '#0B1B3F'; g.fillRect(0, 0, size, size);
       g.imageSmoothingQuality = 'high';
-      const s = size*scale; g.drawImage(art, (size-s)/2, (size-s)/2, s, s);
+      if(scale>=1){ g.drawImage(art, 0, 0, size, size); return c.toDataURL('image/png') }
+      // Android shapes crop the edges: blurred logo colours behind, the logo smaller on top with soft edges.
+      g.filter = 'blur(24px)'; g.drawImage(art, -size*0.15, -size*0.15, size*1.3, size*1.3); g.filter = 'none';
+      const sz = Math.round(size*scale), t = document.createElement('canvas'); t.width = t.height = sz;
+      const tg = t.getContext('2d'); tg.drawImage(art, 0, 0, sz, sz);
+      const fade = tg.createRadialGradient(sz/2, sz/2, sz*0.36, sz/2, sz/2, sz*0.5);
+      fade.addColorStop(0, 'rgba(0,0,0,1)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+      tg.globalCompositeOperation = 'destination-in'; tg.fillStyle = fade; tg.fillRect(0, 0, sz, sz);
+      g.drawImage(t, (size-sz)/2, (size-sz)/2);
       return c.toDataURL('image/png');
     };
-    const icons = {from:logo};
+    const icons = {from:logo, v:ICONS_VERSION};
     for(const [key, size, scale] of [['192',192,1], ['512',512,1], ['mask',512,0.8], ['180',180,1], ['32',32,1]]){
       icons[key] = await uploadDataUrl(draw(size, scale), 'app');
     }
