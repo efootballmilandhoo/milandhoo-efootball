@@ -3,8 +3,8 @@
    - Libraries and fonts from CDNs, and pictures from Supabase Storage, are cached after first use.
    - Live data (Supabase API and realtime) always goes to the network.
    - Push notifications. */
-const VERSION = 'd8c5c613bc';
-const PRECACHE = ["/", "/assets/app.439d134c5e.css", "/assets/app.27a868e1fa.js", "/manifest.webmanifest", "/icons/icon-192.png?v=2", "/icons/icon-512.png?v=2", "/icons/badge-96.png?v=2", "/icons/apple-touch-icon.png?v=2", "/icons/favicon-32.png?v=2"];
+const VERSION = 'dc6ff13899';
+const PRECACHE = ["/", "/assets/app.3f5886cdc5.css", "/assets/app.a086ebeb1e.js", "/manifest.webmanifest", "/icons/icon-192.png?v=2", "/icons/icon-512.png?v=2", "/icons/badge-96.png?v=2", "/icons/apple-touch-icon.png?v=2", "/icons/favicon-32.png?v=2"];
 const SHELL = 'shell-' + VERSION;
 const RUNTIME = 'runtime-v1';
 const IMAGES = 'images-v1';

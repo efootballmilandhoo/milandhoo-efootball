@@ -152,6 +152,7 @@ async function offloadImages(){
       if(isDataImg(v)){ const url = await uploadDataUrl(v, 'brand'); if(STORE[k].image===v) savePicDoc(k, url) }
     }
     offloadFails = 0;
+    await syncAppIcons();
   }catch(e){ offloadFails++; console.warn('Picture upload paused', e); if(offloadFails<=3) scheduleOffload(15000*offloadFails) }
   finally{ offloadRunning = false }
 }
@@ -203,3 +204,59 @@ function watchForUpdates(reg){
 /* Writes wait until live data has arrived (see markLive). */
 let liveResolve = null;
 const LIVE_READY = new Promise(r=>{ liveResolve = r });
+
+/* PDF library, loaded only when someone exports a PDF. */
+let pdfLoading = null;
+function ensureJsPDF(){
+  if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve(true);
+  if(!pdfLoading){
+    pdfLoading = loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      .catch(()=>loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'))
+      .then(()=>!!(window.jspdf && window.jspdf.jsPDF), ()=>false)
+      .then(ok=>{ if(!ok) pdfLoading = null; return ok });
+  }
+  return pdfLoading;
+}
+
+/* ---- Home-screen icon follows the community logo ----
+   Icons are drawn from the logo (on the navy brand colour), stored in Supabase Storage,
+   and served to phones through the app-icon function named in the manifest. */
+function loadImage(src){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    if(/^https?:/.test(src)) img.crossOrigin = 'anonymous';
+    img.onload = ()=>resolve(img); img.onerror = ()=>reject(new Error('image'));
+    img.src = src;
+  });
+}
+let iconsRunning = false;
+async function syncAppIcons(){
+  const st = STORE.settings || {}, logo = st.logo;
+  if(iconsRunning || !isAdmin() || !AUTH.sb) return;
+  if(!logo){ if(st.appIcons) saveSettings({appIcons:null}); return }
+  if(!isMediaUrl(logo) || (st.appIcons && st.appIcons.from===logo)) return;
+  iconsRunning = true;
+  try{
+    // Redraw from the original picture and saved crop for sharp large icons; fall back to the logo itself.
+    let art;
+    try{
+      if(!st.logoSrc || !st.logoCrop) throw new Error('no source');
+      const img = await loadImage(st.logoSrc);
+      art = document.createElement('canvas'); art.width = art.height = 1024;
+      paintCrop({img, opts:LOGO_OPTS, zoom:st.logoCrop.zoom||1, x:st.logoCrop.x||0, y:st.logoCrop.y||0, ready:true}, art.getContext('2d'), 1024, null);
+    }catch{ art = await loadImage(logo) }
+    const draw = (size, scale)=>{
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const g = c.getContext('2d'); g.fillStyle = '#0B1B3F'; g.fillRect(0, 0, size, size);
+      g.imageSmoothingQuality = 'high';
+      const s = size*scale; g.drawImage(art, (size-s)/2, (size-s)/2, s, s);
+      return c.toDataURL('image/png');
+    };
+    const icons = {from:logo};
+    for(const [key, size, scale] of [['192',192,1], ['512',512,1], ['mask',512,0.8], ['180',180,1], ['32',32,1]]){
+      icons[key] = await uploadDataUrl(draw(size, scale), 'app');
+    }
+    if((STORE.settings||{}).logo===logo) saveSettings({appIcons:icons});
+  }catch(e){ console.warn('Home-screen icon not updated', e) }
+  finally{ iconsRunning = false }
+}

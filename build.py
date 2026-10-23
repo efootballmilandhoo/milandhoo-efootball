@@ -83,15 +83,15 @@ def build():
 <meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.">
 <meta name="theme-color" content="#0B1B3F">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=2">
+<link rel="icon" type="image/png" sizes="32x32" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=32">
+<link rel="apple-touch-icon" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=180">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="MG Efootball">
 <meta property="og:title" content="MG Efootball">
 <meta property="og:description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame.">
-<meta property="og:image" content="/icons/icon-512.png?v=2">
+<meta property="og:image" content="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=512">
 <link rel="preconnect" href="https://pdgkxbkxpzinlbyedvco.supabase.co" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>

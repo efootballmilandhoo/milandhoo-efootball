@@ -216,3 +216,17 @@
     #main .reg-table .rg-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     #main .reg-table .player-avatar{width:30px !important;height:30px !important}
   }
+
+  /* Exports: logos sit straight on the header, no white frame */
+  .xs-clogo .logo-mark.has-img{background:transparent;padding:0}
+  .xs-tlogo{background:transparent;padding:0}
+  .xs-tlogo img, .xs-clogo .logo-mark img{object-fit:cover}
+
+  /* Export format choice */
+  .export-choice{display:grid;gap:12px}
+  .export-option{display:grid;grid-template-columns:40px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:2px;align-items:center;text-align:left;padding:16px;border-radius:14px;border:1px solid var(--border);background:var(--surface);cursor:pointer;color:var(--ink);transition:border-color .15s, background-color .15s, transform .15s}
+  .export-option:hover{border-color:var(--primary);background:var(--primary-tint)}
+  .export-option:active{transform:scale(.98)}
+  .export-option svg{grid-row:1 / span 2;width:40px;height:40px;padding:10px;border-radius:12px;background:var(--primary-tint);color:var(--primary);box-sizing:border-box}
+  .export-option b{font-size:15px}
+  .export-option span{font-size:13px;color:var(--muted);line-height:1.4}

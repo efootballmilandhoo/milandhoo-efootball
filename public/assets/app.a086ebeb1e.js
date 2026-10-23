@@ -1098,18 +1098,44 @@ async function sheetReady(sheet){
   if(document.fonts && document.fonts.ready) await document.fonts.ready;
 }
 const EXPORT_SCALE = 2;
+function sheetCanvas(sheet, W, H, scale){
+  return html2canvas(sheet, { backgroundColor:'#EEF2F8', scale, useCORS:true, logging:false, width:W, height:H, windowWidth:Math.max(W+40, 1280), windowHeight:H+40 });
+}
 async function captureSheet(sheet, filename, W, H, scale){
-  const canvas = await html2canvas(sheet, { backgroundColor:'#EEF2F8', scale, useCORS:true, logging:false, width:W, height:H, windowWidth:Math.max(W+40, 1280), windowHeight:H+40 });
+  const canvas = await sheetCanvas(sheet, W, H, scale);
   const blob = await new Promise(r=>canvas.toBlob(r, 'image/jpeg', 0.94));
   if(!blob) throw new Error('empty');
   await saveFile(`${filename}.jpeg`, blob);
 }
+/* Asks whether to save the export as images or as one PDF. */
+function chooseExportFormat(pages){
+  return new Promise(resolve=>{
+    let done = false;
+    const finish = v=>{ if(done) return; done = true; window.__exportPick = null; closeModal(); resolve(v) };
+    window.__exportPick = finish;
+    openModal(`
+      <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">✕</button></div>
+      <div class="modal-body">
+        <div class="export-choice">
+          <button type="button" class="export-option" onclick="__exportPick('jpeg')">${ICON.image}<b>Image (JPEG)</b><span>${pages>1?`${pages} images, one per page`:'One image'}. Best for WhatsApp, Instagram and Viber.</span></button>
+          <button type="button" class="export-option" onclick="__exportPick('pdf')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><b>PDF document</b><span>${pages>1?`One file with all ${pages} pages`:'One page'}. Best for printing and sharing as a file.</span></button>
+        </div>
+      </div>`);
+    const ov = document.getElementById('modal');
+    const prev = ov.onclick; ov.onclick = e=>{ if(e.target===ov) finish(null); else if(prev) prev(e) };
+  });
+}
 async function renderSheet(html, width, filename){ return renderSheets([html], width, filename) }
 /* Every page of one export gets the same width, height and resolution; the footer sits at the bottom. */
 async function renderSheets(pages, width, base){
-  if(typeof html2canvas !== 'function'){ toast('Preparing image export…'); await ensureHtml2canvas() }
-  if(typeof html2canvas !== 'function'){ toast('Image export is unavailable right now. Check your connection and try again.', true); return }
-  toast(pages.length>1 ? `Generating ${pages.length} pages…` : 'Generating image…');
+  const ready = ensureHtml2canvas();
+  const format = await chooseExportFormat(pages.length);
+  if(!format) return;
+  const pdfReady = format==='pdf' ? ensureJsPDF() : null;
+  if(typeof html2canvas !== 'function'){ toast('Preparing export…'); await ready }
+  if(typeof html2canvas !== 'function'){ toast('Export is unavailable right now. Check your connection and try again.', true); return }
+  if(pdfReady && !(await pdfReady)){ toast('PDF export is unavailable right now. Check your connection and try again.', true); return }
+  toast(pages.length>1 ? `Generating ${pages.length} pages…` : (format==='pdf' ? 'Generating PDF…' : 'Generating image…'));
   const built = pages.map(html=>buildSheet(html, width));
   try{
     for(const b of built) await sheetReady(b.sheet);
@@ -1118,11 +1144,23 @@ async function renderSheets(pages, width, base){
     const H = Math.ceil(Math.max(...built.map(b=>b.sheet.scrollHeight)));
     built.forEach(b=>{ b.sheet.style.height = H+'px' });
     const scale = Math.max(1, Math.min(EXPORT_SCALE, 15000 / Math.max(W, H)));
-    for(let i=0;i<built.length;i++){
-      if(built.length>1) toast(`Generating page ${i+1} of ${built.length}…`);
-      await captureSheet(built[i].sheet, built.length>1 ? `${base}_page${i+1}` : base, W, H, scale);
+    if(format==='pdf'){
+      const pdf = new window.jspdf.jsPDF({orientation: W>H ? 'landscape' : 'portrait', unit:'px', format:[W, H], hotfixes:['px_scaling'], compress:true});
+      for(let i=0;i<built.length;i++){
+        if(built.length>1) toast(`Generating page ${i+1} of ${built.length}…`);
+        const canvas = await sheetCanvas(built[i].sheet, W, H, scale);
+        if(i>0) pdf.addPage([W, H], W>H ? 'landscape' : 'portrait');
+        pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, W, H, undefined, 'FAST');
+      }
+      await saveFile(`${base}.pdf`, pdf.output('blob'));
+      if(built.length>1) toast(`Exported one PDF with ${built.length} pages`);
+    } else {
+      for(let i=0;i<built.length;i++){
+        if(built.length>1) toast(`Generating page ${i+1} of ${built.length}…`);
+        await captureSheet(built[i].sheet, built.length>1 ? `${base}_page${i+1}` : base, W, H, scale);
+      }
+      if(built.length>1) toast(`Exported ${built.length} pages, all the same size`);
     }
-    if(built.length>1) toast(`Exported ${built.length} pages, all the same size`);
   }catch(e){ console.error(e); toast('Export failed. Try again.', true) }
   finally{ built.forEach(b=>b.host.remove()) }
 }
@@ -1229,6 +1267,7 @@ function exportAsJPEG(elementId, filename){
     const pid = document.getElementById('pv_select')?.value;
     return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename);
   }
+  if(elementId==='leaderboardExport') return exportLeaderboardSheet();
   return exportGenericSheet(el, null, 'Community Leaderboard', `Ranked by titles, then wins, then win rate · ${fmtDate(new Date())}`, filename);
 }
 
@@ -1652,7 +1691,7 @@ const IMG_SIZES = {
   hofcover: {w:1400, h:400, minW:1050, minH:300, ratio:'7:2 (wide)', fmt:'JPG', label:'Hall of Fame picture'}
 };
 const PHOTO_OPTS = {shape:'circle', fit:'cover', out:256, rec:IMG_SIZES.photo};
-const LOGO_OPTS = {shape:'square', fit:'contain', out:256, rec:IMG_SIZES.logo};
+const LOGO_OPTS = {shape:'square', fit:'contain', out:512, rec:IMG_SIZES.logo};
 
 function openPlayerModal(id){
   if(!isAdmin()){ toast('Admin access required', true); return }
@@ -2190,7 +2229,7 @@ function renderRegistrationTab(t, admin){
       <div class="flex-between">
         <div><h2 class="card-title">Registered Players</h2><div class="page-sub">${admin?'Choose who plays. Groups are split as evenly as possible.':'Players taking part in this tournament.'}</div></div>
         <div class="toolbar-actions">
-          ${(t.registrations||[]).length ? `<button type="button" class="btn-icon-square" onclick="exportParticipantsSheet('${t.id}')" aria-label="Export players as JPEG" title="Export players as JPEG">${ICON_DL}</button>` : ''}
+          ${(t.registrations||[]).length ? `<button type="button" class="btn-icon-square" onclick="exportParticipantsSheet('${t.id}')" aria-label="Export players (image or PDF)" title="Export players (image or PDF)">${ICON_DL}</button>` : ''}
           ${admin && t.status!=='completed' ? `${drawn ? `<button type="button" class="btn btn-secondary" onclick="redraw('${t.id}')">Redraw</button>`:''}
           <button type="button" class="btn btn-primary" onclick="openCheckboxRegisterModal('${t.id}')">Manage players</button>` : ''}
         </div>
@@ -2369,7 +2408,7 @@ function renderStandingsTab(t, admin, canEditScores){
       ${content}
       <div class="section-foot" style="margin-top:14px">
         <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span>
-        <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} Export standings (JPEG)</button>
+        <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} Export standings</button>
       </div>
     </section>
     ${admin && canEditScores ? `<div class="config-helper">Enter scores on the <strong>Fixtures</strong> tab; the table updates instantly.</div>`:''}`;
@@ -2427,7 +2466,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
         </table>
       </div>
       <div class="section-foot no-export" style="justify-content:flex-end">
-        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} Export fixtures (JPEG)</button>
+        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} Export fixtures</button>
       </div>
     </section>`;
 }
@@ -2537,7 +2576,7 @@ function renderKnockoutTab(t, admin, canEditScores){
         <span class="page-sub">${koLabel(t.knockoutFormat)}${t.format==='group_knockout'?` · ${t.seeding==='random'?'Random draw':'Seeded by group finish'} · no first-round tie pairs players from the same group`:''}</span>
         <div class="toolbar-actions">
           ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-secondary" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}
-          <button type="button" class="btn btn-primary" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Export full bracket (JPEG)</button>
+          <button type="button" class="btn btn-primary" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Export full bracket</button>
         </div>
       </div>
       ${bracketHTML(t, admin)}
@@ -2897,7 +2936,7 @@ function renderPlayerViewTab(t){
       <div class="export-header"><div class="export-title">${esc(p.name)}</div><div class="export-subtitle">${esc(t.name)}</div></div>
       <div class="card-head no-export" style="margin:0">
         <h2 class="card-title">${esc(p.name)}'s fixtures</h2>
-        <button type="button" class="export-btn" onclick="exportAsJPEG('playerFixturesExport','${slug(p.name)}_fixtures')">${ICON_DL} Export JPEG</button>
+        <button type="button" class="export-btn" onclick="exportAsJPEG('playerFixturesExport','${slug(p.name)}_fixtures')">${ICON_DL} Export</button>
       </div>
       ${fixtures.length===0 ? `<div class="empty"><div class="empty-title">No fixtures yet</div><div class="text-sm">Fixtures appear when the tournament starts.</div></div>` : `
       <div class="table-wrap"><table class="fx-table">
@@ -2992,7 +3031,7 @@ function rulesSectionHTML(t, sec, admin){
     <div class="rules-card-head">
       <span class="rules-chip">${esc(sec.title)}</span>
       <span class="rules-card-actions no-export">
-        ${has ? `<button type="button" class="btn-icon-square" onclick="exportRulesSheet('${t.id}','${sec.key}')" aria-label="Export ${esc(sec.title)} rules as JPEG" title="Export ${esc(sec.title)} as JPEG">${ICON_DL}</button>` : ''}
+        ${has ? `<button type="button" class="btn-icon-square" onclick="exportRulesSheet('${t.id}','${sec.key}')" aria-label="Export ${esc(sec.title)} rules (image or PDF)" title="Export ${esc(sec.title)} (image or PDF)">${ICON_DL}</button>` : ''}
         ${admin ? `<button type="button" class="btn btn-primary btn-sm" style="min-height:44px" onclick="openRulesModal('${t.id}','${sec.key}')">${has?'Edit':'Add rules'}</button>` : ''}
       </span>
     </div>
@@ -3255,7 +3294,7 @@ function renderHallOfFame(){
         </select>
       </div>
       <div class="hof-bar-actions">
-        ${list.length ? `<button type="button" class="btn-icon-square" onclick="exportHofSheet()" aria-label="Export as JPEG" title="Export as JPEG">${ICON_DL}</button>` : ''}
+        ${list.length ? `<button type="button" class="btn-icon-square" onclick="exportHofSheet()" aria-label="Export (image or PDF)" title="Export (image or PDF)">${ICON_DL}</button>` : ''}
         ${admin && completedWithPlacings.length ? `<button type="button" class="btn btn-secondary" onclick="importHofFromTournaments()">Import</button>` : ''}
         ${admin ? `<button type="button" class="btn btn-primary" onclick="openHofModal()">${ICON.plus} Add</button>` : ''}
       </div>
@@ -3410,14 +3449,21 @@ function renderLeaderboard(){
       <div class="export-header"><div class="export-title">${esc(titleCase(commName()))} · Leaderboard</div><div class="export-subtitle">Rankings as of ${fmtDate(new Date())}</div></div>
       <div class="flex-between no-export">
         <div class="flex gap-8" style="align-items:center;flex-wrap:wrap">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by titles, then wins, then win rate</span></div>
-        <button type="button" class="export-btn" onclick="exportAsJPEG('leaderboardExport','milandhoo_leaderboard')">${ICON_DL} Export leaderboard (JPEG)</button>
+        <button type="button" class="export-btn" onclick="exportAsJPEG('leaderboardExport','milandhoo_leaderboard')">${ICON_DL} Export leaderboard</button>
       </div>
-      <div class="table-wrap">
+      <div class="table-wrap">${lbTable(enriched, 0)}</div>
+      <div class="table-hint no-export">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
+    </section>`;
+}
+
+/* The leaderboard table: used on the page and, 10 players per page, in the export. */
+function lbTable(rows, offset){
+  return `
         <table class="group-table lb-table">
           <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">2nd</th><th scope="col">3rd</th><th scope="col">Titles</th></tr></thead>
           <tbody>
-            ${enriched.length===0 ? `<tr><td colspan="11" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
-              enriched.map((x,i)=>{ const gd = x.s.gf-x.s.ga; return `
+            ${rows.length===0 ? `<tr><td colspan="11" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
+              rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; return `
                 <tr class="${i<3 && x.s.matches?'qualify':''}">
                   <td><span class="rank-badge ${rankClass(i)}">${i+1}</span></td>
                   <td><span class="who">${renderAvatar(x.p, 34)}<span style="min-width:0">${esc(x.p.name)}</span></span></td>
@@ -3429,10 +3475,15 @@ function renderLeaderboard(){
                   <td>${x.s.tourneyWins>0 ? `<span class="badge badge-draft">${x.s.tourneyWins}</span>` : '0'}</td>
                 </tr>`}).join('')}
           </tbody>
-        </table>
-      </div>
-      <div class="table-hint no-export">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
-    </section>`;
+        </table>`;
+}
+const LB_PER_PAGE = 10;
+function exportLeaderboardSheet(){
+  const enriched = rankPlayers(calculateAllStats());
+  const parts = chunk(enriched, LB_PER_PAGE);
+  const pages = parts.map((part, i)=> sheetHeader(null, 'Community Leaderboard', `Ranked by titles, then wins, then win rate · ${fmtDate(new Date())}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''}`)
+    + `<div class="xs-card">${lbTable(part, i*LB_PER_PAGE)}</div>` + sheetFoot(i+1, parts.length));
+  return renderSheets(pages, 900, 'milandhoo_leaderboard');
 }
 
 /* =========================
@@ -3582,8 +3633,9 @@ function saveName(){
 function saveCommunityLogo(){
   const v = imageFieldValue('clogo');
   if(v===undefined){ closeModal(); return }
-  if(v===null) saveSettings({logo:null, logoSrc:null, logoCrop:null});
+  if(v===null) saveSettings({logo:null, logoSrc:null, logoCrop:null, appIcons:null});
   else saveSettings({logo:v.image, logoSrc:v.src, logoCrop:v.crop});
+  scheduleOffload(800);
   closeModal();
   rerender();
   toast(v ? 'Community logo updated' : 'Community logo removed');
@@ -3911,6 +3963,7 @@ async function offloadImages(){
       if(isDataImg(v)){ const url = await uploadDataUrl(v, 'brand'); if(STORE[k].image===v) savePicDoc(k, url) }
     }
     offloadFails = 0;
+    await syncAppIcons();
   }catch(e){ offloadFails++; console.warn('Picture upload paused', e); if(offloadFails<=3) scheduleOffload(15000*offloadFails) }
   finally{ offloadRunning = false }
 }
@@ -3962,6 +4015,62 @@ function watchForUpdates(reg){
 /* Writes wait until live data has arrived (see markLive). */
 let liveResolve = null;
 const LIVE_READY = new Promise(r=>{ liveResolve = r });
+
+/* PDF library, loaded only when someone exports a PDF. */
+let pdfLoading = null;
+function ensureJsPDF(){
+  if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve(true);
+  if(!pdfLoading){
+    pdfLoading = loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+      .catch(()=>loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'))
+      .then(()=>!!(window.jspdf && window.jspdf.jsPDF), ()=>false)
+      .then(ok=>{ if(!ok) pdfLoading = null; return ok });
+  }
+  return pdfLoading;
+}
+
+/* ---- Home-screen icon follows the community logo ----
+   Icons are drawn from the logo (on the navy brand colour), stored in Supabase Storage,
+   and served to phones through the app-icon function named in the manifest. */
+function loadImage(src){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    if(/^https?:/.test(src)) img.crossOrigin = 'anonymous';
+    img.onload = ()=>resolve(img); img.onerror = ()=>reject(new Error('image'));
+    img.src = src;
+  });
+}
+let iconsRunning = false;
+async function syncAppIcons(){
+  const st = STORE.settings || {}, logo = st.logo;
+  if(iconsRunning || !isAdmin() || !AUTH.sb) return;
+  if(!logo){ if(st.appIcons) saveSettings({appIcons:null}); return }
+  if(!isMediaUrl(logo) || (st.appIcons && st.appIcons.from===logo)) return;
+  iconsRunning = true;
+  try{
+    // Redraw from the original picture and saved crop for sharp large icons; fall back to the logo itself.
+    let art;
+    try{
+      if(!st.logoSrc || !st.logoCrop) throw new Error('no source');
+      const img = await loadImage(st.logoSrc);
+      art = document.createElement('canvas'); art.width = art.height = 1024;
+      paintCrop({img, opts:LOGO_OPTS, zoom:st.logoCrop.zoom||1, x:st.logoCrop.x||0, y:st.logoCrop.y||0, ready:true}, art.getContext('2d'), 1024, null);
+    }catch{ art = await loadImage(logo) }
+    const draw = (size, scale)=>{
+      const c = document.createElement('canvas'); c.width = c.height = size;
+      const g = c.getContext('2d'); g.fillStyle = '#0B1B3F'; g.fillRect(0, 0, size, size);
+      g.imageSmoothingQuality = 'high';
+      const s = size*scale; g.drawImage(art, (size-s)/2, (size-s)/2, s, s);
+      return c.toDataURL('image/png');
+    };
+    const icons = {from:logo};
+    for(const [key, size, scale] of [['192',192,1], ['512',512,1], ['mask',512,0.8], ['180',180,1], ['32',32,1]]){
+      icons[key] = await uploadDataUrl(draw(size, scale), 'app');
+    }
+    if((STORE.settings||{}).logo===logo) saveSettings({appIcons:icons});
+  }catch(e){ console.warn('Home-screen icon not updated', e) }
+  finally{ iconsRunning = false }
+}
 
 
 /* =========================
