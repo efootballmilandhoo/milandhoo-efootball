@@ -1,5 +1,8 @@
-// Sends web push notifications when tournaments or Hall of Fame entries change.
-// Called by the docs_notify database trigger (pg_net) with a shared secret header.
+// Sends web push notifications.
+// 1. Tournament changes: called by the docs_notify database trigger (pg_net).
+// 2. Deadline reminders: called every 5 minutes by pg_cron with {"kind":"reminders"}.
+//    Sends one reminder 2 hours before the group-stage deadline and before each knockout round deadline.
+// Both callers send the shared secret in the x-hook-secret header.
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
@@ -8,6 +11,10 @@ const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 type Obj = Record<string, any>;
 const has = (v: unknown) => v !== null && v !== undefined && v !== "";
 const RECENT_MS = 60 * 60 * 1000;
+const REMIND_MS = 2 * 60 * 60 * 1000;
+// Deadlines are saved without a time zone, in the organisers' local time (Maldives, UTC+5).
+const LOCAL_OFFSET = "+05:00";
+const LOCAL_TZ = "Indian/Maldives";
 
 let secretsCache: Obj | null = null;
 async function secrets() {
@@ -38,18 +45,26 @@ function koScore(fmt: string, m: Obj): string {
   return ` ${pick(a, b)}${fmt === "2leg" ? " agg" : ""}${tb}${pens}`;
 }
 
+// Same order as the app's standings: points, goal difference, goals scored, wins.
+function groupTable(t: Obj, g: Obj) {
+  const rows: Record<string, Obj> = {};
+  (g.players || []).forEach((p: Obj) => { rows[p.playerId] = { id: p.playerId, pts: 0, gf: 0, ga: 0, w: 0 }; });
+  (t.fixtures || []).forEach((f: Obj) => {
+    if (f.group !== g.name || !has(f.score1) || !has(f.score2)) return;
+    const a = rows[f.team1], b = rows[f.team2]; if (!a || !b) return;
+    const s1 = Number(f.score1), s2 = Number(f.score2);
+    a.gf += s1; a.ga += s2; b.gf += s2; b.ga += s1;
+    if (s1 > s2) { a.pts += 3; a.w++; } else if (s2 > s1) { b.pts += 3; b.w++; } else { a.pts++; b.pts++; }
+  });
+  return Object.values(rows).sort((x, y) => y.pts - x.pts || (y.gf - y.ga) - (x.gf - x.ga) || y.gf - x.gf || y.w - x.w);
+}
+
 async function eventsFor(body: Obj): Promise<Obj[]> {
   const { coll, id, old: o, new: n } = body;
   const out: Obj[] = [];
   if (!n) return out;
   const fresh = (iso?: string) => !iso || Date.now() - Date.parse(iso) < RECENT_MS;
-  if (coll === "halloffame") {
-    if (o || !fresh(n.createdAt)) return out;
-    const label = n.type === "champion" ? "Champion" : n.type === "runner_up" ? "Runner-up" : n.type === "third" ? "Third place" : (n.title || "Award");
-    const nm = n.playerName || (await names())[n.playerId] || "A player";
-    out.push({ title: `Hall of Fame: ${nm}`, body: `${label}${n.tournament ? " · " + n.tournament : ""}`, url: "/#halloffame", tag: "hof-" + id });
-    return out;
-  }
+  // Hall of Fame changes are not announced.
   if (coll !== "tournaments" || n.status === "draft") return out;
   const tn = n.name || "Tournament";
   const url = `/#t=${id}`;
@@ -66,12 +81,24 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
   const P = (pid: string) => nm[pid] || "TBD";
   const oldFx = new Map((o.fixtures || []).map((f: Obj) => [f.id, f]));
   const results: Obj[] = [];
+  // Group-stage matches are not announced one by one; a group is announced once all its fixtures have scores.
+  const quietGroups = n.format === "group_knockout";
   (n.fixtures || []).forEach((f: Obj) => {
+    if (quietGroups && f.group) return;
     if (!has(f.score1) || !has(f.score2)) return;
     const p = oldFx.get(f.id) as Obj | undefined;
     if (p && p.score1 === f.score1 && p.score2 === f.score2) return;
     results.push({ title: `${P(f.team1)} ${f.score1}–${f.score2} ${P(f.team2)}`, body: `${tn}${f.group ? " · Group " + f.group : ""}` });
   });
+  if (quietGroups) {
+    const done = (t: Obj, g: string) => { const fx = (t.fixtures || []).filter((f: Obj) => f.group === g); return fx.length > 0 && fx.every((f: Obj) => has(f.score1) && has(f.score2)); };
+    (n.groupData || []).forEach((g: Obj) => {
+      if (!done(n, g.name) || done(o, g.name)) return;
+      const q = Math.max(1, Number(n.qualifyPerGroup) || 1);
+      const top = groupTable(n, g).slice(0, q).map((r) => P(r.id));
+      out.push({ title: `${tn}: Group ${g.name} is complete`, body: top.length ? `Through to the knockouts: ${top.join(", ")}` : "See the final group standings", url, tag: `grp-${id}-${g.name}` });
+    });
+  }
   const oldKo = new Map(((o.knockoutBracket || []).flat()).map((m: Obj) => [m.id, m]));
   ((n.knockoutBracket || []).flat()).forEach((m: Obj) => {
     if (m.isBye || !m.winner || !m.team1 || !m.team2) return;
@@ -87,12 +114,70 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
   return out;
 }
 
+/* ---- Deadline reminders ---- */
+function deadlineMs(v: unknown): number {
+  if (!has(v)) return NaN;
+  const s = String(v);
+  const withZone = /([zZ]|[+-]\d\d:?\d\d)$/.test(s) ? s : (s.length === 16 ? s + ":00" : s) + LOCAL_OFFSET;
+  return Date.parse(withZone);
+}
+const clock = (ms: number) => new Date(ms).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: LOCAL_TZ });
+
+// Reminders whose deadline is between now and 2 hours from now, for stages that still have matches to play.
+async function dueReminders(): Promise<Obj[]> {
+  const now = Date.now();
+  const soon = (ms: number) => Number.isFinite(ms) && ms > now && ms - now <= REMIND_MS;
+  const { data } = await sb.from("docs").select("id,data").eq("coll", "tournaments");
+  const out: Obj[] = [];
+  for (const row of data || []) {
+    const t: Obj = row.data || {};
+    if (t.status !== "active") continue;
+    const tn = t.name || "Tournament";
+    const url = `/#t=${row.id}`;
+    const isLeague = t.format === "league";
+
+    const gd = deadlineMs(t.groupDeadline);
+    if (t.format !== "single_elimination" && soon(gd) && !t.deadlineProcessed) {
+      const left = (t.fixtures || []).filter((f: Obj) => (isLeague || f.group) && !(has(f.score1) && has(f.score2))).length;
+      if (left) out.push({
+        key: `g:${row.id}:${t.groupDeadline}`,
+        title: `⏰ 2 hours left: ${tn}`,
+        body: `${isLeague ? "League" : "Group stage"} deadline is ${clock(gd)}. ${left} match${left > 1 ? "es" : ""} still to play; unplayed matches count as 0-0 draws.`,
+        url, tag: `dl-${row.id}-group`,
+      });
+    }
+
+    const dls: Obj = t.rules?.roundDeadlines || {};
+    const rounds: Obj[][] = t.knockoutBracket || [];
+    for (const [round, val] of Object.entries(dls)) {
+      const ms = deadlineMs(val);
+      if (!soon(ms)) continue;
+      const matches = rounds.find((r) => r?.[0]?.round === round) || [];
+      const left = matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).length;
+      if (!left) continue;
+      out.push({
+        key: `k:${row.id}:${round}:${val}`,
+        title: `⏰ 2 hours left: ${tn} · ${round}`,
+        body: `${round} deadline is ${clock(ms)}. ${left} match${left > 1 ? "es" : ""} still to be played.`,
+        url, tag: `dl-${row.id}-${round}`,
+      });
+    }
+  }
+  if (!out.length) return out;
+  // Each reminder is sent once; a changed deadline gives a new key and a new reminder.
+  const { data: sent } = await sb.from("deadline_reminders").select("key").in("key", out.map((r) => r.key));
+  const done = new Set((sent || []).map((r: Obj) => r.key));
+  const due = out.filter((r) => !done.has(r.key));
+  if (due.length) await sb.from("deadline_reminders").insert(due.map((r) => ({ key: r.key })));
+  return due.map(({ key: _k, ...ev }) => ev);
+}
+
 Deno.serve(async (req) => {
   try {
     const s = await secrets();
     if (req.method !== "POST" || req.headers.get("x-hook-secret") !== s.hook_secret) return new Response("forbidden", { status: 403 });
     const body = await req.json();
-    const events = await eventsFor(body);
+    const events = body?.kind === "reminders" ? await dueReminders() : await eventsFor(body);
     if (!events.length) return Response.json({ sent: 0 });
     webpush.setVapidDetails(s.vapid_subject, s.vapid_public, s.vapid_private);
     const { data: subs } = await sb.from("push_subscriptions").select("endpoint,p256dh,auth");
@@ -102,7 +187,7 @@ Deno.serve(async (req) => {
       const payload = JSON.stringify(ev);
       await Promise.all((subs || []).map(async (sub: Obj) => {
         try {
-          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: 60 * 60 * 24, urgency: "normal" });
+          await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload, { TTL: body?.kind === "reminders" ? 60 * 60 : 60 * 60 * 24, urgency: body?.kind === "reminders" ? "high" : "normal" });
           sent++;
         } catch (e: any) {
           if (e?.statusCode === 404 || e?.statusCode === 410) gone.push(sub.endpoint);

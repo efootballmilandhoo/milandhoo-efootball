@@ -1571,6 +1571,7 @@ const ICON = {
   plus:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   phone:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
   image:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 17l-5-5-8 8"/></svg>',
+  hofEmblem:'<svg width="48" height="48" viewBox="8 6 48 50" aria-hidden="true"><g fill="none" stroke="#FFF7DC" stroke-width="1.8" stroke-linecap="round"><path d="M25.5 52.0A21 21 0 0 1 23.5 12.8"/><path d="M38.5 52.0A21 21 0 0 0 40.5 12.8"/></g><g fill="#FFF7DC"><ellipse cx="42.7" cy="52.0" rx="5.6" ry="2.5" transform="rotate(-180 42.7 52.0)"/><ellipse cx="45.8" cy="41.5" rx="5.3" ry="2.3" transform="rotate(-96 45.8 41.5)"/><ellipse cx="55.1" cy="35.6" rx="4.9" ry="2.2" transform="rotate(-132 55.1 35.6)"/><ellipse cx="50.0" cy="26.9" rx="4.6" ry="2.1" transform="rotate(-48 50.0 26.9)"/><ellipse cx="52.2" cy="16.8" rx="4.3" ry="1.9" transform="rotate(-84 52.2 16.8)"/><ellipse cx="42.3" cy="15.6" rx="3.9" ry="1.8" transform="rotate(0 42.3 15.6)"/><ellipse cx="39.2" cy="9.7" rx="2.2" ry="4.2" transform="rotate(20 39.2 9.7)"/><ellipse cx="21.3" cy="52.0" rx="5.6" ry="2.5" transform="rotate(0 21.3 52.0)"/><ellipse cx="18.2" cy="41.5" rx="5.3" ry="2.3" transform="rotate(-84 18.2 41.5)"/><ellipse cx="8.9" cy="35.6" rx="4.9" ry="2.2" transform="rotate(-48 8.9 35.6)"/><ellipse cx="14.0" cy="26.9" rx="4.6" ry="2.1" transform="rotate(-132 14.0 26.9)"/><ellipse cx="11.8" cy="16.8" rx="4.3" ry="1.9" transform="rotate(-96 11.8 16.8)"/><ellipse cx="21.7" cy="15.6" rx="3.9" ry="1.8" transform="rotate(-180 21.7 15.6)"/><ellipse cx="24.8" cy="9.7" rx="2.2" ry="4.2" transform="rotate(-20 24.8 9.7)"/></g><path d="M32.0 19.5L34.7 26.8L42.5 27.1L36.4 31.9L38.5 39.4L32.0 35.1L25.5 39.4L27.6 31.9L21.5 27.1L29.3 26.8z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/><path d="M27 53.5l5-2.6 5 2.6" fill="none" stroke="#FFF7DC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   cup:'<svg width="36" height="36" viewBox="0 0 64 64" aria-hidden="true"><path d="M17 12H9.5a1.5 1.5 0 0 0-1.5 1.5V18c0 7.2 5.4 12.6 12.4 13" fill="none" stroke="#E0A100" stroke-width="4" stroke-linecap="round"/><path d="M47 12h7.5a1.5 1.5 0 0 1 1.5 1.5V18c0 7.2-5.4 12.6-12.4 13" fill="none" stroke="#E0A100" stroke-width="4" stroke-linecap="round"/><path d="M16 7h32v15.5C48 32.2 40.8 40 32 40s-16-7.8-16-17.5V7z" fill="#F5B400"/><path d="M16 7h32v4H16z" fill="#FFCB2E"/><path d="M21.5 13v9c0 5.2 2.6 9.4 6.5 11.4" fill="none" stroke="#FFE68A" stroke-width="2.6" stroke-linecap="round"/><path d="M32 15.5l2.3 4.6 5.1.7-3.7 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1-3.7-3.6 5.1-.7z" fill="#FFF6D6"/><path d="M28.5 40h7l1.5 7h-10z" fill="#D18F00"/><rect x="21" y="47" width="22" height="6" rx="1.5" fill="#B07C00"/><rect x="17" y="53" width="30" height="5" rx="2" fill="#0B1B3F"/></svg>'
 };
 async function copyText(text){
@@ -3487,7 +3488,7 @@ function renderHallOfFame(){
   document.getElementById('main').innerHTML = `
     <section class="hof-hero ${STORE.hofcover?.image?'has-cover':''}" ${cssUrl(STORE.hofcover?.image) ? `style="--cover:${cssUrl(STORE.hofcover.image)}"` : ''}>
       ${admin ? `<button type="button" class="hero-edit" onclick="openPicModal('hofcover')">${ICON.image}<span>${STORE.hofcover?.image?'Change picture':'Add picture'}</span></button>` : ''}
-      <div class="trophy-disc">${ICON.cup}</div>
+      <div class="hof-emblem">${ICON.hofEmblem}</div>
       <div class="hof-hero-text">
         <div class="hof-hero-title">Hall of Fame</div>
         <div class="hof-hero-sub">Podium finishes by ${esc(titleCase(commName()))} players, in our tournaments and other organisers' events.</div>
@@ -4359,8 +4360,21 @@ function deriveEvents(){
     }));
     if(t.status==='completed' && t.champion) ev.push({key:'tc:'+t.id, kind:'champion', title:`${name(t.champion)} won ${tn}!`, sub: t.runnerUp ? `Runner-up: ${name(t.runnerUp)}` : 'Tournament complete', tid:t.id});
   });
-  (STORE.hof||[]).forEach(h=>{
-    ev.push({key:'hf:'+h.id, kind:'hof', title:`Hall of Fame: ${hofPlayer(h).name}`, sub:`${hofTitle(h)}${h.tournament ? ' · '+h.tournament : ''}`, view:'halloffame'});
+  // Deadline reminders: shown once, during the last 2 hours before a deadline with matches still to play.
+  const now = Date.now(), soon = d => { const ms = new Date(d).getTime(); return ms > now && ms - now <= 2*3600e3 };
+  const hhmm = d => new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  STORE.tournaments.forEach(t=>{
+    if(t.status!=='active') return;
+    const tn = t.name || 'Tournament', league = t.format==='league';
+    if(t.format!=='single_elimination' && t.groupDeadline && !t.deadlineProcessed && soon(t.groupDeadline)){
+      const left = (t.fixtures||[]).filter(f=>(league || f.group) && !(hasScore(f.score1) && hasScore(f.score2))).length;
+      if(left) ev.push({key:`dl:g:${t.id}:${t.groupDeadline}`, kind:'reminder', title:`2 hours left: ${tn}`, sub:`${league?'League':'Group stage'} deadline ${hhmm(t.groupDeadline)} · ${left} match${left>1?'es':''} to play`, tid:t.id});
+    }
+    Object.entries(t.rules?.roundDeadlines||{}).forEach(([round, d])=>{
+      if(!d || !soon(d)) return;
+      const ms = ((t.knockoutBracket||[]).find(r=>r?.[0]?.round===round)||[]).filter(m=>!m.isBye && m.team1 && m.team2 && !m.winner).length;
+      if(ms) ev.push({key:`dl:k:${t.id}:${round}:${d}`, kind:'reminder', title:`2 hours left: ${tn} · ${round}`, sub:`Round deadline ${hhmm(d)} · ${ms} match${ms>1?'es':''} to play`, tid:t.id});
+    });
   });
   return ev;
 }
@@ -4395,6 +4409,7 @@ const KIND_ICON = {
   result:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7l3 2.2-1.1 3.6h-3.8L9 9.2z"/></svg>',
   champion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 14v3M8 21h8M9 17h6"/></svg>',
   hof:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg>',
+  reminder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3L2 6M19 3l3 3"/></svg>',
   new:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   start:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l12 8-12 8z"/></svg>',
   draw:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h5v12H4M20 9h-5v6h5M9 12h6"/></svg>'
@@ -4441,7 +4456,7 @@ function renderNotifPanel(){
       </div>
     </div>
     <div class="notif-list">
-      ${NOTIF.feed.length ? NOTIF.feed.map(notifItem).join('') : `<div class="notif-empty">${BELL_SVG}<b>No updates yet</b><span>New tournaments, results, champions and Hall of Fame entries will show up here.</span></div>`}
+      ${NOTIF.feed.length ? NOTIF.feed.map(notifItem).join('') : `<div class="notif-empty">${BELL_SVG}<b>No updates yet</b><span>New tournaments, results, champions and deadline reminders will show up here.</span></div>`}
     </div>
     <div class="notif-foot">
       ${pushControlHTML()}
@@ -4518,7 +4533,7 @@ function openInstallModal(tab){
     <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="seg-tabs" role="tablist">${Object.entries(INSTALL_STEPS).map(([k,v])=>`<button type="button" role="tab" aria-selected="${k===installTab}" class="${k===installTab?'on':''}" onclick="openInstallModal('${k}')">${v.label}</button>`).join('')}</div>
-      <ol class="install-steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+      <ol class="install-steps">${cur.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>
       <div class="link-box">
         <input class="form-input" id="appLink" readonly value="${APP_LINK}" aria-label="App link" onclick="this.select()">
         <button type="button" class="btn btn-primary" onclick="copyAppLink()">Copy link</button>
@@ -4543,7 +4558,7 @@ function installBannerHTML(){
 function hideInstallBanner(){ nsave('install_hide', true); document.getElementById('installBanner')?.remove() }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTIF.open) toggleNotifPanel(false) });
-setInterval(()=>{ if(NOTIF.open) renderNotifPanel() }, 60000);
+setInterval(()=>{ checkUpdates(); if(NOTIF.open) renderNotifPanel() }, 60000);
 
 /* =========================
    MOTION

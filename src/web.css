@@ -20,6 +20,7 @@
   .notif-ic{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--primary-tint);color:var(--primary)}
   .notif-ic svg{width:18px;height:18px}
   .notif-ic.k-champion,.notif-ic.k-hof{background:var(--gold-tint);color:var(--gold-ink)}
+  .notif-ic.k-reminder{background:var(--orange-tint);color:var(--orange-ink)}
   .notif-ic.k-start,.notif-ic.k-draw{background:var(--success-tint);color:var(--success-ink)}
   .notif-ic.k-new{background:var(--purple-tint);color:var(--purple-ink)}
   .notif-txt{display:flex;flex-direction:column;min-width:0;gap:2px}
@@ -59,8 +60,10 @@
   .seg-tabs button{min-height:38px;border:0;border-radius:9px;background:none;font-weight:600;font-size:13px;color:var(--text-2);cursor:pointer;padding:6px 8px;line-height:1.2}
   .seg-tabs button.on{background:var(--surface);color:var(--primary-dark);box-shadow:0 1px 3px rgba(11,27,63,.12)}
   .install-steps{margin:0;padding:0;list-style:none;counter-reset:st;display:flex;flex-direction:column;gap:10px}
-  .install-steps li{counter-increment:st;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start;font-size:14px;line-height:1.5;color:var(--text)}
-  .install-steps li::before{content:counter(st);width:28px;height:28px;border-radius:50%;background:var(--primary-tint);color:var(--primary-dark);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center}
+  .install-steps li{counter-increment:st;display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:center;padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);font-size:14px;line-height:1.55;color:var(--text)}
+  .install-steps li::before{content:counter(st);width:28px;height:28px;border-radius:50%;background:var(--primary);color:#FFFFFF;font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;align-self:start}
+  .install-steps li > span{min-width:0;overflow-wrap:anywhere}
+  .install-steps b{font-weight:700;color:var(--text)}
   .link-box{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
 
   /* ---------- Sign in & organisers ---------- */
@@ -196,3 +199,12 @@
   @media (prefers-reduced-motion: reduce){
     *, *::before, *::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;animation-delay:0s !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
   }
+
+  /* ---------- Hall of Fame emblem ---------- */
+  .hof-emblem{width:76px;height:76px;border-radius:24px;flex:none;position:relative;z-index:1;display:grid;place-items:center;overflow:hidden;
+    background:radial-gradient(120% 90% at 30% 12%,#FFE27A 0%,#F7B500 46%,#D98A00 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.28),inset 0 -6px 14px rgba(140,80,0,.35),0 12px 30px -8px rgba(245,180,0,.6),0 0 0 6px rgba(245,180,0,.12)}
+  .hof-emblem svg{width:74%;height:74%;display:block;filter:drop-shadow(0 1.5px 1px rgba(120,60,0,.45))}
+  .hof-emblem::after{content:"";position:absolute;top:-10%;bottom:-10%;left:0;width:35%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-140%) skewX(-20deg);animation:shine 5s ease-in-out 1s infinite;pointer-events:none}
+  @media(max-width:520px){.hof-emblem{width:64px;height:64px;border-radius:20px}}
+  @media(prefers-reduced-motion:reduce){.hof-emblem::after{animation:none;display:none}}

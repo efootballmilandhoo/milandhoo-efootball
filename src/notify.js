@@ -45,8 +45,21 @@ function deriveEvents(){
     }));
     if(t.status==='completed' && t.champion) ev.push({key:'tc:'+t.id, kind:'champion', title:`${name(t.champion)} won ${tn}!`, sub: t.runnerUp ? `Runner-up: ${name(t.runnerUp)}` : 'Tournament complete', tid:t.id});
   });
-  (STORE.hof||[]).forEach(h=>{
-    ev.push({key:'hf:'+h.id, kind:'hof', title:`Hall of Fame: ${hofPlayer(h).name}`, sub:`${hofTitle(h)}${h.tournament ? ' · '+h.tournament : ''}`, view:'halloffame'});
+  // Deadline reminders: shown once, during the last 2 hours before a deadline with matches still to play.
+  const now = Date.now(), soon = d => { const ms = new Date(d).getTime(); return ms > now && ms - now <= 2*3600e3 };
+  const hhmm = d => new Date(d).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  STORE.tournaments.forEach(t=>{
+    if(t.status!=='active') return;
+    const tn = t.name || 'Tournament', league = t.format==='league';
+    if(t.format!=='single_elimination' && t.groupDeadline && !t.deadlineProcessed && soon(t.groupDeadline)){
+      const left = (t.fixtures||[]).filter(f=>(league || f.group) && !(hasScore(f.score1) && hasScore(f.score2))).length;
+      if(left) ev.push({key:`dl:g:${t.id}:${t.groupDeadline}`, kind:'reminder', title:`2 hours left: ${tn}`, sub:`${league?'League':'Group stage'} deadline ${hhmm(t.groupDeadline)} · ${left} match${left>1?'es':''} to play`, tid:t.id});
+    }
+    Object.entries(t.rules?.roundDeadlines||{}).forEach(([round, d])=>{
+      if(!d || !soon(d)) return;
+      const ms = ((t.knockoutBracket||[]).find(r=>r?.[0]?.round===round)||[]).filter(m=>!m.isBye && m.team1 && m.team2 && !m.winner).length;
+      if(ms) ev.push({key:`dl:k:${t.id}:${round}:${d}`, kind:'reminder', title:`2 hours left: ${tn} · ${round}`, sub:`Round deadline ${hhmm(d)} · ${ms} match${ms>1?'es':''} to play`, tid:t.id});
+    });
   });
   return ev;
 }
@@ -81,6 +94,7 @@ const KIND_ICON = {
   result:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7l3 2.2-1.1 3.6h-3.8L9 9.2z"/></svg>',
   champion:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v1a3 3 0 0 0 3 3M17 6h3v1a3 3 0 0 1-3 3M12 14v3M8 21h8M9 17h6"/></svg>',
   hof:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9" r="6"/><path d="M8.5 14L7 22l5-3 5 3-1.5-8"/></svg>',
+  reminder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M5 3L2 6M19 3l3 3"/></svg>',
   new:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   start:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l12 8-12 8z"/></svg>',
   draw:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h5v12H4M20 9h-5v6h5M9 12h6"/></svg>'
@@ -127,7 +141,7 @@ function renderNotifPanel(){
       </div>
     </div>
     <div class="notif-list">
-      ${NOTIF.feed.length ? NOTIF.feed.map(notifItem).join('') : `<div class="notif-empty">${BELL_SVG}<b>No updates yet</b><span>New tournaments, results, champions and Hall of Fame entries will show up here.</span></div>`}
+      ${NOTIF.feed.length ? NOTIF.feed.map(notifItem).join('') : `<div class="notif-empty">${BELL_SVG}<b>No updates yet</b><span>New tournaments, results, champions and deadline reminders will show up here.</span></div>`}
     </div>
     <div class="notif-foot">
       ${pushControlHTML()}
@@ -204,7 +218,7 @@ function openInstallModal(tab){
     <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="seg-tabs" role="tablist">${Object.entries(INSTALL_STEPS).map(([k,v])=>`<button type="button" role="tab" aria-selected="${k===installTab}" class="${k===installTab?'on':''}" onclick="openInstallModal('${k}')">${v.label}</button>`).join('')}</div>
-      <ol class="install-steps">${cur.steps.map(s=>`<li>${s}</li>`).join('')}</ol>
+      <ol class="install-steps">${cur.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>
       <div class="link-box">
         <input class="form-input" id="appLink" readonly value="${APP_LINK}" aria-label="App link" onclick="this.select()">
         <button type="button" class="btn btn-primary" onclick="copyAppLink()">Copy link</button>
@@ -229,7 +243,7 @@ function installBannerHTML(){
 function hideInstallBanner(){ nsave('install_hide', true); document.getElementById('installBanner')?.remove() }
 
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && NOTIF.open) toggleNotifPanel(false) });
-setInterval(()=>{ if(NOTIF.open) renderNotifPanel() }, 60000);
+setInterval(()=>{ checkUpdates(); if(NOTIF.open) renderNotifPanel() }, 60000);
 
 /* =========================
    MOTION
