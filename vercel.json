@@ -37,19 +37,6 @@
       ]
     },
     {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
-        }
-      ]
-    },
-    {
       "source": "/",
       "headers": [
         {
@@ -70,6 +57,12 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/manifest.webmanifest",
+      "destination": "https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-manifest"
     }
   ]
 }

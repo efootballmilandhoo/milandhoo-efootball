@@ -617,6 +617,12 @@ function renderChrome(){
   document.querySelectorAll('[data-cname]').forEach(el=>{ const n = commName(); el.textContent = n; const longest = Math.max(...n.split(/\s+/).map(w=>w.length)); el.classList.toggle('long', longest>8 || n.length>14); el.classList.toggle('xlong', longest>11) });
   document.querySelectorAll('[data-ctag]').forEach(el=>{ el.textContent = commTag(); el.hidden = !commTag() });
   document.title = 'MG Efootball';
+  // Tab icon and iPhone home-screen icon follow the community logo straight away.
+  const ai = STORE.settings && STORE.settings.appIcons;
+  for(const [id, k] of [['appFavicon','32'], ['appTouchIcon','180']]){
+    const el = document.getElementById(id), url = ai && isMediaUrl(ai[k]) ? ai[k] : null;
+    if(el && url && el.getAttribute('href')!==url) el.setAttribute('href', url);
+  }
   updateModeNote();
   const admin = isAdmin();
   const label = admin ? (STORE.owner ? 'Owner' : 'Organiser') : 'Community';

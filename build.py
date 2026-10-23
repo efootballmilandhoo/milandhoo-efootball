@@ -83,8 +83,8 @@ def build():
 <meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.">
 <meta name="theme-color" content="#0B1B3F">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="32x32" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=32">
-<link rel="apple-touch-icon" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=180">
+<link rel="icon" id="appFavicon" type="image/png" sizes="32x32" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=32">
+<link rel="apple-touch-icon" id="appTouchIcon" href="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=180">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -109,8 +109,8 @@ def build():
 '''
     open(os.path.join(PUB, 'index.html'), 'w', encoding='utf-8').write(html)
 
-    precache = ['/', f'/assets/{css_name}', f'/assets/{js_name}', '/manifest.webmanifest'] + ICONS
-    version = short_hash(html + js_name + css_name + open(os.path.join(PUB, 'manifest.webmanifest'), encoding='utf-8').read() + src('sw.js'))
+    precache = ['/', f'/assets/{css_name}', f'/assets/{js_name}'] + ICONS
+    version = short_hash(html + js_name + css_name + src('sw.js'))
     sw = src('sw.js').replace("'__VERSION__'", repr(version)).replace('__PRECACHE__', json.dumps(precache))
     open(os.path.join(PUB, 'sw.js'), 'w', encoding='utf-8').write(sw)
 

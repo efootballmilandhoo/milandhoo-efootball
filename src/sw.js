@@ -85,7 +85,7 @@ self.addEventListener('fetch', e => {
   }
 
   if (url.origin === location.origin) {
-    if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/') || url.pathname === '/manifest.webmanifest') {
+    if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
       e.respondWith(cacheFirst(SHELL, req));
     }
     return;
