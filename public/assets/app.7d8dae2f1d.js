@@ -1665,7 +1665,7 @@ function renderDashboard(){
       </div>`).join('');
 
   const topRows = rankPlayers(stats).slice(0,5).map((x,i)=>`
-      <div class="row-grid top-row"><span class="rank-badge ${rankClass(i)}">${i+1}</span>${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
+      <div class="row-grid top-row"><span class="rank-badge ${x.s.pts>0?rankClass(x.rank-1):''}">${x.rank}</span>${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
   const hofLatest = [...STORE.hof].sort(hofSort).slice(0,4);
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
@@ -1724,8 +1724,18 @@ function renderDashboard(){
 }
 
 function rankPlayers(stats){
-  // Total points, then win percentage, then total wins.
-  return STORE.players.map(p=>({p, s:stats[p.id]})).sort((a,b)=> (b.s.pts-a.s.pts) || (parseFloat(b.s.winPct)-parseFloat(a.s.winPct)) || (b.s.wins-a.s.wins) || (b.s.matches-a.s.matches) || b.s.lastAt.localeCompare(a.s.lastAt) || b.s.addedAt.localeCompare(a.s.addedAt) || String(a.p.name).localeCompare(String(b.p.name)));
+  // Order: total points, then win percentage, then total wins.
+  // Position: players on equal points share it (1, 2, 2, 4 …).
+  const list = STORE.players.map(p=>({p, s:stats[p.id]})).sort((a,b)=> (b.s.pts-a.s.pts) || (parseFloat(b.s.winPct)-parseFloat(a.s.winPct)) || (b.s.wins-a.s.wins) || (b.s.matches-a.s.matches) || b.s.lastAt.localeCompare(a.s.lastAt) || b.s.addedAt.localeCompare(a.s.addedAt) || String(a.p.name).localeCompare(String(b.p.name)));
+  list.forEach((x,i)=>{ x.rank = i && x.s.pts===list[i-1].s.pts ? list[i-1].rank : i+1; x.tied = false });
+  list.forEach((x,i)=>{ if((list[i-1] && list[i-1].rank===x.rank) || (list[i+1] && list[i+1].rank===x.rank)) x.tied = true });
+  return list;
+}
+const MEDAL_BY_RANK = {1:'gold', 2:'silver', 3:'bronze'};
+/* Rank marker: a medal for positions 1–3 (once points are scored), a numbered tile otherwise; "=" marks a shared position. */
+function rankMark(x, size=26){
+  const m = x.s.pts>0 && MEDAL_BY_RANK[x.rank];
+  return m ? medalHTML(m, String(x.rank), size) : `<span class="lbx-rank">${x.rank}${x.tied?'<small>=</small>':''}</span>`;
 }
 
 /* =========================
@@ -3738,7 +3748,7 @@ function renderLeaderboard(){
   const enriched = rankPlayers(stats);
   const totalMatches = Math.round(enriched.reduce((s,x)=>s+x.s.matches,0)/2);
   const totalGoals = enriched.reduce((s,x)=>s+x.s.gf,0);
-  const podium = enriched.slice(0,3).filter(x=>x.s.pts>0);
+  const podium = [1,2,3].map(r=>enriched.filter(x=>x.rank===r && x.s.pts>0)).filter(g=>g.length);
   setHeader('Community', 'Leaderboard');
   document.getElementById('main').innerHTML = `
     <div class="grid grid-4">
@@ -3747,14 +3757,7 @@ function renderLeaderboard(){
       ${statTile('goal','tint-green','Goals scored', totalGoals)}
       ${statTile('trophy','tint-gold','Completed tournaments', STORE.tournaments.filter(t=>t.status==='completed').length)}
     </div>
-    ${podium.length ? `<section class="lb-podium" aria-label="Top three">${podium.map((x,i)=>`
-      <div class="lb-pod p${i+1}">
-        ${medalHTML(['gold','silver','bronze'][i], String(i+1), 34)}
-        ${renderAvatar(x.p, 52)}
-        <div class="lb-pod-name">${esc(x.p.name)}</div>
-        <div class="lb-pod-pts"><b>${x.s.pts}</b><span>PTS</span></div>
-        <div class="lb-pod-sub">${x.s.wins}W · ${x.s.draws}D · ${x.s.losses}L · ${x.s.winPct}%</div>
-      </div>`).join('')}</section>` : ''}
+    ${podium.length ? `<section class="lb-podium" aria-label="Top three positions">${podium.map(lbPodCard).join('')}</section>` : ''}
     <section id="leaderboardExport" class="card lb-card" aria-label="Community leaderboard">
       <div class="lb-card-head">
         <div><h2 class="card-title">All-time ranking</h2><div class="flex gap-8" style="align-items:center;flex-wrap:wrap;margin-top:4px">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by total points · updates as results are saved</span></div></div>
@@ -3762,14 +3765,29 @@ function renderLeaderboard(){
       </div>
       <div class="lbx-wrap">${lbTable(enriched, 0)}</div>
       ${lbLegend()}
-      <div class="table-hint">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
+      <div class="table-hint">Turn your phone sideways to see draws, losses, goal difference and titles.</div>
     </section>`;
+}
+const ORDINAL = {1:'1st', 2:'2nd', 3:'3rd'};
+function lbPodCard(group){
+  const r = group[0].rank, m = MEDAL_BY_RANK[r], lead = group[0], n = group.length;
+  const names = n===1 ? esc(lead.p.name) : n<=3 ? group.map(x=>esc(x.p.name)).join(', ') : `${group.slice(0,2).map(x=>esc(x.p.name)).join(', ')} <span class="lb-pod-more">+${n-2} more</span>`;
+  const stat = (v,l) => `<span><b>${v}</b>${l}</span>`;
+  return `<div class="lb-pod p${r} ${m} ${n>1?'tie':''}">
+    <div class="lb-pod-top"><span class="lb-pod-pos">${medalHTML(m, String(r), 22)}${ORDINAL[r]}${n>1?' <i>· shared</i>':''}</span><span class="lb-pod-pts"><b>${lead.s.pts}</b><span>PTS</span></span></div>
+    <div class="lb-pod-who">
+      <span class="lb-pod-avs">${group.slice(0,3).map(x=>renderAvatar(x.p, n>1?40:52)).join('')}</span>
+      <div class="lb-pod-name">${names}</div>
+    </div>
+    ${n===1 ? `<div class="lb-pod-stats">${stat(lead.s.wins,'W')}${stat(lead.s.draws,'D')}${stat(lead.s.losses,'L')}${stat(Math.round(parseFloat(lead.s.winPct))+'%','Win')}${stat(lead.s.tourneyWins,'Titles')}</div>`
+      : `<div class="lb-pod-stats tied">${n} players on ${lead.s.pts} points</div>`}
+  </div>`;
 }
 function lbLegend(){
   const it = (l, v) => `<span><b>${v}</b>${l}</span>`;
   return `<div class="lb-legend">
     <div class="lb-legend-items">${it('Win','+3')}${it('Draw','+1')}${it('Loss','0')}${it('Knockout win bonus','+2')}${it('Champion','+20')}${it('Runner-up','+12')}${it('3rd','+7')}${it('4th','+4')}</div>
-    <div class="lb-legend-note">Highest total points first. Ties: win %, then total wins. Placing points are added when a tournament is completed; only a player's best placing in each tournament counts. Hall of Fame placings from before the app count too.</div>
+    <div class="lb-legend-note">Highest total points first. Players on equal points share the position (listed by win %, then total wins). Placing points are added when a tournament is completed; only a player's best placing in each tournament counts. Hall of Fame placings from before the app count too.</div>
   </div>`;
 }
 
@@ -3777,19 +3795,17 @@ function lbLegend(){
 function lbTable(rows, offset){
   return `
         <table class="lbx lb-table">
-          <thead><tr><th scope="col">#</th><th scope="col" class="l">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">Titles</th><th scope="col">2nd</th><th scope="col">3rd</th><th scope="col" class="pts">PTS</th></tr></thead>
+          <thead><tr><th scope="col">#</th><th scope="col" class="l">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">Titles</th><th scope="col" class="pts">PTS</th></tr></thead>
           <tbody>
-            ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
-              rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = i<3 && x.s.pts>0; return `
+            ${rows.length===0 ? `<tr><td colspan="10" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
+              rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = x.rank<=3 && x.s.pts>0; return `
                 <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
-                  <td>${top ? medalHTML(['gold','silver','bronze'][i], String(i+1), 26) : `<span class="lbx-rank">${i+1}</span>`}</td>
+                  <td>${rankMark(x)}</td>
                   <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span></span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
                   <td class="muted">${gd>0?'+':''}${gd}</td>
                   <td class="pct">${x.s.winPct}%</td>
                   <td>${x.s.tourneyWins>0 ? `<span class="lbx-title">${x.s.tourneyWins}</span>` : '<span class="dec-0">0</span>'}</td>
-                  <td>${x.s.tourneyRunnerUp || '<span class="dec-0">0</span>'}</td>
-                  <td>${x.s.tourneyThird || '<span class="dec-0">0</span>'}</td>
                   <td class="pts"><span class="lbx-pts">${x.s.pts}</span></td>
                 </tr>`}).join('')}
           </tbody>
