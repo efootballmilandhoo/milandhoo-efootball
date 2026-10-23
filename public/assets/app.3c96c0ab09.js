@@ -1646,6 +1646,20 @@ function renderPlayers(){
   filterPlayers();
 }
 
+/* A phone number that opens a Telegram chat with that number (7-digit numbers are Maldives, +960). */
+function telegramNumber(phone){
+  let d = String(phone||'').replace(/[^\d+]/g, '');
+  if(d.startsWith('+')) d = d.slice(1); else if(d.startsWith('00')) d = d.slice(2);
+  d = d.replace(/\D/g, '');
+  if(d.length===7) d = '960' + d;
+  return d.length>=8 && d.length<=15 ? d : '';
+}
+function telegramLink(phone){
+  const n = telegramNumber(phone);
+  if(!n) return `<span>${esc(phone)}</span>`;
+  return `<a class="tg-link" href="https://t.me/+${n}" target="_blank" rel="noopener noreferrer" title="Open Telegram chat" aria-label="Open Telegram chat with ${esc(phone)}">${esc(phone)}<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 4.1 2.9 11.3c-1.3.5-1.2 2.3.1 2.6l4.6 1.4 1.8 5.6c.3 1 1.6 1.3 2.3.5l2.6-2.6 4.6 3.4c.9.6 2.1.1 2.3-.9l3.1-15.1c.3-1.4-1.1-2.6-2.8-2.1zM17 8.3l-7.6 6.9-.3 3.2-1.4-4.4L17 8.3z"/></svg></a>`;
+}
+
 function renderPlayerCards(players, stats){
   if(players.length===0) return `<div class="empty" style="grid-column:1/-1"><div class="empty-title">${playerQuery?'No matching players':'No players yet'}</div><div class="text-sm">${playerQuery?'Try a different name.':isAdmin()?'Add your first player to get started.':'Players will appear here once registered.'}</div></div>`;
   return players.map(p=>{
@@ -1657,7 +1671,7 @@ function renderPlayerCards(players, stats){
           ${renderAvatar(p, 52)}
           <div style="min-width:0">
             <div class="player-name">${esc(p.name)}</div>
-            ${isAdmin() ? (STORE.phones[p.id] ? `<div class="phone-line">${ICON.phone}<span>${esc(STORE.phones[p.id])}</span><button type="button" class="btn-link" onclick="copyText('${esc(STORE.phones[p.id])}')" aria-label="Copy phone number">Copy</button></div>` : `<div class="phone-line muted">${ICON.phone}<span>No phone number</span></div>`) : ''}
+            ${isAdmin() ? (STORE.phones[p.id] ? `<div class="phone-line">${ICON.phone}${telegramLink(STORE.phones[p.id])}<button type="button" class="btn-link" onclick="copyText('${esc(STORE.phones[p.id])}')" aria-label="Copy phone number">Copy</button></div>` : `<div class="phone-line muted">${ICON.phone}<span>No phone number</span></div>`) : ''}
           </div>
         </div>
         ${isAdmin()?`<div class="flex gap-8">
@@ -2251,7 +2265,7 @@ function renderRegistrationTab(t, admin){
                 return `<tr>
                   <td class="rg-n" style="font-weight:700">${i+1}</td>
                   <td class="rg-p"><span class="who">${renderAvatar(p, 32)}<span class="rg-name">${esc(p.name)}</span></span></td>
-                  ${admin?`<td class="rg-ph text-sm${STORE.phones[r.playerId]?'':' rg-empty'}" style="white-space:nowrap">${STORE.phones[r.playerId] ? esc(STORE.phones[r.playerId]) : '<span class="text-muted">—</span>'}</td>`:''}
+                  ${admin?`<td class="rg-ph text-sm${STORE.phones[r.playerId]?'':' rg-empty'}" style="white-space:nowrap">${STORE.phones[r.playerId] ? telegramLink(STORE.phones[r.playerId]) : '<span class="text-muted">—</span>'}</td>`:''}
                   <td class="rg-a text-muted text-sm">${esc(p.achievements||'—')}</td>
                   <td class="rg-d text-muted text-sm${r.date?'':' rg-empty'}">${fmtDate(r.date)}</td>
                   ${admin && t.status!=='completed'?`<td class="rg-x t-right"><button type="button" class="btn btn-ghost btn-sm" onclick="unregisterPlayer('${t.id}','${r.playerId}')" style="color:var(--danger-ink)">Remove</button></td>`:''}

@@ -230,3 +230,8 @@
   .export-option svg{grid-row:1 / span 2;width:40px;height:40px;padding:10px;border-radius:12px;background:var(--primary-tint);color:var(--primary);box-sizing:border-box}
   .export-option b{font-size:15px}
   .export-option span{font-size:13px;color:var(--muted);line-height:1.4}
+
+  /* Phone numbers open a Telegram chat */
+  .tg-link{display:inline-flex;align-items:center;gap:5px;color:var(--primary-dark);font-weight:600;text-decoration:none;border-bottom:1px dashed rgba(20,99,255,.35)}
+  .tg-link:hover{color:var(--primary);border-bottom-color:var(--primary)}
+  .tg-link svg{color:#229ED9;flex-shrink:0}
