@@ -3426,7 +3426,9 @@ let hofFilter = {org:'all', player:'all'};
 function hofPlayer(h){ return h.playerId ? (STORE.players.find(p=>p.id===h.playerId) || {name: h.playerName || 'Unknown player'}) : {name: h.playerName || 'Unknown player'} }
 function hofTitle(h){ return h.type==='award' ? (h.title || 'Award') : (h.title || HOF_TYPES[h.type]?.label || 'Achievement') }
 function hofDate(h){ if(!h.date) return ''; const [y,m] = String(h.date).split('-'); return m ? `${MONTHS[+m-1]||''} ${y}` : y }
-function hofOrg(h){ return h.organizer==='other' ? (h.organizerName || 'Other organiser') : titleCase(commName()) }
+// Short name for the community as an organiser in the Hall of Fame.
+const HOF_OUR_ORG = 'MG';
+function hofOrg(h){ return h.organizer==='other' ? (h.organizerName || 'Other organiser') : HOF_OUR_ORG }
 function hofKey(h){ return h.playerId || 'name:'+String(h.playerName||'').toLowerCase() }
 
 function hofRow(h){
@@ -3513,7 +3515,7 @@ function renderHallOfFame(){
 
     <div class="hof-bar">
       <div class="hof-bar-filters">
-        ${seg('org', [['all','All'],['ours',esc(titleCase(commName()))],['other','Other organisers']])}
+        ${seg('org', [['all','All'],['ours',HOF_OUR_ORG],['other','Other organisers']])}
         <select class="form-select hof-player-select" aria-label="Filter by player" onchange="setHofFilter('player', this.value)">
           <option value="all">All players</option>
           ${playerOpts.map(o=>`<option value="${esc(o.key)}" ${hofFilter.player===o.key?'selected':''}>${esc(o.name)}</option>`).join('')}
@@ -3569,7 +3571,7 @@ function openHofModal(id){
       <div class="form-group">
         <span class="form-label">Organised by</span>
         <div class="flex gap-8" style="flex-wrap:wrap">
-          <label class="radio-pill"><input type="radio" name="h_org" value="ours" ${h.organizer!=='other'?'checked':''} onchange="document.getElementById('h_orgname_wrap').classList.add('hidden')">${esc(titleCase(commName()))}</label>
+          <label class="radio-pill"><input type="radio" name="h_org" value="ours" ${h.organizer!=='other'?'checked':''} onchange="document.getElementById('h_orgname_wrap').classList.add('hidden')">${HOF_OUR_ORG}</label>
           <label class="radio-pill"><input type="radio" name="h_org" value="other" ${h.organizer==='other'?'checked':''} onchange="document.getElementById('h_orgname_wrap').classList.remove('hidden')">Another organiser</label>
         </div>
       </div>
