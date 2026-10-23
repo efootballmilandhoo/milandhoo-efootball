@@ -12,7 +12,7 @@ head = '''<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Milandhoo eFootball Community</title>
+<title>MG Efootball</title>
 <meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the Milandhoo eFootball community.">
 <meta name="theme-color" content="#0B1B3F">
 <link rel="manifest" href="/manifest.webmanifest">
@@ -21,8 +21,8 @@ head = '''<!doctype html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Milandhoo">
-<meta property="og:title" content="Milandhoo eFootball Community">
+<meta name="apple-mobile-web-app-title" content="MG Efootball">
+<meta property="og:title" content="MG Efootball">
 <meta property="og:description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame.">
 <meta property="og:image" content="/icons/icon-512.png?v=2">
 <link rel="preconnect" href="https://fonts.googleapis.com">

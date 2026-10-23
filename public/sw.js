@@ -1,5 +1,5 @@
 /* Milandhoo eFootball service worker: offline app shell + push notifications. */
-const CACHE = 'milandhoo-v2';
+const CACHE = 'milandhoo-v3';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png?v=2', '/icons/icon-512.png?v=2', '/icons/badge-96.png?v=2'];
 
 self.addEventListener('install', e => {
@@ -27,8 +27,8 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'Milandhoo eFootball', body: e.data && e.data.text() }; }
-  const title = d.title || 'Milandhoo eFootball';
+  try { d = e.data ? e.data.json() : {}; } catch { d = { title: 'MG Efootball', body: e.data && e.data.text() }; }
+  const title = d.title || 'MG Efootball';
   e.waitUntil(self.registration.showNotification(title, {
     body: d.body || '',
     icon: '/icons/icon-192.png?v=2',
