@@ -235,3 +235,10 @@
   .tg-link{display:inline-flex;align-items:center;gap:5px;color:var(--primary-dark);font-weight:600;text-decoration:none;border-bottom:1px dashed rgba(20,99,255,.35)}
   .tg-link:hover{color:var(--primary);border-bottom-color:var(--primary)}
   .tg-link svg{color:#229ED9;flex-shrink:0}
+
+  /* Export ready card (phones) */
+  .ready-thumbs{display:grid;grid-template-columns:repeat(auto-fill, minmax(84px,1fr));gap:8px}
+  .ready-thumbs img{width:100%;aspect-ratio:3/4;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--border);background:var(--surface-2)}
+  .ready-file{padding:14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);font-weight:600;overflow-wrap:anywhere}
+  .xs-md{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 0 4px;border-top:1px solid var(--divider);margin-top:6px}
+  .xs-card-title + .xs-md{border-top:0;margin-top:0;padding-top:4px}

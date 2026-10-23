@@ -33,8 +33,9 @@ function koScore(fmt: string, m: Obj): string {
   if (!has(m.score1) || !has(m.score2)) return "";
   let a = Number(m.score1), b = Number(m.score2);
   if (fmt === "2leg" && has(m.leg2Score1) && has(m.leg2Score2)) { a += Number(m.leg2Score1); b += Number(m.leg2Score2); }
+  const tb = m.tb && has(m.tb.a) && has(m.tb.b) ? `, tie-breaker ${pick(m.tb.a, m.tb.b)}` : "";
   const pens = m.pens && has(m.pens.a) && has(m.pens.b) ? `, ${pick(m.pens.a, m.pens.b)} on pens` : "";
-  return ` ${pick(a, b)}${fmt === "2leg" ? " agg" : ""}${pens}`;
+  return ` ${pick(a, b)}${fmt === "2leg" ? " agg" : ""}${tb}${pens}`;
 }
 
 async function eventsFor(body: Obj): Promise<Obj[]> {
