@@ -144,7 +144,7 @@ function saveSettings(patch){
   else LS.set('settings', next);
 }
 
-const commName = () => (STORE.settings?.name || 'MILANDHOO').trim() || 'MILANDHOO';
+const commName = () => (STORE.settings?.name || 'MG EFOOTBALL').trim() || 'MG EFOOTBALL';
 const commTag = () => (STORE.settings?.tagline ?? 'eFOOTBALL COMMUNITY').trim();
 const commFull = () => [commName(), commTag()].filter(Boolean).join(' ');
 const titleCase = x => x.replace(/\S+/g, w => /^e[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
@@ -599,7 +599,7 @@ function renderChrome(){
   }
   document.querySelectorAll('[data-cname]').forEach(el=>{ const n = commName(); el.textContent = n; const longest = Math.max(...n.split(/\s+/).map(w=>w.length)); el.classList.toggle('long', longest>8 || n.length>14); el.classList.toggle('xlong', longest>11) });
   document.querySelectorAll('[data-ctag]').forEach(el=>{ el.textContent = commTag(); el.hidden = !commTag() });
-  document.title = titleCase(commFull());
+  document.title = 'MG Efootball';
   updateModeNote();
   const admin = isAdmin();
   const chip = document.getElementById('userChip');
@@ -3207,20 +3207,20 @@ function openNameModal(){
   openModal(`
     <div class="modal-head"><div class="modal-title">Community name</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label" for="c_name">Name</label><input class="form-input" id="c_name" maxlength="24" value="${esc(commName())}" placeholder="e.g. MILANDHOO" oninput="previewName()"></div>
+      <div class="form-group"><label class="form-label" for="c_name">Name</label><input class="form-input" id="c_name" maxlength="24" value="${esc(commName())}" placeholder="e.g. MG EFOOTBALL" oninput="previewName()"></div>
       <div class="form-group"><label class="form-label" for="c_tag">Line under the name (optional)</label><input class="form-input" id="c_tag" maxlength="40" value="${esc(commTag())}" placeholder="e.g. eFOOTBALL COMMUNITY" oninput="previewName()"></div>
       <div class="name-preview" aria-hidden="true">${communityMark(44)}<div><div class="brand-name" id="np_name"></div><div class="brand-sub" id="np_tag"></div></div></div>
       <div class="text-sm text-muted" style="margin-top:12px">Shown in the sidebar, the dashboard banner, the footer and every exported image. Capital letters look best on the banner.</div>
     </div>
     <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" style="margin-right:auto" onclick="c_name.value='MILANDHOO';c_tag.value='eFOOTBALL COMMUNITY';previewName()">Use default</button>
+      <button type="button" class="btn btn-ghost" style="margin-right:auto" onclick="c_name.value='MG EFOOTBALL';c_tag.value='eFOOTBALL COMMUNITY';previewName()">Use default</button>
       <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button type="button" class="btn btn-primary" onclick="saveName()">Save name</button>
     </div>`);
   previewName();
 }
 function previewName(){
-  document.getElementById('np_name').textContent = document.getElementById('c_name').value.trim() || 'MILANDHOO';
+  document.getElementById('np_name').textContent = document.getElementById('c_name').value.trim() || 'MG EFOOTBALL';
   document.getElementById('np_tag').textContent = document.getElementById('c_tag').value.trim();
 }
 function saveName(){

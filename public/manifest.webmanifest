@@ -2,7 +2,7 @@
   "id": "/",
   "name": "MG Efootball",
   "short_name": "MG Efootball",
-  "description": "Tournaments, live results, brackets, leaderboard and Hall of Fame for the Milandhoo eFootball community.",
+  "description": "Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.",
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",

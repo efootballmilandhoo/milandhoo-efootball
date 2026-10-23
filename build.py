@@ -13,7 +13,7 @@ head = '''<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MG Efootball</title>
-<meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the Milandhoo eFootball community.">
+<meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.">
 <meta name="theme-color" content="#0B1B3F">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2">

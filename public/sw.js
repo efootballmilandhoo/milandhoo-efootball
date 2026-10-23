@@ -1,5 +1,5 @@
 /* Milandhoo eFootball service worker: offline app shell + push notifications. */
-const CACHE = 'milandhoo-v3';
+const CACHE = 'milandhoo-v4';
 const SHELL = ['/', '/manifest.webmanifest', '/icons/icon-192.png?v=2', '/icons/icon-512.png?v=2', '/icons/badge-96.png?v=2'];
 
 self.addEventListener('install', e => {

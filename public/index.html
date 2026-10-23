@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>MG Efootball</title>
-<meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the Milandhoo eFootball community.">
+<meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.">
 <meta name="theme-color" content="#0B1B3F">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png?v=2">
@@ -987,7 +987,7 @@
 <header class="mobile-header">
   <div class="brand-logo">
     <span data-mark="36"><span class="logo-mark" style="width:36px;height:36px"></span></span>
-    <div><div class="brand-name" data-cname>MILANDHOO</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>
+    <div><div class="brand-name" data-cname>MG EFOOTBALL</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>
   </div>
   <button type="button" class="icon-btn" onclick="toggleSidebar()" aria-label="Open menu">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
@@ -999,7 +999,7 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand-logo">
       <span data-mark="44"><span class="logo-mark" style="width:44px;height:44px"></span></span>
-      <div><div class="brand-name" data-cname>MILANDHOO</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>
+      <div><div class="brand-name" data-cname>MG EFOOTBALL</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>
     </div>
     <nav class="nav" aria-label="Main">
       <div class="nav-group">
@@ -1485,7 +1485,7 @@ function saveSettings(patch){
   else LS.set('settings', next);
 }
 
-const commName = () => (STORE.settings?.name || 'MILANDHOO').trim() || 'MILANDHOO';
+const commName = () => (STORE.settings?.name || 'MG EFOOTBALL').trim() || 'MG EFOOTBALL';
 const commTag = () => (STORE.settings?.tagline ?? 'eFOOTBALL COMMUNITY').trim();
 const commFull = () => [commName(), commTag()].filter(Boolean).join(' ');
 const titleCase = x => x.replace(/\S+/g, w => /^e[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
@@ -1940,7 +1940,7 @@ function renderChrome(){
   }
   document.querySelectorAll('[data-cname]').forEach(el=>{ const n = commName(); el.textContent = n; const longest = Math.max(...n.split(/\s+/).map(w=>w.length)); el.classList.toggle('long', longest>8 || n.length>14); el.classList.toggle('xlong', longest>11) });
   document.querySelectorAll('[data-ctag]').forEach(el=>{ el.textContent = commTag(); el.hidden = !commTag() });
-  document.title = titleCase(commFull());
+  document.title = 'MG Efootball';
   updateModeNote();
   const admin = isAdmin();
   const chip = document.getElementById('userChip');
@@ -4548,20 +4548,20 @@ function openNameModal(){
   openModal(`
     <div class="modal-head"><div class="modal-title">Community name</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label" for="c_name">Name</label><input class="form-input" id="c_name" maxlength="24" value="${esc(commName())}" placeholder="e.g. MILANDHOO" oninput="previewName()"></div>
+      <div class="form-group"><label class="form-label" for="c_name">Name</label><input class="form-input" id="c_name" maxlength="24" value="${esc(commName())}" placeholder="e.g. MG EFOOTBALL" oninput="previewName()"></div>
       <div class="form-group"><label class="form-label" for="c_tag">Line under the name (optional)</label><input class="form-input" id="c_tag" maxlength="40" value="${esc(commTag())}" placeholder="e.g. eFOOTBALL COMMUNITY" oninput="previewName()"></div>
       <div class="name-preview" aria-hidden="true">${communityMark(44)}<div><div class="brand-name" id="np_name"></div><div class="brand-sub" id="np_tag"></div></div></div>
       <div class="text-sm text-muted" style="margin-top:12px">Shown in the sidebar, the dashboard banner, the footer and every exported image. Capital letters look best on the banner.</div>
     </div>
     <div class="modal-foot">
-      <button type="button" class="btn btn-ghost" style="margin-right:auto" onclick="c_name.value='MILANDHOO';c_tag.value='eFOOTBALL COMMUNITY';previewName()">Use default</button>
+      <button type="button" class="btn btn-ghost" style="margin-right:auto" onclick="c_name.value='MG EFOOTBALL';c_tag.value='eFOOTBALL COMMUNITY';previewName()">Use default</button>
       <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button type="button" class="btn btn-primary" onclick="saveName()">Save name</button>
     </div>`);
   previewName();
 }
 function previewName(){
-  document.getElementById('np_name').textContent = document.getElementById('c_name').value.trim() || 'MILANDHOO';
+  document.getElementById('np_name').textContent = document.getElementById('c_name').value.trim() || 'MG EFOOTBALL';
   document.getElementById('np_tag').textContent = document.getElementById('c_tag').value.trim();
 }
 function saveName(){
