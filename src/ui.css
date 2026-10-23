@@ -258,3 +258,127 @@
 .pie-own{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
 .pie-own .form-input{flex:1 1 140px;min-width:0}
 .pie-upload{cursor:pointer;min-height:44px}
+
+  /* ---------- Medals ---------- */
+  .medal{position:relative;display:inline-flex;flex:none;width:var(--m);height:calc(var(--m) * 37 / 32);vertical-align:middle}
+  .medal svg{display:block;width:100%;height:100%;filter:drop-shadow(0 1px 1.5px rgba(11,27,63,.22))}
+  .medal-n{position:absolute;left:0;right:0;top:44%;height:46%;display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;font-size:calc(var(--m) * .34);line-height:1;color:var(--ink)}
+
+  /* Achievement picker (Hall of Fame form) */
+  .hof-type{gap:8px;padding:14px 8px 12px;font-size:14px;font-weight:600;color:var(--text);transition:border-color .15s, background .15s, box-shadow .15s}
+  .hof-type:hover{border-color:var(--border-2)}
+  .hof-type:has(input:checked){box-shadow:0 0 0 1px var(--primary) inset}
+  .hof-type .medal{transition:transform .2s}
+  .hof-type:has(input:checked) .medal{transform:translateY(-2px) scale(1.06)}
+
+  /* ---------- Hall of Fame list ---------- */
+  .hof-year-label span{font-family:var(--font-body);font-size:12px;font-weight:700;color:var(--muted);background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:2px 9px;order:2}
+  .hof-year-label::after{order:1}
+  .hof-list{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-1)}
+  .hof-li{display:grid;grid-template-columns:34px 40px minmax(0,1fr) auto;align-items:center;column-gap:14px;padding:12px 16px;border-top:1px solid var(--divider);position:relative}
+  .hof-list.is-admin .hof-li{grid-template-columns:34px 40px minmax(0,1fr) auto auto}
+  .hof-li:first-child{border-top:0}
+  .hof-li::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:0 3px 3px 0;background:transparent}
+  .hof-li.gold::before{background:var(--gold)}
+  .hof-li.silver::before{background:#AEB9CF}
+  .hof-li.bronze::before{background:#D99A62}
+  .hof-li.award::before{background:#9C7BFF}
+  .hof-li:hover{background:var(--surface-2)}
+  .hof-li-medal{display:flex;justify-content:center}
+  .hof-li-main{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .hof-li-main > b{font-size:15px;color:var(--ink);line-height:1.25;overflow-wrap:anywhere}
+  .hof-li-sub{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+  .hof-li-t{font-size:13px;color:var(--text-2);overflow-wrap:anywhere}
+  .hof-li-note{font-size:12px;color:var(--muted)}
+  .hof-chip{font-style:normal;font-size:11px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .hof-chip.gold{background:var(--gold-tint);color:var(--gold-ink)}
+  .hof-chip.silver{background:#EEF1F6;color:#3E4A63}
+  .hof-chip.bronze{background:#FBEBDD;color:#7A3F10}
+  .hof-chip.award{background:var(--purple-tint);color:var(--purple-ink)}
+  .hof-li-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+  .hof-li-meta .badge{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hof-li-date{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+  .hof-li-actions{display:flex;gap:2px}
+  .xs-list{border:0;box-shadow:none;border-radius:0}
+  .xs-list .hof-li{padding:11px 4px}
+  @media(max-width:560px){
+    .hof-li, .hof-list.is-admin .hof-li{grid-template-columns:30px 36px minmax(0,1fr) auto;column-gap:10px;row-gap:6px;padding:12px}
+    .hof-li .player-avatar{width:36px !important;height:36px !important}
+    .hof-li-meta{grid-column:3 / -1;grid-row:2;flex-direction:row;align-items:center;justify-content:flex-start;gap:8px}
+    .hof-li-actions{grid-column:4;grid-row:1}
+  }
+
+  /* ---------- Leaderboard ---------- */
+  .lb-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:end}
+  .lb-pod{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 12px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-shadow:var(--shadow-1);position:relative;min-width:0}
+  .lb-pod .medal{position:absolute;top:-6px;right:12px}
+  .lb-pod.p1{order:2;border-color:var(--gold);background:linear-gradient(180deg,var(--gold-soft),var(--surface) 70%);padding-top:22px}
+  .lb-pod.p2{order:1}
+  .lb-pod.p3{order:3}
+  .lb-pod-name{font-weight:700;color:var(--ink);font-size:15px;line-height:1.25;overflow-wrap:anywhere}
+  .lb-pod-pts{display:flex;align-items:baseline;gap:4px}
+  .lb-pod-pts b{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1;color:var(--ink)}
+  .lb-pod.p1 .lb-pod-pts b{font-size:40px}
+  .lb-pod-pts span{font-size:11px;font-weight:800;letter-spacing:.1em;color:var(--muted)}
+  .lb-pod-sub{font-size:12px;color:var(--muted);font-weight:600}
+  .lb-card{display:flex;flex-direction:column;gap:14px}
+  .lb-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .lbx-wrap{overflow-x:auto;margin:0 -4px}
+  .lbx{width:100%;min-width:0;border-collapse:separate;border-spacing:0;font-size:14px;color:var(--text)}
+  .lbx th{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:0 8px 10px;text-align:center;white-space:nowrap;border-bottom:1px solid var(--border)}
+  .lbx td{padding:10px 8px;text-align:center;border-bottom:1px solid var(--divider);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .lbx .l{text-align:left}
+  .lbx td.l{width:100%;max-width:0}
+  .lbx .who{display:flex;align-items:center;gap:10px;font-weight:600;color:var(--ink);min-width:0}
+  .lbx .who > span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lbx tbody tr:last-child td{border-bottom:0}
+  .lbx tbody tr:hover td{background:var(--surface-2)}
+  .lbx tr.top td{background:#FAFCFF}
+  .lbx td:first-child{width:36px;padding-left:4px}
+  .lbx td.muted{color:var(--muted)}
+  .lbx td.pct{color:var(--primary-dark);font-weight:700}
+  .lbx th.pts{color:var(--primary-dark)}
+  .lbx td.pts{padding-right:6px}
+  .lbx-rank{display:inline-flex;width:26px;height:26px;align-items:center;justify-content:center;border-radius:8px;background:var(--surface-3);color:var(--text-2);font-weight:700;font-size:13px}
+  .lbx-pts{display:inline-flex;min-width:46px;justify-content:center;padding:4px 10px;border-radius:10px;background:var(--primary);color:#FFFFFF;font-family:var(--font-display);font-weight:800;font-size:18px;line-height:1.1}
+  .lbx tr:not(.top) .lbx-pts{background:var(--primary-tint);color:var(--primary-dark)}
+  .lbx-title{display:inline-flex;min-width:24px;justify-content:center;padding:2px 7px;border-radius:999px;background:var(--gold-tint);color:var(--gold-ink);font-weight:800}
+  .dec-0{color:var(--border-2)}
+  .lb-legend{border-top:1px solid var(--divider);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+  .lb-legend-items{display:flex;flex-wrap:wrap;gap:6px}
+  .lb-legend-items span{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px 10px 3px 4px}
+  .lb-legend-items b{display:inline-flex;min-width:26px;justify-content:center;padding:1px 6px;border-radius:999px;background:var(--primary-tint);color:var(--primary-dark);font-weight:800}
+  .lb-legend-note{font-size:12px;color:var(--muted);line-height:1.5}
+  .lb-card .table-hint{display:none}
+  @media(max-width:700px){
+    .lb-card .table-hint{display:block}
+    #main .lb-table th:nth-child(5), #main .lb-table td:nth-child(5),
+    #main .lb-table th:nth-child(6), #main .lb-table td:nth-child(6),
+    #main .lb-table th:nth-child(7), #main .lb-table td:nth-child(7),
+    #main .lb-table th:nth-child(9), #main .lb-table td:nth-child(9),
+    #main .lb-table th:nth-child(10), #main .lb-table td:nth-child(10),
+    #main .lb-table th:nth-child(11), #main .lb-table td:nth-child(11){display:none}
+    #main .lbx td, #main .lbx th{padding-left:5px;padding-right:5px}
+    #main .lbx-wrap{overflow:visible}
+    #main .lbx .player-avatar{width:28px !important;height:28px !important;font-size:10px}
+    #main .lbx-pts{min-width:38px;font-size:16px;padding:3px 8px}
+    .lb-podium{gap:8px}
+    .lb-pod{padding:14px 6px 12px}
+    .lb-pod .player-avatar{width:42px !important;height:42px !important}
+    .lb-pod-pts b{font-size:26px}.lb-pod.p1 .lb-pod-pts b{font-size:30px}
+    .lb-pod-name{font-size:13px}
+    .lb-pod-sub{font-size:11px}
+    .lb-pod .medal{right:6px}
+  }
+
+  /* Exports */
+  .xs-points{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 18px;font-size:13px;line-height:1.6;color:var(--text-2);text-align:center}
+  .xs-points b{color:var(--ink)}
+  .dec-table th{vertical-align:bottom}
+  .dec-table th .medal{display:flex;margin:0 auto 4px}
+  .dec-table th span:not(.medal-n){display:block}
+  .dec-n{display:inline-flex;min-width:28px;justify-content:center;padding:2px 8px;border-radius:999px;font-weight:800}
+  .dec-n.gold{background:var(--gold-tint);color:var(--gold-ink)}
+  .dec-n.silver{background:#EEF1F6;color:#3E4A63}
+  .dec-n.bronze{background:#FBEBDD;color:#7A3F10}
+  .dec-n.award{background:var(--purple-tint);color:var(--purple-ink)}

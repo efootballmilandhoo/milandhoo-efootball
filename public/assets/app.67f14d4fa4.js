@@ -795,11 +795,19 @@ function getQualifiers(t){
 
 /* =========================
    AUTO-CALCULATE STATS
+   Everything is recalculated from the saved results each time, so edits and deletions
+   are reflected straight away and nothing can be counted twice.
    ========================= */
+const PTS = {win:3, draw:1, loss:0, koBonus:2, place:{champion:20, runner_up:12, third:7, fourth:4}};
+const PTS_LEGEND = 'Ranking Points: Win +3 | Draw +1 | Loss 0 | Knockout Win +2 bonus | Champion +20 | Runner-up +12 | 3rd +7 | 4th +4';
+const PTS_RANKING = 'Ranking: Highest total points first.';
 function calculateAllStats(){
   const players = STORE.players, tournaments = STORE.tournaments;
   const stats = {};
-  players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, achievements:[], lastAt:'', addedAt:String(p.createdAt||'')} });
+  players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, koWins:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, tourneyFourth:0, pts:0, ptsMatch:0, ptsKo:0, ptsPlace:0, achievements:[], lastAt:'', addedAt:String(p.createdAt||'')} });
+  // One placing per player per tournament; the best one counts (bonuses never stack).
+  const place = {};
+  const addPlace = (key, pid, kind) => { if(!stats[pid]) return; const k = key+'|'+pid; if(!place[k] || PTS.place[kind] > PTS.place[place[k].kind]) place[k] = {pid, kind} };
   tournaments.forEach(t=>{
     const tWhen = String(t.completedAt || t.startedAt || t.createdAt || '');
     const touch = pid => { const s = stats[pid]; if(s && tWhen > s.lastAt) s.lastAt = tWhen };
@@ -807,8 +815,8 @@ function calculateAllStats(){
       if(!hasScore(f.score1) || !hasScore(f.score2)) return;
       const a = stats[f.team1], b = stats[f.team2];
       touch(f.team1); touch(f.team2);
-      if(a){ a.matches++; a.gf+=f.score1; a.ga+=f.score2; if(f.score1>f.score2) a.wins++; else if(f.score1<f.score2) a.losses++; else a.draws++ }
-      if(b){ b.matches++; b.gf+=f.score2; b.ga+=f.score1; if(f.score2>f.score1) b.wins++; else if(f.score2<f.score1) b.losses++; else b.draws++ }
+      if(a){ a.matches++; a.gf+=f.score1; a.ga+=f.score2; if(f.score1>f.score2){ a.wins++; a.ptsMatch+=PTS.win } else if(f.score1<f.score2) a.losses++; else { a.draws++; a.ptsMatch+=PTS.draw } }
+      if(b){ b.matches++; b.gf+=f.score2; b.ga+=f.score1; if(f.score2>f.score1){ b.wins++; b.ptsMatch+=PTS.win } else if(f.score2<f.score1) b.losses++; else { b.draws++; b.ptsMatch+=PTS.draw } }
     });
     (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
       if(m.isBye || !m.team1 || !m.team2 || !m.winner) return;
@@ -818,16 +826,36 @@ function calculateAllStats(){
         const s = stats[pid]; if(!s) return;
         s.matches++;
         if(r.goals){ s.gf += r.goals[side]; s.ga += r.goals[1-side] }
-        if(m.winner===pid) s.wins++; else s.losses++;
+        if(m.winner===pid){ s.wins++; s.koWins++; s.ptsMatch+=PTS.win; s.ptsKo+=PTS.koBonus } else s.losses++;
       });
     }));
+    // Placing bonuses only once the tournament is completed (results finalised).
     if(t.status==='completed'){
-      if(t.champion && stats[t.champion]){ stats[t.champion].tourneyWins++; stats[t.champion].achievements.push(`Champion · ${t.name}`) }
-      if(t.runnerUp && stats[t.runnerUp]){ stats[t.runnerUp].tourneyRunnerUp++; stats[t.runnerUp].achievements.push(`Runner-up · ${t.name}`) }
-      if(t.thirdPlace && stats[t.thirdPlace]){ stats[t.thirdPlace].tourneyThird++; stats[t.thirdPlace].achievements.push(`Third Place · ${t.name}`) }
+      const key = 't:'+t.id;
+      if(t.champion) addPlace(key, t.champion, 'champion');
+      if(t.runnerUp) addPlace(key, t.runnerUp, 'runner_up');
+      if(t.thirdPlace) addPlace(key, t.thirdPlace, 'third');
+      if(t.fourthPlace) addPlace(key, t.fourthPlace, 'fourth');
     }
   });
-  Object.values(stats).forEach(s=>{ s.winPct = s.matches ? ((s.wins/s.matches)*100).toFixed(1) : '0.0' });
+  // Historical placings from the Hall of Fame. Entries for a tournament already in the app are skipped,
+  // so the same tournament never pays out twice.
+  const appIds = new Set(tournaments.map(t=>t.id)), appNames = new Set(tournaments.map(t=>String(t.name||'').trim().toLowerCase()));
+  (STORE.hof||[]).forEach(h=>{
+    if(!h.playerId || !PTS.place[h.type]) return;
+    const nm = String(h.tournament||'').trim().toLowerCase();
+    if((h.sourceId && appIds.has(h.sourceId)) || appNames.has(nm)) return;
+    addPlace('h:'+(nm || h.id), h.playerId, h.type);
+  });
+  const PLACE_FIELD = {champion:'tourneyWins', runner_up:'tourneyRunnerUp', third:'tourneyThird', fourth:'tourneyFourth'};
+  const PLACE_LABEL = {champion:'Champion', runner_up:'Runner-up', third:'Third Place', fourth:'Fourth Place'};
+  Object.entries(place).forEach(([k, x])=>{
+    const s = stats[x.pid]; s[PLACE_FIELD[x.kind]]++; s.ptsPlace += PTS.place[x.kind];
+    const key = k.slice(0, k.lastIndexOf('|'));
+    const tn = key.startsWith('t:') ? (tournaments.find(t=>'t:'+t.id===key)?.name || '') : ((STORE.hof||[]).find(h=>h.playerId===x.pid && 'h:'+String(h.tournament||'').trim().toLowerCase()===key)?.tournament || '');
+    s.achievements.push(`${PLACE_LABEL[x.kind]} · ${tn}`);
+  });
+  Object.values(stats).forEach(s=>{ s.winPct = s.matches ? ((s.wins/s.matches)*100).toFixed(1) : '0.0'; s.pts = s.ptsMatch + s.ptsKo + s.ptsPlace });
   return stats;
 }
 
@@ -1345,7 +1373,7 @@ function exportAsJPEG(elementId, filename){
     return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename);
   }
   if(elementId==='leaderboardExport') return exportLeaderboardSheet();
-  return exportGenericSheet(el, null, 'Community Leaderboard', `Ranked by titles, then wins, then win rate · ${fmtDate(new Date())}`, filename);
+  return exportLeaderboardSheet();
 }
 
 /* =========================
@@ -1637,7 +1665,7 @@ function renderDashboard(){
       </div>`).join('');
 
   const topRows = rankPlayers(stats).slice(0,5).map((x,i)=>`
-      <div class="row-grid top-row"><span class="rank-badge ${rankClass(i)}">${i+1}</span>${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num">${x.s.wins}W</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
+      <div class="row-grid top-row"><span class="rank-badge ${rankClass(i)}">${i+1}</span>${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
   const hofLatest = [...STORE.hof].sort(hofSort).slice(0,4);
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
@@ -1696,7 +1724,8 @@ function renderDashboard(){
 }
 
 function rankPlayers(stats){
-  return STORE.players.map(p=>({p, s:stats[p.id]})).sort((a,b)=> (b.s.tourneyWins-a.s.tourneyWins) || (b.s.wins-a.s.wins) || (parseFloat(b.s.winPct)-parseFloat(a.s.winPct)) || (b.s.matches-a.s.matches) || b.s.lastAt.localeCompare(a.s.lastAt) || b.s.addedAt.localeCompare(a.s.addedAt));
+  // Total points, then win percentage, then total wins.
+  return STORE.players.map(p=>({p, s:stats[p.id]})).sort((a,b)=> (b.s.pts-a.s.pts) || (parseFloat(b.s.winPct)-parseFloat(a.s.winPct)) || (b.s.wins-a.s.wins) || (b.s.matches-a.s.matches) || b.s.lastAt.localeCompare(a.s.lastAt) || b.s.addedAt.localeCompare(a.s.addedAt) || String(a.p.name).localeCompare(String(b.p.name)));
 }
 
 /* =========================
@@ -2336,7 +2365,7 @@ function drawTournament(t){
     t.knockoutDrawn = true;
   }
   t.deadlineProcessed = false;
-  t.champion = t.runnerUp = t.thirdPlace = null;
+  t.champion = t.runnerUp = t.thirdPlace = t.fourthPlace = null;
 }
 
 function startTournament(tid){
@@ -2920,7 +2949,7 @@ function saveKnockoutMatch(tid, roundIdx, matchId, clear=false){
 function openCompleteTournamentModal(tid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
-  let champ=null, runner=null, third=null;
+  let champ=null, runner=null, third=null, fourth=null;
   if(t.format!=='league' && t.knockoutBracket?.length){
     const final = t.knockoutBracket[t.knockoutBracket.length-1][0];
     if(final?.winner){ champ = final.winner; runner = final.winner===final.team1 ? final.team2 : final.team1 }
@@ -2929,23 +2958,26 @@ function openCompleteTournamentModal(tid){
       if(semis.length===1) third = semis[0];
       else if(semis.length===2){
         const st = calculateAllStats();
-        third = semis.sort((a,b)=>(st[b]?.wins||0)-(st[a]?.wins||0))[0];
+        [third, fourth] = semis.sort((a,b)=>(st[b]?.wins||0)-(st[a]?.wins||0));
       }
     }
   } else if(t.format==='league' && t.groupData?.[0]){
     const s = computeStandings(t, t.groupData[0]);
-    champ = s[0]?.playerId; runner = s[1]?.playerId; third = s[2]?.playerId;
+    champ = s[0]?.playerId; runner = s[1]?.playerId; third = s[2]?.playerId; fourth = s[3]?.playerId;
   }
   if(runner && runner===champ) runner = null;
   if(third && (third===champ || third===runner)) third = null;
+  if(fourth && [champ, runner, third].includes(fourth)) fourth = null;
+  if(t.fourthPlace) fourth = t.fourthPlace;
   const options = sel => `<option value="">— Select —</option>` + (t.registrations||[]).map(r=>`<option value="${r.playerId}" ${r.playerId===sel?'selected':''}>${esc(playerName(r.playerId))}</option>`).join('');
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league'?'Third place defaults to the losing semi-finalist with more wins; change it if you play a third-place match.':''}</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league'?'Third place defaults to the losing semi-finalist with more wins; change it if you play a third-place match.':''} Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) are added to the leaderboard when you complete the tournament.</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
+      <div class="form-group"><label class="form-label" for="ct_fourth">Fourth place (optional)</label><select class="form-select ct-pick" id="ct_fourth" onchange="syncPlacings()">${options(fourth)}</select></div>
       <div class="text-xs text-muted">A player can only hold one place. Players already picked are greyed out in the other lists.</div>
     </div>
     <div class="modal-foot">
@@ -2963,12 +2995,12 @@ function syncPlacings(){
 }
 
 function completeTournament(tid){
-  const c = document.getElementById('ct_champ').value || null, r = document.getElementById('ct_runner').value || null, th = document.getElementById('ct_third').value || null;
+  const c = document.getElementById('ct_champ').value || null, r = document.getElementById('ct_runner').value || null, th = document.getElementById('ct_third').value || null, fo = document.getElementById('ct_fourth')?.value || null;
   if(!c){ toast('Choose a champion', true); return }
-  const picks = [c,r,th].filter(Boolean);
+  const picks = [c,r,th,fo].filter(Boolean);
   if(new Set(picks).size !== picks.length){ toast('Each placing needs a different player', true); return }
   const {all, t} = getT(tid);
-  t.champion = c; t.runnerUp = r; t.thirdPlace = th;
+  t.champion = c; t.runnerUp = r; t.thirdPlace = th; t.fourthPlace = fo;
   t.status = 'completed';
   t.completedAt = new Date().toISOString();
   DB.set('tournaments', all);
@@ -3421,6 +3453,19 @@ const HOF_TYPES = {
   award:{label:'Award', medal:'★', cls:'award'}
 };
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+/* Flat medal with a ribbon. The number sits in HTML on top so it uses the app font (also in exports). */
+const MEDAL_COLORS = {gold:['#C98A00','#FFCF4D','#5C3D00'], silver:['#8391AC','#E2E8F2','#2E3A52'], bronze:['#A85A1C','#F2B47F','#4F2508'], award:['#6A4BD6','#D3C5FF','#2A1773']};
+function medalHTML(cls, label, size=32){
+  const [rim, face, ink] = MEDAL_COLORS[cls] || MEDAL_COLORS.award;
+  const disc = cls==='award'
+    ? `<path d="M16 13.5l3.1 6.2 6.9 1-5 4.9 1.2 6.9-6.2-3.3-6.2 3.3 1.2-6.9-5-4.9 6.9-1z" fill="${rim}"/><path d="M16 17.3l1.9 3.8 4.2.6-3 3 .7 4.1-3.8-2-3.8 2 .7-4.1-3-3 4.2-.6z" fill="${face}"/>`
+    : `<circle cx="16" cy="25" r="11" fill="${rim}"/><circle cx="16" cy="25" r="8.6" fill="${face}"/><path d="M10.2 22.6a6.6 6.6 0 0 1 4.6-4.1" fill="none" stroke="#FFFFFF" stroke-opacity=".7" stroke-width="1.6" stroke-linecap="round"/>`;
+  return `<span class="medal medal-${cls}" style="--m:${size}px;--ink:${ink}" role="img" aria-label="${esc(HOF_TYPES[cls==='gold'?'champion':cls==='silver'?'runner_up':cls==='bronze'?'third':'award']?.label||'')}">
+    <svg viewBox="0 0 32 37" width="${size}" height="${Math.round(size*37/32)}" aria-hidden="true"><path d="M7 1h7l5.2 13.2-6.6 2.4z" fill="#1463FF"/><path d="M25 1h-7l-5.2 13.2 6.6 2.4z" fill="#0B3FB3"/>${disc}</svg>
+    ${cls==='award' ? '' : `<span class="medal-n">${esc(label)}</span>`}
+  </span>`;
+}
+function hofMedal(type, size){ const t = HOF_TYPES[type] || HOF_TYPES.award; return medalHTML(t.cls, t.medal, size) }
 let hofFilter = {org:'all', player:'all'};
 
 function hofPlayer(h){ return h.playerId ? (STORE.players.find(p=>p.id===h.playerId) || {name: h.playerName || 'Unknown player'}) : {name: h.playerName || 'Unknown player'} }
@@ -3434,34 +3479,35 @@ function hofKey(h){ return h.playerId || 'name:'+String(h.playerName||'').toLowe
 function hofRow(h){
   const t = HOF_TYPES[h.type] || HOF_TYPES.award, p = hofPlayer(h);
   return `<div class="row-grid hof-row">
-    <span class="hof-medal ${t.cls}">${t.medal}</span>
+    ${medalHTML(t.cls, t.medal, 26)}
     ${renderAvatar(p, 30)}
     <span class="row-stack"><b>${esc(p.name)}</b><span>${esc(hofTitle(h))} · ${esc(h.tournament||'')}</span></span>
     <span class="row-date">${esc(hofDate(h)) || '—'}</span>
   </div>`;
 }
 
-function hofCard(h, admin){
+const EDIT_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+const TRASH_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+/* One Hall of Fame achievement as a list row: medal, player, achievement and tournament, organiser and date. */
+function hofItem(h, admin){
   const t = HOF_TYPES[h.type] || HOF_TYPES.award, p = hofPlayer(h);
-  return `<article class="hof-card ${t.cls}">
-    <div class="hof-card-top">
-      <span class="hof-medal big ${t.cls}">${t.medal}</span>
-      <div style="min-width:0;flex:1">
-        <div class="hof-title">${esc(hofTitle(h))}</div>
-        <div class="hof-tournament">${esc(h.tournament||'')}</div>
-      </div>
-      ${admin ? `<div class="flex gap-8 no-export">
-        <button type="button" class="btn btn-ghost btn-icon" onclick="openHofModal('${h.id}')" aria-label="Edit achievement"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button type="button" class="btn btn-ghost btn-icon" style="color:var(--danger-ink)" onclick="deleteHof('${h.id}')" aria-label="Delete achievement"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-      </div>` : ''}
-    </div>
-    <div class="hof-player">${renderAvatar(p, 40)}<div style="min-width:0"><b>${esc(p.name)}</b>${!h.playerId?'<span class="text-xs text-muted">Not in the player list</span>':''}</div></div>
-    <div class="hof-meta">
+  return `<div class="hof-li ${t.cls}">
+    <span class="hof-li-medal">${medalHTML(t.cls, t.medal, 30)}</span>
+    <span class="hof-li-av">${renderAvatar(p, 40)}</span>
+    <span class="hof-li-main">
+      <b>${esc(p.name)}</b>
+      <span class="hof-li-sub"><i class="hof-chip ${t.cls}">${esc(hofTitle(h))}</i><span class="hof-li-t">${esc(h.tournament||'')}</span></span>
+      ${h.note ? `<span class="hof-li-note">${esc(h.note)}</span>` : ''}
+    </span>
+    <span class="hof-li-meta">
       <span class="badge ${h.organizer==='other'?'badge-format':'badge-open'}">${esc(hofOrg(h))}</span>
-      ${h.date ? `<span class="text-sm text-muted">${esc(hofDate(h))}</span>` : ''}
-    </div>
-    ${h.note ? `<p class="hof-note">${esc(h.note)}</p>` : ''}
-  </article>`;
+      <span class="hof-li-date">${esc(hofDate(h)) || '—'}</span>
+    </span>
+    ${admin ? `<span class="hof-li-actions no-export">
+      <button type="button" class="btn btn-ghost btn-icon" onclick="openHofModal('${h.id}')" aria-label="Edit achievement">${EDIT_SVG}</button>
+      <button type="button" class="btn btn-ghost btn-icon" style="color:var(--danger-ink)" onclick="deleteHof('${h.id}')" aria-label="Delete achievement">${TRASH_SVG}</button>
+    </span>` : ''}
+  </div>`;
 }
 
 function hofFiltered(){
@@ -3474,10 +3520,8 @@ function renderHallOfFame(){
   setHeader('Community', 'Hall of Fame');
   const admin = isAdmin();
   const all = [...STORE.hof].sort(hofSort);
-  // most decorated
-  const tally = {};
-  all.forEach(h=>{ const k = hofKey(h); const t = tally[k] = tally[k] || {key:k, h, champion:0, runner_up:0, third:0, award:0, total:0}; t[h.type in t ? h.type : 'award']++; t.total++ });
-  const ranked = Object.values(tally).sort((a,b)=> b.champion-a.champion || b.runner_up-a.runner_up || b.third-a.third || b.award-a.award);
+  const tally = hofTally(all);
+  const ranked = hofRanked(tally);
   const playerOpts = Object.values(tally).map(t=>({key:t.key, name:hofPlayer(t.h).name})).sort((a,b)=>a.name.localeCompare(b.name));
   if(hofFilter.player!=='all' && !tally[hofFilter.player]) hofFilter.player = 'all';
   const list = hofFiltered();
@@ -3503,12 +3547,12 @@ function renderHallOfFame(){
     </section>
 
     ${ranked.length ? `<section class="card" style="display:flex;flex-direction:column;gap:12px">
-      <h2 class="card-title">Most decorated</h2>
+      <div class="card-head" style="margin:0"><h2 class="card-title">Most decorated</h2><button type="button" class="btn-icon-square" onclick="exportDecoratedSheet()" aria-label="Export most decorated (image or PDF)" title="Export most decorated (image or PDF)">${ICON_DL}</button></div>
       <div class="decorated">
         ${ranked.slice(0,6).map((t,i)=>{ const p = hofPlayer(t.h); return `
           <button type="button" class="decorated-item ${hofFilter.player===t.key?'active':''}" data-key="${esc(hofFilter.player===t.key?'all':t.key)}" onclick="setHofFilter('player', this.dataset.key)" aria-pressed="${hofFilter.player===t.key}">
-            <span class="rank-badge ${rankClass(i)}">${i+1}</span>${renderAvatar(p,36)}
-            <span class="grow"><b>${esc(p.name)}</b><span class="decorated-counts">${t.champion?`<i class="gold">${t.champion}×1st</i>`:''}${t.runner_up?`<i class="silver">${t.runner_up}×2nd</i>`:''}${t.third?`<i class="bronze">${t.third}×3rd</i>`:''}${t.award?`<i class="award">${t.award} award${t.award>1?'s':''}</i>`:''}</span></span>
+            ${i<3 ? medalHTML(['gold','silver','bronze'][i], String(i+1), 28) : `<span class="lbx-rank">${i+1}</span>`}${renderAvatar(p,36)}
+            <span class="grow"><b>${esc(p.name)}</b><span class="decorated-counts">${decoratedCounts(t)}</span></span>
           </button>`}).join('')}
       </div>
     </section>` : ''}
@@ -3530,8 +3574,37 @@ function renderHallOfFame(){
 
     <div id="hofList" style="display:flex;flex-direction:column;gap:20px">
     ${list.length===0 ? `<div class="card empty"><div class="empty-title">${all.length ? 'Nothing matches these filters' : 'The Hall of Fame is empty'}</div><div class="text-sm">${all.length ? 'Try another filter.' : admin ? 'Add the first achievement, or import champions from tournaments already finished in this app.' : 'Achievements appear here once the organisers add them.'}</div></div>` :
-      years.map(y=>`<section class="hof-year"><div class="hof-year-label">${esc(y)}</div><div class="grid grid-3">${byYear[y].map(h=>hofCard(h, admin)).join('')}</div></section>`).join('')}
+      years.map(y=>`<section class="hof-year"><div class="hof-year-label">${esc(y)}<span>${byYear[y].length}</span></div><div class="hof-list ${admin?'is-admin':''}">${byYear[y].map(h=>hofItem(h, admin)).join('')}</div></section>`).join('')}
     </div>`;
+}
+
+/* Most decorated: titles first, then runner-up, third place and awards. */
+function hofTally(all){
+  const tally = {};
+  all.forEach(h=>{ const k = hofKey(h); const t = tally[k] = tally[k] || {key:k, h, champion:0, runner_up:0, third:0, award:0, total:0}; t[h.type in t ? h.type : 'award']++; t.total++ });
+  return tally;
+}
+function hofRanked(tally){ return Object.values(tally).sort((a,b)=> b.champion-a.champion || b.runner_up-a.runner_up || b.third-a.third || b.award-a.award || hofPlayer(a.h).name.localeCompare(hofPlayer(b.h).name)) }
+function decoratedCounts(t){
+  return `${t.champion?`<i class="gold">${t.champion}× Champion</i>`:''}${t.runner_up?`<i class="silver">${t.runner_up}× Runner-up</i>`:''}${t.third?`<i class="bronze">${t.third}× 3rd</i>`:''}${t.award?`<i class="award">${t.award} award${t.award>1?'s':''}</i>`:''}`;
+}
+const DEC_PER_PAGE = 14;
+function exportDecoratedSheet(){
+  const ranked = hofRanked(hofTally([...STORE.hof]));
+  if(!ranked.length){ toast('Nothing to export yet', true); return }
+  const parts = chunk(ranked, DEC_PER_PAGE);
+  const cell = (n, cls) => n ? `<span class="dec-n ${cls}">${n}</span>` : `<span class="dec-0">–</span>`;
+  const pages = parts.map((part, i)=> sheetHeader(null, 'Most Decorated Players', `Hall of Fame · ${ranked.length} player${ranked.length===1?'':'s'}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''} · ${fmtDate(new Date())}`)
+    + `<div class="xs-card"><table class="lbx dec-table">
+      <thead><tr><th>#</th><th class="l">Player</th><th>${medalHTML('gold','1',20)}<span>Champion</span></th><th>${medalHTML('silver','2',20)}<span>Runner-up</span></th><th>${medalHTML('bronze','3',20)}<span>Third</span></th><th>Awards</th><th>Total</th></tr></thead>
+      <tbody>${part.map((t,j)=>{ const k = i*DEC_PER_PAGE + j, p = hofPlayer(t.h); return `<tr class="${k<3?'top':''}">
+        <td>${k<3 ? medalHTML(['gold','silver','bronze'][k], String(k+1), 26) : `<span class="lbx-rank">${k+1}</span>`}</td>
+        <td class="l"><span class="who">${renderAvatar(p, 34)}<span>${esc(p.name)}</span></span></td>
+        <td>${cell(t.champion,'gold')}</td><td>${cell(t.runner_up,'silver')}</td><td>${cell(t.third,'bronze')}</td><td>${cell(t.award,'award')}</td>
+        <td><span class="lbx-pts">${t.total}</span></td></tr>` }).join('')}</tbody></table></div>`
+    + `<div class="xs-points">Ranked by titles, then runner-up finishes, third places and awards. Includes our tournaments and other organisers' events.</div>`
+    + sheetFoot(i+1, parts.length));
+  return renderSheets(pages, 900, 'most_decorated');
 }
 
 function setHofFilter(group, v){ hofFilter[group] = v; renderHallOfFame() }
@@ -3561,7 +3634,7 @@ function openHofModal(id){
       <div class="form-group">
         <span class="form-label">Achievement</span>
         <div class="hof-type-pick" role="radiogroup">
-          ${Object.entries(HOF_TYPES).filter(([k])=>k!=='award').map(([k,t])=>`<label class="hof-type ${t.cls}"><input type="radio" name="h_type" value="${k}" ${h.type===k?'checked':''} onchange="hofTypeChanged()"><span class="hof-medal ${t.cls}">${t.medal}</span>${t.label}</label>`).join('')}
+          ${Object.entries(HOF_TYPES).filter(([k])=>k!=='award').map(([k,t])=>`<label class="hof-type ${t.cls}"><input type="radio" name="h_type" value="${k}" ${h.type===k?'checked':''} onchange="hofTypeChanged()">${medalHTML(t.cls, t.medal, 34)}<span>${t.label}</span></label>`).join('')}
         </div>
       </div>
       <div class="form-group">
@@ -3646,15 +3719,15 @@ async function importHofFromTournaments(){
   DB.set('hof', list.concat(add).sort(hofSort));
   rerender(); toast(`Added ${add.length} achievement${add.length>1?'s':''}`);
 }
-const HOF_PER_PAGE = 15;
+const HOF_PER_PAGE = 12;
 function exportHofSheet(){
   const list = hofFiltered();
   const parts = chunk(list, HOF_PER_PAGE);
   const pages = parts.map((part, i)=>{
-    const body = `<div class="xs-grid" style="grid-template-columns:repeat(${Math.max(1,Math.min(3,part.length))}, 330px)">${part.map(h=>hofCard(h,false)).join('')}</div>`;
+    const body = `<div class="xs-card" style="padding:6px 18px"><div class="hof-list xs-list">${part.map(h=>hofItem(h,false)).join('')}</div></div>`;
     return sheetHeader(null, 'Hall of Fame', `${list.length} achievement${list.length===1?'':'s'}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''} · ${fmtDate(new Date())}`) + body + sheetFoot(i+1, parts.length);
   });
-  return renderSheets(pages, 3*330 + 2*18 + 56, 'hall_of_fame');
+  return renderSheets(pages, 900, 'hall_of_fame');
 }
 
 /* =========================
@@ -3665,6 +3738,7 @@ function renderLeaderboard(){
   const enriched = rankPlayers(stats);
   const totalMatches = Math.round(enriched.reduce((s,x)=>s+x.s.matches,0)/2);
   const totalGoals = enriched.reduce((s,x)=>s+x.s.gf,0);
+  const podium = enriched.slice(0,3).filter(x=>x.s.pts>0);
   setHeader('Community', 'Leaderboard');
   document.getElementById('main').innerHTML = `
     <div class="grid grid-4">
@@ -3673,44 +3747,62 @@ function renderLeaderboard(){
       ${statTile('goal','tint-green','Goals scored', totalGoals)}
       ${statTile('trophy','tint-gold','Completed tournaments', STORE.tournaments.filter(t=>t.status==='completed').length)}
     </div>
-    <section id="leaderboardExport" class="export-container" style="display:flex;flex-direction:column;gap:14px" aria-label="Community leaderboard">
-      <div class="export-header"><div class="export-title">${esc(titleCase(commName()))} · Leaderboard</div><div class="export-subtitle">Rankings as of ${fmtDate(new Date())}</div></div>
-      <div class="flex-between no-export">
-        <div class="flex gap-8" style="align-items:center;flex-wrap:wrap">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by titles, then wins, then win rate</span></div>
+    ${podium.length ? `<section class="lb-podium" aria-label="Top three">${podium.map((x,i)=>`
+      <div class="lb-pod p${i+1}">
+        ${medalHTML(['gold','silver','bronze'][i], String(i+1), 34)}
+        ${renderAvatar(x.p, 52)}
+        <div class="lb-pod-name">${esc(x.p.name)}</div>
+        <div class="lb-pod-pts"><b>${x.s.pts}</b><span>PTS</span></div>
+        <div class="lb-pod-sub">${x.s.wins}W · ${x.s.draws}D · ${x.s.losses}L · ${x.s.winPct}%</div>
+      </div>`).join('')}</section>` : ''}
+    <section id="leaderboardExport" class="card lb-card" aria-label="Community leaderboard">
+      <div class="lb-card-head">
+        <div><h2 class="card-title">All-time ranking</h2><div class="flex gap-8" style="align-items:center;flex-wrap:wrap;margin-top:4px">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by total points · updates as results are saved</span></div></div>
         <button type="button" class="export-btn" onclick="exportAsJPEG('leaderboardExport','milandhoo_leaderboard')">${ICON_DL} Export leaderboard</button>
       </div>
-      <div class="table-wrap">${lbTable(enriched, 0)}</div>
-      <div class="table-hint no-export">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
+      <div class="lbx-wrap">${lbTable(enriched, 0)}</div>
+      ${lbLegend()}
+      <div class="table-hint">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
     </section>`;
+}
+function lbLegend(){
+  const it = (l, v) => `<span><b>${v}</b>${l}</span>`;
+  return `<div class="lb-legend">
+    <div class="lb-legend-items">${it('Win','+3')}${it('Draw','+1')}${it('Loss','0')}${it('Knockout win bonus','+2')}${it('Champion','+20')}${it('Runner-up','+12')}${it('3rd','+7')}${it('4th','+4')}</div>
+    <div class="lb-legend-note">Highest total points first. Ties: win %, then total wins. Placing points are added when a tournament is completed; only a player's best placing in each tournament counts. Hall of Fame placings from before the app count too.</div>
+  </div>`;
 }
 
 /* The leaderboard table: used on the page and, 10 players per page, in the export. */
 function lbTable(rows, offset){
   return `
-        <table class="group-table lb-table">
-          <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">2nd</th><th scope="col">3rd</th><th scope="col">Titles</th></tr></thead>
+        <table class="lbx lb-table">
+          <thead><tr><th scope="col">#</th><th scope="col" class="l">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">Titles</th><th scope="col">2nd</th><th scope="col">3rd</th><th scope="col" class="pts">PTS</th></tr></thead>
           <tbody>
-            ${rows.length===0 ? `<tr><td colspan="11" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
-              rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; return `
-                <tr class="${i<3 && x.s.matches?'qualify':''}">
-                  <td><span class="rank-badge ${rankClass(i)}">${i+1}</span></td>
-                  <td><span class="who">${renderAvatar(x.p, 34)}<span style="min-width:0">${esc(x.p.name)}</span></span></td>
+            ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
+              rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = i<3 && x.s.pts>0; return `
+                <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
+                  <td>${top ? medalHTML(['gold','silver','bronze'][i], String(i+1), 26) : `<span class="lbx-rank">${i+1}</span>`}</td>
+                  <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span></span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
-                  <td style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
-                  <td style="color:var(--primary-dark);font-weight:700">${x.s.winPct}%</td>
-                  <td>${x.s.tourneyRunnerUp}</td>
-                  <td>${x.s.tourneyThird}</td>
-                  <td>${x.s.tourneyWins>0 ? `<span class="badge badge-draft">${x.s.tourneyWins}</span>` : '0'}</td>
+                  <td class="muted">${gd>0?'+':''}${gd}</td>
+                  <td class="pct">${x.s.winPct}%</td>
+                  <td>${x.s.tourneyWins>0 ? `<span class="lbx-title">${x.s.tourneyWins}</span>` : '<span class="dec-0">0</span>'}</td>
+                  <td>${x.s.tourneyRunnerUp || '<span class="dec-0">0</span>'}</td>
+                  <td>${x.s.tourneyThird || '<span class="dec-0">0</span>'}</td>
+                  <td class="pts"><span class="lbx-pts">${x.s.pts}</span></td>
                 </tr>`}).join('')}
           </tbody>
         </table>`;
 }
-const LB_PER_PAGE = 10;
+const LB_PER_PAGE = 12;
 function exportLeaderboardSheet(){
   const enriched = rankPlayers(calculateAllStats());
   const parts = chunk(enriched, LB_PER_PAGE);
-  const pages = parts.map((part, i)=> sheetHeader(null, 'Community Leaderboard', `Ranked by titles, then wins, then win rate · ${fmtDate(new Date())}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''}`)
-    + `<div class="xs-card">${lbTable(part, i*LB_PER_PAGE)}</div>` + sheetFoot(i+1, parts.length));
+  const pages = parts.map((part, i)=> sheetHeader(null, 'Community Leaderboard', `All-time ranking by total points · ${fmtDate(new Date())}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''}`)
+    + `<div class="xs-card" style="padding:8px 14px">${lbTable(part, i*LB_PER_PAGE)}</div>`
+    + `<div class="xs-points"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}</div>`
+    + sheetFoot(i+1, parts.length));
   return renderSheets(pages, 900, 'milandhoo_leaderboard');
 }
 
