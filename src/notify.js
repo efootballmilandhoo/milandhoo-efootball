@@ -81,7 +81,8 @@ function unreadCount(){ return NOTIF.feed.filter(isUnread).length }
 function renderBell(){
   document.querySelectorAll('[data-bell]').forEach(btn=>{
     const n = unreadCount();
-    btn.innerHTML = BELL_SVG + (n ? `<span class="bell-badge">${n>9?'9+':n}</span>` : '');
+    const html = BELL_SVG + (n ? `<span class="bell-badge">${n>9?'9+':n}</span>` : '');
+    if(btn._html!==html){ btn.innerHTML = html; btn._html = html }
     btn.setAttribute('aria-label', n ? `Updates, ${n} unread` : 'Updates');
     btn.setAttribute('aria-expanded', NOTIF.open ? 'true' : 'false');
   });

@@ -83,7 +83,7 @@ function queueWrite(path, fn){
     if(e && e.code==='unavailable'){ await new Promise(r=>setTimeout(r, 400+Math.random()*900)); return fn() }
     throw e;
   });
-  STORE.chains[path] = (STORE.chains[path] || Promise.resolve()).then(run).catch(e=>{
+  STORE.chains[path] = (STORE.chains[path] || LIVE_READY).then(run).then(()=>scheduleOffload()).catch(e=>{
     console.error(e);
     const code = e && e.code;
     if(code==='invalid_argument') toast('Save refused: only signed-in organisers can change community data. Sign in again from the Admin Panel.', true);
@@ -152,11 +152,11 @@ const titleCase = x => x.replace(/\S+/g, w => /^e[A-Z]/.test(w) ? w : w.charAt(0
 const DEFAULT_MARK = size => `<svg width="${Math.round(size*0.6)}" height="${Math.round(size*0.6)}" viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 19V5l9 8 9-8v14"/></svg>`;
 function communityMark(size){
   const logo = STORE.settings?.logo;
-  if(logo && /^data:image\//.test(logo)) return `<span class="logo-mark has-img" style="width:${size}px;height:${size}px"><img src="${esc(logo)}" alt="${esc(commFull())} logo"></span>`;
+  if(logo && isImgSrc(logo)) return `<span class="logo-mark has-img" style="width:${size}px;height:${size}px"><img src="${esc(logo)}"${imgAttrs(logo)} alt="${esc(commFull())} logo"></span>`;
   return `<span class="logo-mark" style="width:${size}px;height:${size}px">${DEFAULT_MARK(size)}</span>`;
 }
 function tournamentLogo(t, size, cls=''){
-  if(t && t.logo && /^data:image\//.test(t.logo)) return `<span class="t-logo ${cls}" style="width:${size}px;height:${size}px"><img src="${esc(t.logo)}" alt=""></span>`;
+  if(t && t.logo && isImgSrc(t.logo)) return `<span class="t-logo ${cls}" style="width:${size}px;height:${size}px"><img src="${esc(t.logo)}"${imgAttrs(t.logo)} alt=""></span>`;
   return '';
 }
 
@@ -192,25 +192,20 @@ function initLocal(){
 function attachShared(db){
   db.collection('halloffame').onSnapshot(snap=>{
     const arr = snap.docs.map(d=>({...clone(d.data()), id:d.id})).sort(hofSort);
-    if(JSON.stringify(arr)===JSON.stringify(STORE.hof)) return;
-    STORE.hof = arr;
+    const same = JSON.stringify(arr)===JSON.stringify(STORE.hof);
+    if(!same) STORE.hof = arr;
+    markLive('halloffame');
+    if(same) return;
     if(STORE.loaded.players && STORE.loaded.tournaments) scheduleRender();
   }, ()=>{});
   db.collection('settings').onSnapshot(snap=>{
     const doc = snap.docs.find(d=>d.id==='community'), cov = snap.docs.find(d=>d.id==='cover'), sc = snap.docs.find(d=>d.id==='sidecard'), hc = snap.docs.find(d=>d.id==='hofcover');
     const next = doc ? clone(doc.data()) : {}, nextCover = cov ? clone(cov.data()) : {}, nextSide = sc ? clone(sc.data()) : {}, nextHof = hc ? clone(hc.data()) : {};
-    if(JSON.stringify(next)===JSON.stringify(STORE.settings) && JSON.stringify(nextCover)===JSON.stringify(STORE.cover) && JSON.stringify(nextSide)===JSON.stringify(STORE.sidecard) && JSON.stringify(nextHof)===JSON.stringify(STORE.hofcover)) return;
+    if(JSON.stringify(next)===JSON.stringify(STORE.settings) && JSON.stringify(nextCover)===JSON.stringify(STORE.cover) && JSON.stringify(nextSide)===JSON.stringify(STORE.sidecard) && JSON.stringify(nextHof)===JSON.stringify(STORE.hofcover)){ markLive('settings'); return }
     STORE.settings = next; STORE.cover = nextCover; STORE.sidecard = nextSide; STORE.hofcover = nextHof;
+    markLive('settings');
     if(STORE.loaded.players && STORE.loaded.tournaments) scheduleRender(); else renderChrome();
   }, ()=>{});
-  if(STORE.admin){
-    db.collection(PHONE_PATH).onSnapshot(snap=>{
-      const next = {}; snap.docs.forEach(d=>{ const v = d.data(); if(v && v.phone) next[d.id] = v.phone });
-      if(JSON.stringify(next)===JSON.stringify(STORE.phones)) return;
-      STORE.phones = next;
-      if(STORE.loaded.players && STORE.loaded.tournaments) scheduleRender();
-    }, ()=>{});
-  }
   ['players','tournaments'].forEach(key=>{
     db.collection(key).onSnapshot(snap=>{
       const arr = snap.docs.map(d=>({...clone(d.data()), id:d.id}));
@@ -218,36 +213,57 @@ function attachShared(db){
       if(key==='players') arr.sort((a,b)=>String(a.createdAt||a.id).localeCompare(String(b.createdAt||b.id)));
       const first = !STORE.loaded[key];
       STORE.loaded[key] = true;
-      if(!first && JSON.stringify(arr)===JSON.stringify(STORE[key])) return;
-      STORE[key] = arr;
+      const same = !first && JSON.stringify(arr)===JSON.stringify(STORE[key]);
+      if(!same) STORE[key] = arr;
+      markLive(key);
+      if(same) return;
       scheduleRender();
     }, ()=>{
-      toast('Live updates stopped. Reload the page to reconnect.', true);
+      toast(STORE.live ? 'Live updates paused. Reconnecting…' : STORE.fromSnapshot ? "Can't reach the server right now. Showing the last saved results." : "Can't reach the server right now. Retrying…", true);
     });
   });
+}
+
+/* Phone numbers: organisers only, attached once the server confirms the role. */
+let privateAttached = false;
+function attachPrivate(db){
+  if(privateAttached) return; privateAttached = true;
+  db.collection(PHONE_PATH).onSnapshot(snap=>{
+    const next = {}; snap.docs.forEach(d=>{ const v = d.data(); if(v && v.phone) next[d.id] = v.phone });
+    if(JSON.stringify(next)===JSON.stringify(STORE.phones)) return;
+    STORE.phones = next;
+    if(STORE.loaded.players && STORE.loaded.tournaments) scheduleRender();
+  }, ()=>{});
 }
 
 let renderQueued = false;
 function scheduleRender(){
   if(renderQueued) return;
   renderQueued = true;
-  requestAnimationFrame(()=>{ renderQueued=false; if(STORE.loaded.players && STORE.loaded.tournaments){ rerender(); applyHashRoute(); scheduleUpdateCheck() } });
+  requestAnimationFrame(()=>{ renderQueued=false; if(STORE.loaded.players && STORE.loaded.tournaments){ rerender(); applyHashRoute(); if(STORE.live){ scheduleUpdateCheck(); saveSnapshotSoon() } } });
 }
 
 async function boot(){
-  renderLoading();
-  if(!window.supabase || typeof window.supabase.createClient!=='function'){ renderOffline(); return }
+  STORE.mode = 'shared';
+  STORE.pin = null; STORE.pinLoaded = true;
+  const hint = readRoleHint();
+  if(hint){ STORE.admin = true; STORE.owner = hint==='owner' }
+  const snap = readSnapshot();
+  if(snap){ applySnapshot(snap); scheduleRender() } else renderSkeleton();
+  updateModeNote();
+  const ok = await waitForSupabase();
+  if(!ok){ if(snap) toast('You are offline. Showing the last saved results.', true); else renderOffline(); return }
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
   AUTH.sb = sb;
   sb.auth.onAuthStateChange(ev=>{ if(ev==='PASSWORD_RECOVERY'){ STORE.resetMode = true; navigate('admin') } });
+  STORE.db = makeSupabaseDb(sb);
+  attachShared(STORE.db);
   try{ await loadRole() }catch(e){ console.error(e) }
   if(/type=recovery/.test(location.hash) || location.hash==='#reset') STORE.resetMode = !!AUTH.user;
-  STORE.mode = 'shared';
-  STORE.db = makeSupabaseDb(sb);
-  STORE.pin = null; STORE.pinLoaded = true;
+  saveRoleHint();
   updateModeNote();
-  attachShared(STORE.db);
-  if(STORE.admin) loadOrganisers();
+  if(STORE.admin){ attachPrivate(STORE.db); loadOrganisers() }
+  scheduleRender();
   initPush();
 }
 function renderOffline(){
@@ -281,10 +297,7 @@ function updateModeNote(){
   else el.textContent = STORE.offlineInViewer ? 'Offline copy · saved in this browser only' : 'Saved in this browser';
 }
 
-function renderLoading(){
-  setHeader('Welcome', 'Dashboard');
-  document.getElementById('main').innerHTML = `<div class="card empty"><div class="empty-title">Loading community data…</div><div class="text-sm">Players, tournaments and results appear in a moment.</div></div>`;
-}
+function renderLoading(){ renderSkeleton() }
 
 /* =========================
    MOBILE SIDEBAR
@@ -583,11 +596,12 @@ function setHeader(crumb, title, back){
 
 function renderChrome(){
   renderSiteFoot();
-  document.querySelectorAll('[data-mark]').forEach(el=>{ el.innerHTML = communityMark(+el.dataset.mark) });
+  document.querySelectorAll('[data-mark]').forEach(el=>setHTML(el, communityMark(+el.dataset.mark)));
   const f = featuredTournament();
   const view = currentView;
   const active = view==='tournament-detail' ? 'tournaments' : view;
-  document.querySelectorAll('.nav-item').forEach(n=>{
+  document.body.dataset.view = view;
+  document.querySelectorAll('.nav-item, .bn-item').forEach(n=>{
     const on = n.dataset.view===active;
     n.classList.toggle('active', on);
     if(on) n.setAttribute('aria-current','page'); else n.removeAttribute('aria-current');
@@ -596,7 +610,8 @@ function renderChrome(){
   if(card){
     const img = STORE.sidecard?.image;
     card.classList.toggle('has-img', !!img);
-    if(img && /^data:image\//.test(img)) card.style.setProperty('--side-img', `url('${img}')`); else card.style.removeProperty('--side-img');
+    const sideUrl = img ? cssUrl(img) : '';
+    if(sideUrl){ if(card.style.getPropertyValue('--side-img')!==sideUrl) card.style.setProperty('--side-img', sideUrl) } else card.style.removeProperty('--side-img');
     const ed = document.getElementById('sideCardEdit'); if(ed) ed.hidden = !isAdmin();
   }
   document.querySelectorAll('[data-cname]').forEach(el=>{ const n = commName(); el.textContent = n; const longest = Math.max(...n.split(/\s+/).map(w=>w.length)); el.classList.toggle('long', longest>8 || n.length>14); el.classList.toggle('xlong', longest>11) });
@@ -604,12 +619,12 @@ function renderChrome(){
   document.title = 'MG Efootball';
   updateModeNote();
   const admin = isAdmin();
-  const chip = document.getElementById('userChip');
-  const canM = canManage();
   const label = admin ? (STORE.owner ? 'Owner' : 'Organiser') : 'Community';
   const sub = admin ? 'Signed in' : 'Organiser sign in';
-  chip.innerHTML = `<span class="user-ini">${admin?'AD':'MC'}</span><span class="user-meta"><b>${label}</b><span>${sub}</span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A5878" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`;
-  chip.setAttribute('aria-label', `${label}, ${sub}. Open admin panel`);
+  document.querySelectorAll('#userChip, [data-userchip]').forEach(chip=>{
+    setHTML(chip, `<span class="user-ini">${admin?'AD':'MC'}</span><span class="user-meta"><b>${label}</b><span>${sub}</span></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A5878" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>`);
+    chip.setAttribute('aria-label', `${label}, ${sub}. Open admin panel`);
+  });
   renderBell();
 }
 
@@ -728,7 +743,7 @@ async function saveFile(filename, data){
    bracket / every fixture / every group fits in the image, with both logos in the header. */
 function sheetHeader(t, title, subtitle){
   return `<div class="xs-head">
-    ${t && t.logo ? `<span class="xs-tlogo"><img src="${esc(t.logo)}" alt=""></span>` : ''}
+    ${t && t.logo && isImgSrc(t.logo) ? `<span class="xs-tlogo"><img src="${esc(t.logo)}"${imgAttrs(t.logo)} alt=""></span>` : ''}
     <div class="xs-titles">
       <div class="xs-kicker">${esc(commFull().toUpperCase().replace('EFOOTBALL','eFOOTBALL'))}</div>
       <div class="xs-title">${esc(title)}</div>
@@ -750,10 +765,12 @@ function sheetFoot(page, pages){
 }
 function chunk(arr, n){ const out = []; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out.length ? out : [[]] }
 /* Saves several pages one after another; each page is its own JPEG. */
+/* Set markup only when it changed, so pictures and focus aren't reset on every live update. */
+function setHTML(el, html){ if(el && el._html!==html){ el.innerHTML = html; el._html = html } }
 function renderSiteFoot(){
   const el = document.getElementById('siteFoot');
   if(!el) return;
-  el.innerHTML = `
+  setHTML(el, `
     <div class="sf-brand">
       ${communityMark(44)}
       <div class="sf-name">${esc(commName())}</div>
@@ -763,14 +780,14 @@ function renderSiteFoot(){
     <div class="sf-links">
       ${SOCIALS.map(x=>`<a class="sf-link" href="${x.url}" target="_blank" rel="noopener noreferrer" aria-label="${x.network}: ${esc(x.handle)}">${x.icon}<span class="sf-net">${x.network}</span><span class="sf-handle">${esc(x.handle)}</span></a>`).join('')}
     </div>
-    <div class="sf-motto">Play · Compete · Belong</div>`;
+    <div class="sf-motto">Play · Compete · Belong</div>`);
 }
 
 function buildSheet(html, width){
   const sheet = document.createElement('div');
   sheet.className = 'xs';
   sheet.style.width = width ? width+'px' : 'max-content';
-  sheet.innerHTML = html;
+  sheet.innerHTML = String(html).replace(/\sloading="lazy"/g, '');
   sheet.querySelectorAll('.no-export').forEach(x=>x.remove());
   const host = document.createElement('div');
   host.className = 'xs-host';
@@ -792,7 +809,8 @@ async function captureSheet(sheet, filename, W, H, scale){
 async function renderSheet(html, width, filename){ return renderSheets([html], width, filename) }
 /* Every page of one export gets the same width, height and resolution; the footer sits at the bottom. */
 async function renderSheets(pages, width, base){
-  if(typeof html2canvas !== 'function'){ toast('Image export is unavailable right now. Reload and try again.', true); return }
+  if(typeof html2canvas !== 'function'){ toast('Preparing image export…'); await ensureHtml2canvas() }
+  if(typeof html2canvas !== 'function'){ toast('Image export is unavailable right now. Check your connection and try again.', true); return }
   toast(pages.length>1 ? `Generating ${pages.length} pages…` : 'Generating image…');
   const built = pages.map(html=>buildSheet(html, width));
   try{
@@ -965,6 +983,7 @@ function mountCropper(key, src, opts, saved){
   const img = new Image();
   const st = CROP[key] = {src, img, opts, zoom: saved?.zoom ?? 1, x: saved?.x ?? 0, y: saved?.y ?? 0, ready:false};
   img.onload = ()=>{ st.ready = true; clampCrop(st); drawCrop(key) };
+  if(/^https?:/.test(src)) img.crossOrigin = 'anonymous';
   img.src = src;
   const stage = document.getElementById(key+'Stage');
   let drag = null;
@@ -1116,7 +1135,7 @@ function avColor(name){ let h=0; for(const c of String(name||'?')) h=(h*31+c.cha
 function initials(name){ const s = String(name||'?').replace(/[^A-Za-z0-9]/g,''); return (s || '?').slice(0,2).toUpperCase() }
 function renderAvatar(player, size=54){
   const style = `width:${size}px;height:${size}px;font-size:${Math.max(10, Math.round(size*0.36))}px;background:${avColor(player?.name)}`;
-  if(player && player.photo && /^data:image\//.test(player.photo)) return `<span class="player-avatar" style="${style}"><img src="${esc(player.photo)}" alt=""></span>`;
+  if(player && player.photo && isImgSrc(player.photo)) return `<span class="player-avatar" style="${style}"><img src="${esc(player.photo)}"${imgAttrs(player.photo)} loading="lazy" alt=""></span>`;
   return `<span class="player-avatar" style="${style}" aria-hidden="true">${esc(initials(player?.name))}</span>`;
 }
 function rankClass(i){ return i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'' }
@@ -1162,7 +1181,7 @@ function renderDashboard(){
   const admin = isAdmin();
   setHeader(admin ? 'Welcome back, organiser' : 'Welcome to the community', 'Dashboard');
 
-  const heroPill = f ? `<span class="live-pill"><i></i>${f.status==='active'?'Live now':'Registration open'} · ${esc(f.name)}</span>` : `<span class="live-pill"><i></i>Play · Compete · Belong</span>`;
+  const heroPill = f ? `<span class="live-pill"><i></i><span class="pill-text">${f.status==='active'?'Live now':'Registration open'} · ${esc(f.name)}</span></span>` : `<span class="live-pill"><i></i><span class="pill-text">Play · Compete · Belong</span></span>`;
 
   let ongoing;
   if(!f){
@@ -1208,7 +1227,7 @@ function renderDashboard(){
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
   document.getElementById('main').innerHTML = `
-    <section class="hero ${STORE.cover?.image?'has-cover':''}" aria-label="Community banner" ${STORE.cover?.image && /^data:image\//.test(STORE.cover.image) ? `style="--cover:url('${STORE.cover.image}')"` : ''}>
+    <section class="hero ${STORE.cover?.image?'has-cover':''}" aria-label="Community banner" ${cssUrl(STORE.cover?.image) ? `style="--cover:${cssUrl(STORE.cover.image)}"` : ''}>
       ${admin ? `<button type="button" class="hero-edit" onclick="openCoverModal()">${ICON.image}<span>${STORE.cover?.image?'Change cover':'Add cover picture'}</span></button>` : ''}
       ${STORE.cover?.image ? '' : `<svg class="hero-art" viewBox="0 0 600 260" preserveAspectRatio="xMaxYMid slice" aria-hidden="true">
         <polygon points="260,0 340,0 200,260 120,260" fill="#1463FF"/>
@@ -1223,7 +1242,7 @@ function renderDashboard(){
       <div class="hero-title">${esc(commName())}</div>
       ${commTag() ? `<div class="hero-sub">${esc(commTag())}</div>` : ''}
       <div class="hero-actions">
-        ${f ? `<button type="button" class="btn btn-white" onclick="navigate('tournament-detail','${f.id}')">View ${esc(f.name)} ${ICON.arrow}</button>` : `<button type="button" class="btn btn-white" onclick="navigate('tournaments')">Browse tournaments ${ICON.arrow}</button>`}
+        ${f ? `<button type="button" class="btn btn-white" onclick="navigate('tournament-detail','${f.id}')">${f.name.length>26 ? 'View tournament' : `View ${esc(f.name)}`} ${ICON.arrow}</button>` : `<button type="button" class="btn btn-white" onclick="navigate('tournaments')">Browse tournaments ${ICON.arrow}</button>`}
         <button type="button" class="btn btn-outline-navy" onclick="navigate('leaderboard')">Leaderboard</button>
       </div>
     </section>
@@ -1671,35 +1690,24 @@ function renderTournamentDetail(id){
   const t = STORE.tournaments.find(x=>x.id===id);
   const admin = isAdmin();
   if(!t || (t.status==='draft' && !admin)){ currentView='tournaments'; rerender(); return }
-  const canEditScores = t.status==='active' || t.status==='completed';
-  const isDeadlinePassed = t.groupDeadline && new Date(t.groupDeadline) < new Date();
-  const hasStandings = t.format==='group_knockout' || t.format==='league';
-  const hasKO = t.format==='group_knockout' || t.format==='single_elimination';
   const tabs = availableTabs(t);
   if(!tabs.some(x=>x[0]===currentTab)) currentTab = 'tab-overview';
   setHeader('Tournaments', t.name, "navigate('tournaments')");
 
-  const prize = (cls, n, label, value, winner) => `
-    <div class="prize-card ${cls}"><div class="prize-medal">${n}</div><div style="min-width:0"><div class="prize-label">${label}</div><div class="prize-value">${esc(value||'—')}</div>${winner?`<div class="prize-winner">${esc(playerName(winner))}</div>`:''}</div></div>`;
-  const showCountdown = false;
-  const showDeadline = t.groupDeadline && hasStandings && t.status!=='completed';
-
   document.getElementById('main').innerHTML = `
-    <div class="toolbar">
-      <div class="flex gap-8" style="flex-wrap:wrap;align-items:center">
+    <div class="toolbar t-toolbar">
+      <div class="t-meta">
         ${tournamentLogo(t, 52)}
         ${statusBadge(t.status)}
         <span class="badge badge-format">${formatLabel(t.format)}</span>
         <span class="page-sub">${fmtDateTime(t.startDateTime || t.date)} · ${esc(t.game||'eFootball')}</span>
       </div>
-      ${admin ? `<div class="toolbar-actions">
+      ${admin ? `<div class="toolbar-actions t-actions">
         ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete tournament</button>`:''}
         <button type="button" class="btn btn-secondary" onclick="editTournament('${t.id}')">Edit settings</button>
         <button type="button" class="btn btn-danger" onclick="deleteTournament('${t.id}')">Delete</button>
       </div>` : ''}
     </div>
-
-    ${t.description?`<div class="card"><div class="text-sm" style="white-space:pre-wrap;color:var(--text-2)">${esc(t.description)}</div></div>`:''}
 
     ${admin && (t.status==='open' || t.status==='draft') ? `
       <div class="start-banner">
@@ -1713,9 +1721,52 @@ function renderTournamentDetail(id){
         <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Champion</div><div class="start-banner-title" style="font-size:32px">${esc(playerName(t.champion))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}${t.runnerUp?` · Runner-up ${esc(playerName(t.runnerUp))}`:''}${t.thirdPlace?` · Third ${esc(playerName(t.thirdPlace))}`:''}</div></div>
       </div>`:''}
 
-    ${showCountdown || showDeadline ? `<div class="grid ${showCountdown?'grid-2':''}">
-      ${showCountdown ? `<div class="countdown-card"><div><div class="countdown-label">${t.status==='active'?'Tournament status':'Kick-off countdown'}</div></div><div id="countdownTimer" style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"></div></div>`:''}
-      ${showDeadline ? `
+    <div class="tabs-wrap tabs-sticky">
+      <div class="tabs" id="detailTabs" role="tablist" aria-label="Tournament sections">
+        ${tabs.map(([tid,label])=>`<button type="button" class="tab ${tid===currentTab?'active':''}" role="tab" aria-selected="${tid===currentTab}" data-tab="${tid}" onclick="switchTab('${tid}')">${label}</button>`).join('')}
+      </div>
+    </div>
+
+    ${tabs.map(([tid])=> tid===currentTab
+      ? `<div id="${tid}" class="tab-panel">${renderTabPanel(t, tid)}</div>`
+      : `<div id="${tid}" class="tab-panel hidden" data-lazy="1"></div>`).join('')}`;
+  requestAnimationFrame(()=>revealActiveTab(false));
+}
+
+/* Keep the selected tab visible in the scrolling tab bar, without moving the page. */
+function revealActiveTab(smooth){
+  const box = document.getElementById('detailTabs'), act = box && box.querySelector('.tab.active');
+  if(!act) return;
+  const b = box.getBoundingClientRect(), a = act.getBoundingClientRect();
+  let d = 0;
+  if(a.left < b.left + 8) d = a.left - b.left - 8;
+  else if(a.right > b.right - 28) d = a.right - b.right + 28;
+  if(d) box.scrollBy({left:d, behavior: smooth ? 'smooth' : 'auto'});
+}
+
+/* Only the open tab is built; the others are built when first opened. */
+function renderTabPanel(t, tabId){
+  const admin = isAdmin(), canEditScores = t.status==='active' || t.status==='completed';
+  if(tabId==='tab-overview') return tournamentIntro(t) + renderTournamentOverview(t);
+  if(tabId==='tab-rules') return renderRulesTab(t, admin);
+  if(tabId==='tab-registration') return renderRegistrationTab(t, admin);
+  if(tabId==='tab-standings') return renderStandingsTab(t, admin, canEditScores);
+  if(tabId==='tab-fixtures') return renderAllFixturesTab(t, admin, canEditScores);
+  if(tabId==='tab-knockout') return renderKnockoutTab(t, admin, canEditScores);
+  if(tabId==='tab-player') return renderPlayerViewTab(t);
+  return '';
+}
+
+/* Description, group-stage deadline and prizes, shown at the top of the Overview tab. */
+function tournamentIntro(t){
+  const hasStandings = t.format==='group_knockout' || t.format==='league';
+  const isDeadlinePassed = t.groupDeadline && new Date(t.groupDeadline) < new Date();
+  const showDeadline = t.groupDeadline && hasStandings && t.status!=='completed';
+  const prize = (cls, n, label, value, winner) => `
+    <div class="prize-card ${cls}"><div class="prize-medal">${n}</div><div style="min-width:0"><div class="prize-label">${label}</div><div class="prize-value">${esc(value||'—')}</div>${winner?`<div class="prize-winner">${esc(playerName(winner))}</div>`:''}</div></div>`;
+  return `
+    ${t.description?`<div class="card"><div class="text-sm" style="white-space:pre-wrap;color:var(--text-2)">${esc(t.description)}</div></div>`:''}
+    ${showDeadline ? `
       <div class="deadline-notice ${isDeadlinePassed?'passed':''}">
         <div class="deadline-notice-icon">${isDeadlinePassed?ICON.alarm:ICON.calendar}</div>
         <div class="deadline-notice-content">
@@ -1723,30 +1774,12 @@ function renderTournamentDetail(id){
           <div class="deadline-notice-text">${fmtDateTime(t.groupDeadline)} · ${isDeadlinePassed?'Unplayed matches are recorded as 0-0 draws':'Unplayed matches after this count as 0-0 draws'}</div>
         </div>
       </div>`:''}
-    </div>`:''}
-
     ${(t.prize?.champion || t.prize?.runnerUp || t.prize?.thirdPlace)?`
-      <div class="grid grid-3">
+      <div class="grid grid-3 prize-grid">
         ${prize('gold','1','Champion',t.prize.champion,t.champion)}
         ${prize('silver','2','Runner-up',t.prize.runnerUp,t.runnerUp)}
         ${prize('bronze','3','Third place',t.prize.thirdPlace,t.thirdPlace)}
-      </div>`:''}
-
-    <div class="tabs-wrap">
-      <div class="tabs" id="detailTabs" role="tablist" aria-label="Tournament sections">
-        ${tabs.map(([tid,label])=>`<button type="button" class="tab ${tid===currentTab?'active':''}" role="tab" aria-selected="${tid===currentTab}" data-tab="${tid}" onclick="switchTab('${tid}')">${label}</button>`).join('')}
-      </div>
-    </div>
-
-    <div id="tab-overview" class="tab-panel">${renderTournamentOverview(t)}</div>
-    <div id="tab-rules" class="tab-panel">${renderRulesTab(t, admin)}</div>
-    <div id="tab-registration" class="tab-panel">${renderRegistrationTab(t, admin)}</div>
-    ${hasStandings ? `<div id="tab-standings" class="tab-panel">${renderStandingsTab(t, admin, canEditScores)}</div><div id="tab-fixtures" class="tab-panel">${renderAllFixturesTab(t, admin, canEditScores)}</div>` : ''}
-    ${hasKO ? `<div id="tab-knockout" class="tab-panel">${renderKnockoutTab(t, admin, canEditScores)}</div>` : ''}
-    <div id="tab-player" class="tab-panel">${renderPlayerViewTab(t)}</div>`;
-
-  document.querySelectorAll('#main > .tab-panel').forEach(d=>d.classList.toggle('hidden', d.id!==currentTab));
-  if(showCountdown) startCountdown(t.startDateTime, 'countdownTimer');
+      </div>`:''}`;
 }
 
 function nextStepText(t){
@@ -1760,7 +1793,16 @@ function nextStepText(t){
 function switchTab(tabId){
   currentTab = tabId;
   document.querySelectorAll('#detailTabs .tab').forEach(x=>{ const on = x.dataset.tab===tabId; x.classList.toggle('active', on); x.setAttribute('aria-selected', on) });
+  const lazy = document.getElementById(tabId);
+  if(lazy && lazy.dataset.lazy){ const t = STORE.tournaments.find(x=>x.id===currentTournamentId); if(t) lazy.innerHTML = renderTabPanel(t, tabId); delete lazy.dataset.lazy }
   document.querySelectorAll('#main > .tab-panel').forEach(d=>d.classList.toggle('hidden', d.id!==tabId));
+  revealActiveTab(true);
+  const bar = document.querySelector('.tabs-sticky'), panelEl = document.getElementById(tabId);
+  if(bar && panelEl){
+    const stick = parseFloat(getComputedStyle(bar).top) || 0;
+    const target = panelEl.getBoundingClientRect().top + window.scrollY - stick - bar.offsetHeight - 10;
+    if(window.scrollY > target) window.scrollTo({top:Math.max(0, target)});
+  }
   renderChrome();
   const panel = document.getElementById(tabId);
   if(panel && !reduceMotion()){ panel.classList.remove('tab-enter'); void panel.offsetWidth; panel.classList.add('tab-enter'); setTimeout(()=>panel.classList.remove('tab-enter'), 900) }
@@ -1857,19 +1899,19 @@ function renderRegistrationTab(t, admin){
       </div>
       ${admin && outOfSync ? `<div class="locked-notice">The player list changed after the draw. Use Redraw to include the changes (this clears scores).</div>`:''}
       <div class="table-wrap">
-        <table>
+        <table class="reg-table">
           <thead><tr><th style="width:40px">#</th><th>Player</th>${admin?'<th>Phone</th>':''}<th>Achievements</th><th>Registered</th>${admin && t.status!=='completed'?'<th></th>':''}</tr></thead>
           <tbody>
             ${regs.length===0 ? `<tr><td colspan="5" class="t-center text-muted" style="padding:40px">No players registered yet</td></tr>` :
               regs.map((r,i)=>{
                 const p = STORE.players.find(x=>x.id===r.playerId) || {name:'Unknown player'};
                 return `<tr>
-                  <td style="font-weight:700">${i+1}</td>
-                  <td><span class="who">${renderAvatar(p, 32)}${esc(p.name)}</span></td>
-                  ${admin?`<td class="text-sm" style="white-space:nowrap">${STORE.phones[r.playerId] ? esc(STORE.phones[r.playerId]) : '<span class="text-muted">—</span>'}</td>`:''}
-                  <td class="text-muted text-sm">${esc(p.achievements||'—')}</td>
-                  <td class="text-muted text-sm">${fmtDate(r.date)}</td>
-                  ${admin && t.status!=='completed'?`<td class="t-right"><button type="button" class="btn btn-ghost btn-sm" onclick="unregisterPlayer('${t.id}','${r.playerId}')" style="color:var(--danger-ink)">Remove</button></td>`:''}
+                  <td class="rg-n" style="font-weight:700">${i+1}</td>
+                  <td class="rg-p"><span class="who">${renderAvatar(p, 32)}<span class="rg-name">${esc(p.name)}</span></span></td>
+                  ${admin?`<td class="rg-ph text-sm${STORE.phones[r.playerId]?'':' rg-empty'}" style="white-space:nowrap">${STORE.phones[r.playerId] ? esc(STORE.phones[r.playerId]) : '<span class="text-muted">—</span>'}</td>`:''}
+                  <td class="rg-a text-muted text-sm">${esc(p.achievements||'—')}</td>
+                  <td class="rg-d text-muted text-sm${r.date?'':' rg-empty'}">${fmtDate(r.date)}</td>
+                  ${admin && t.status!=='completed'?`<td class="rg-x t-right"><button type="button" class="btn btn-ghost btn-sm" onclick="unregisterPlayer('${t.id}','${r.playerId}')" style="color:var(--danger-ink)">Remove</button></td>`:''}
                 </tr>`;
               }).join('')}
           </tbody>
@@ -1977,8 +2019,10 @@ function pickGroup(tid, name){
   selectedGroup = name;
   const t = STORE.tournaments.find(x=>x.id===tid);
   const admin = isAdmin(), can = t.status==='active'||t.status==='completed';
-  document.getElementById('tab-standings').innerHTML = renderStandingsTab(t, admin, can);
-  document.getElementById('tab-fixtures').innerHTML = renderAllFixturesTab(t, admin, can);
+  for(const [id, html] of [['tab-standings', ()=>renderStandingsTab(t, admin, can)], ['tab-fixtures', ()=>renderAllFixturesTab(t, admin, can)]]){
+    const el = document.getElementById(id); if(!el) continue;
+    if(el.classList.contains('hidden')){ el.innerHTML = ''; el.dataset.lazy = '1' } else { el.innerHTML = html(); delete el.dataset.lazy }
+  }
 }
 
 function standingsTable(t, g, highlightN){
@@ -2079,7 +2123,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
         </label>
       </div>
       <div class="table-wrap">
-        <table>
+        <table class="fx-table">
           <thead><tr><th scope="col">Stage</th><th scope="col" class="t-right">Home</th><th scope="col" class="t-center">Result</th><th scope="col">Away</th><th scope="col" class="t-right">Status</th>${admin&&canEdit?'<th class="no-export"></th>':''}</tr></thead>
           <tbody id="fixturesBody">${fixtureRows(t, admin, canEdit)}</tbody>
         </table>
@@ -2558,7 +2602,7 @@ function renderPlayerViewTab(t){
         <button type="button" class="export-btn" onclick="exportAsJPEG('playerFixturesExport','${slug(p.name)}_fixtures')">${ICON_DL} Export JPEG</button>
       </div>
       ${fixtures.length===0 ? `<div class="empty"><div class="empty-title">No fixtures yet</div><div class="text-sm">Fixtures appear when the tournament starts.</div></div>` : `
-      <div class="table-wrap"><table>
+      <div class="table-wrap"><table class="fx-table">
         <thead><tr><th scope="col">Stage</th><th scope="col" class="t-right">Player</th><th scope="col" class="t-center">Result</th><th scope="col">Opponent</th><th scope="col" class="t-right">Outcome</th></tr></thead>
         <tbody>
         ${fixtures.map(f=>{ const opp = STORE.players.find(x=>x.id===f.opponent) || {name: f.opponent?'Unknown player':'TBD'}; return `
@@ -2879,7 +2923,7 @@ function renderHallOfFame(){
   const seg = (group, opts) => `<div class="segmented" role="group">${opts.map(([v,l])=>`<button type="button" class="seg ${hofFilter[group]===v?'active':''}" aria-pressed="${hofFilter[group]===v}" onclick="setHofFilter('${group}','${v}')">${l}</button>`).join('')}</div>`;
 
   document.getElementById('main').innerHTML = `
-    <section class="hof-hero ${STORE.hofcover?.image?'has-cover':''}" ${STORE.hofcover?.image && /^data:image\//.test(STORE.hofcover.image) ? `style="--cover:url('${STORE.hofcover.image}')"` : ''}>
+    <section class="hof-hero ${STORE.hofcover?.image?'has-cover':''}" ${cssUrl(STORE.hofcover?.image) ? `style="--cover:${cssUrl(STORE.hofcover.image)}"` : ''}>
       ${admin ? `<button type="button" class="hero-edit" onclick="openPicModal('hofcover')">${ICON.image}<span>${STORE.hofcover?.image?'Change picture':'Add picture'}</span></button>` : ''}
       <div class="trophy-disc">${ICON.cup}</div>
       <div class="hof-hero-text">
@@ -3089,6 +3133,7 @@ function renderLeaderboard(){
           </tbody>
         </table>
       </div>
+      <div class="table-hint no-export">Turn your phone sideways to see draws, losses, goal difference and podium finishes.</div>
     </section>`;
 }
 
@@ -3100,7 +3145,8 @@ function renderAdmin(){
   setHeader('Community', 'Admin Panel');
   const mark = communityMark(64);
   if(STORE.resetMode && AUTH.user){ renderResetPassword(main, mark); return }
-  if(!STORE.admin){ renderSignIn(main, mark); return }
+  if(!STORE.admin){ if(!AUTH.sb && !STORE.live){ renderSkeleton(); setHeader('Community', 'Admin Panel'); return } renderSignIn(main, mark); return }
+  if(!STORE.live){ main.innerHTML = `<div class="card empty"><div class="empty-title">Loading organiser tools…</div><div class="text-sm">Getting the latest data first, so nothing is saved from an older copy.</div></div>`; return }
   const live = STORE.tournaments.filter(t=>t.status==='active').length;
   main.innerHTML = `
     <div class="toolbar">
@@ -3134,7 +3180,7 @@ function renderAdmin(){
         <div><div class="page-sub">Community name</div><div class="brand-name" style="font-size:24px">${esc(commName())}</div>${commTag()?`<div class="brand-sub">${esc(commTag())}</div>`:''}</div>
         <div class="flex gap-16" style="align-items:center;flex-wrap:wrap">
           ${communityMark(72)}
-          <div class="cover-thumb" style="${STORE.cover?.image?`background-image:url('${STORE.cover.image}')`:''}">${STORE.cover?.image?'':'<span>Default banner</span>'}</div>
+          <div class="cover-thumb" style="${cssUrl(STORE.cover?.image)?`background-image:${cssUrl(STORE.cover.image)}`:''}">${STORE.cover?.image?'':'<span>Default banner</span>'}</div>
           <p class="page-sub" style="flex:1;min-width:180px">The logo appears in the sidebar, the phone header and exported images. The cover picture fills the dashboard banner.</p>
         </div>
         <details class="size-table">
@@ -3270,7 +3316,7 @@ function randomSalt(){ const a = new Uint8Array(12); (window.crypto||{}).getRand
 const validPin = p => /^\d{4,8}$/.test(p);
 
 function canManage(){ return !!STORE.admin }
-function isUnlocked(){ return true }
+function isUnlocked(){ return !!STORE.live }
 
 function loadPinShared(db){
   STORE.pinLoaded = false;
@@ -3395,7 +3441,7 @@ function importData(e){
     if(data.settings && typeof data.settings==='object'){
       const st = data.settings;
       if(st.community && typeof st.community==='object'){ STORE.settings = clone(st.community); queueWrite('settings/community', ()=>STORE.db.doc('settings/community').set(clone(STORE.settings))) }
-      ['cover','sidecard','hofcover'].forEach(k=>{ const v = st[k]; if(v && typeof v.image==='string' && /^data:image\//.test(v.image)) savePicDoc(k, v.image) });
+      ['cover','sidecard','hofcover'].forEach(k=>{ const v = st[k]; if(v && typeof v.image==='string' && isImgSrc(v.image)) savePicDoc(k, v.image) });
     }
     rerender();
     toast('Backup imported');

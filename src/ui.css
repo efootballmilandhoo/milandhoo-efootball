@@ -1,0 +1,218 @@
+
+  /* =========================================================
+     UI POLISH
+     ========================================================= */
+  :root{
+    --shadow-1:0 1px 2px rgba(11,27,63,.04), 0 3px 10px rgba(11,27,63,.04);
+    --shadow-2:0 12px 32px rgba(11,27,63,.12);
+    --mh:57px;
+  }
+  html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  /* Only the page itself clips sideways overflow; a clipping <body> would stop sticky headers and tab bars from sticking. */
+  html{overflow-x:hidden}
+  body{overflow-x:visible}
+  @supports (overflow-x:clip){ html{overflow-x:clip} }
+  body{-webkit-tap-highlight-color:transparent;text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+  button, a, label, [role="button"]{touch-action:manipulation}
+  :focus-visible{outline:3px solid var(--primary-glow);outline-offset:2px}
+  img{max-width:100%}
+  .player-avatar img, .t-logo img, .logo-mark img{display:block}
+
+  /* Soft depth on surfaces */
+  .card, .stat, .player-card, .t-card, .prize-card, .tabs-wrap, .start-banner, .deadline-notice, .hof-bar, .site-foot{box-shadow:var(--shadow-1)}
+  .card-navy{box-shadow:0 10px 28px rgba(11,27,63,.18)}
+
+  /* Wide screens: keep lines and tables a comfortable width */
+  @media(min-width:1560px){ .main > *{width:100%;max-width:1360px;margin-inline:auto} }
+
+  /* Live dot pulse without repainting (transform/opacity only) */
+  .live-pill i{position:relative;animation:none}
+  .live-pill i::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:var(--live-dot);opacity:.45;animation:dotPulse 2s ease-out infinite}
+  @keyframes dotPulse{0%{transform:scale(.6);opacity:.55}100%{transform:scale(1.9);opacity:0}}
+  .live-pill{max-width:100%;min-width:0}
+  .pill-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* Tournament page: header, actions and tabs */
+  .t-toolbar{align-items:center}
+  .t-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+  .tabs-sticky{position:sticky;top:0;z-index:25;background:var(--surface)}
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+    .tabs-sticky{background:rgba(255,255,255,.88);-webkit-backdrop-filter:saturate(1.6) blur(12px);backdrop-filter:saturate(1.6) blur(12px)}
+  }
+  .tabs{scrollbar-width:none;scroll-behavior:smooth}
+  .tabs::-webkit-scrollbar{display:none}
+  .prize-winner{font-size:13px;font-weight:600;color:var(--primary-dark);margin-top:4px}
+
+  /* Tables: gentle row highlight on hover (mouse only) */
+  @media(hover:hover){ #main tbody tr:not(.qualify):hover td{background:var(--surface-2)} }
+  .table-hint{display:none}
+  /* Long player lists: skip drawing cards that are off screen */
+  .player-card{content-visibility:auto;contain-intrinsic-size:auto 250px}
+
+  /* Bottom navigation (phones and small tablets) */
+  .bottom-nav{display:none}
+
+  /* Skeleton while the very first data loads */
+  .skeleton{display:flex;flex-direction:column;gap:16px}
+  .sk{display:block;background:linear-gradient(90deg, var(--surface-3) 0%, #F4F7FC 45%, var(--surface-3) 90%);background-size:220% 100%;animation:skShine 1.4s ease-in-out infinite;border-radius:10px}
+  .sk-hero{height:230px;border-radius:20px}
+  .sk-row{display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%,150px),1fr));gap:14px}
+  .sk-row.two{grid-template-columns:repeat(auto-fit, minmax(min(100%,420px),1fr))}
+  .sk-tile, .sk-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:10px}
+  .sk-card{min-height:200px}
+  .sk-line{height:12px}
+  .sk-line.tall{height:26px}
+  .sk-line.w40{width:40%}.sk-line.w60{width:60%}
+  @keyframes skShine{0%{background-position:100% 0}100%{background-position:-120% 0}}
+
+  /* "New version" bar from the service worker */
+  .update-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom, 0px));z-index:210;display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:14px;background:var(--navy);color:#fff;font-size:14px;font-weight:500;box-shadow:0 14px 40px rgba(11,27,63,.35);width:max-content;max-width:calc(100vw - 32px);animation:slideUp .25s}
+  .update-x{border:0;background:none;color:rgba(255,255,255,.7);font-size:22px;line-height:1;width:32px;height:32px;border-radius:8px;cursor:pointer}
+
+  /* ---------- Phones & small tablets ---------- */
+  @media(max-width:900px){
+    /* Header: brand on the left, updates/organiser/menu on the right */
+    .mobile-header{min-height:var(--mh)}
+    .mobile-header > .brand-logo{flex:1;min-width:0}
+    .mobile-header .brand-logo > div{min-width:0}
+    .mobile-header .brand-name, .mobile-header .brand-sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mh-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+    .mh-actions .bell-btn{width:40px;height:40px;flex:0 0 40px;border-radius:12px}
+    .user-chip.mini{height:40px;padding:0 4px;gap:0;border-radius:12px}
+    .user-chip.mini .user-meta, .user-chip.mini > svg{display:none}
+    .mh-actions .menu-btn{width:40px;height:40px}
+    .topbar .bell-btn, .topbar .user-chip{display:none}
+    .topbar-right{width:100%}
+    body:not([data-view="players"]) .topbar-right{display:none}
+    .page-title{font-size:clamp(22px, 6.6vw, 28px)}
+
+    /* Bottom navigation */
+    .bottom-nav{display:grid;grid-template-columns:repeat(5, minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:45;background:rgba(255,255,255,.96);border-top:1px solid var(--border);padding:6px max(6px, env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) max(6px, env(safe-area-inset-left, 0px));box-shadow:0 -6px 20px rgba(11,27,63,.06)}
+    @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){ .bottom-nav{background:rgba(255,255,255,.86);-webkit-backdrop-filter:saturate(1.8) blur(16px);backdrop-filter:saturate(1.8) blur(16px)} }
+    .bn-item{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:52px;min-width:0;padding:4px 2px;border:0;background:none;border-radius:14px;color:var(--muted);font-size:10.5px;font-weight:600;letter-spacing:.01em;cursor:pointer}
+    .bn-item span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .bn-item svg{width:24px;height:24px;padding:3px;box-sizing:content-box;border-radius:999px;transition:background-color .2s ease, transform .25s cubic-bezier(.3,1.6,.5,1)}
+    .bn-item.active{color:var(--primary-dark)}
+    .bn-item.active svg{background:var(--primary-tint);color:var(--primary);width:24px;padding:3px 14px}
+    .bn-item:active svg{transform:scale(.9)}
+    .main{padding-bottom:calc(92px + env(safe-area-inset-bottom, 0px))}
+    .toast{bottom:calc(84px + env(safe-area-inset-bottom, 0px))}
+    .live-alert{bottom:calc(84px + env(safe-area-inset-bottom, 0px))}
+    .update-bar{bottom:calc(84px + env(safe-area-inset-bottom, 0px))}
+    .sidebar{z-index:60}
+    .mobile-overlay{z-index:55}
+
+    /* Tabs stay under the header while scrolling */
+    .tabs-sticky{top:calc(var(--mh) + env(safe-area-inset-top, 0px));margin-inline:-16px;border-radius:0;border-left:0;border-right:0;padding:8px 16px;box-shadow:0 6px 16px rgba(11,27,63,.06)}
+    .tabs-sticky .tabs{-webkit-mask-image:linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);mask-image:linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);padding-right:24px}
+
+    /* Modals open as bottom sheets */
+    .modal-overlay{align-items:flex-end;padding:0}
+    .modal{max-width:100%;border-radius:22px 22px 0 0;max-height:92dvh;padding-bottom:env(safe-area-inset-bottom, 0px)}
+    .modal-overlay.show .modal{animation:sheetUp .32s cubic-bezier(.2,.9,.25,1) both}
+    .modal-head{padding-top:22px}
+    .modal-head::before{content:"";position:absolute;top:8px;left:50%;width:40px;height:4px;border-radius:4px;background:var(--border-2);transform:translateX(-50%)}
+    .modal-foot{padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
+
+    /* Prizes side by side */
+    .grid.prize-grid{grid-template-columns:repeat(3, minmax(0,1fr));gap:12px}
+    .prize-grid .prize-card{padding:14px;gap:10px}
+    .prize-grid .prize-medal{width:40px;height:40px;font-size:18px}
+    .prize-grid .prize-value{font-size:20px}
+
+    /* Compact footer */
+    .site-foot{padding:20px 16px;gap:14px}
+    .sf-name{font-size:22px}
+  }
+  @keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+
+  @media(max-width:600px){
+    /* Buttons wrap their label instead of overflowing */
+    .btn, .export-btn, .btn-soft{white-space:normal;text-align:center;line-height:1.2;padding-block:8px}
+    .toolbar-actions .btn, .toolbar-actions .export-btn{flex:1 1 auto}
+    .t-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+    .t-actions .btn-primary{grid-column:1 / -1}
+
+    /* Dashboard */
+    .hero{min-height:0}
+    .hero-actions .btn{flex:1 1 auto;justify-content:center;text-align:center}
+    .grid-4 > .stat:last-child:nth-child(odd){grid-column:1 / -1}
+
+    /* Prizes as a compact podium */
+    .grid.prize-grid{grid-template-columns:repeat(3, minmax(0,1fr));gap:8px}
+    .prize-grid .prize-card{flex-direction:column;align-items:center;text-align:center;padding:12px 8px;gap:6px}
+    .prize-grid .prize-medal{width:34px;height:34px;font-size:16px}
+    .prize-grid .prize-label{font-size:11px}
+    .prize-grid .prize-value{font-size:16px;line-height:1.15}
+    .prize-grid .prize-winner{font-size:12px}
+
+    /* Player cards: denser so long lists are quick to scan */
+    .player-card{padding:14px;gap:10px;border-radius:16px}
+    .player-card .player-avatar{width:44px !important;height:44px !important;font-size:15px}
+    .player-name{font-size:20px}
+    .player-card .champ-box{padding:8px 10px !important;gap:10px}
+    .player-card .champ-box svg{width:20px;height:20px}
+    .player-stats{padding-top:10px}
+    .player-stat-val{font-size:19px}
+
+    /* Standings and leaderboard fit the screen */
+    #main .group-table{min-width:0;font-size:13px}
+    #main .group-table th, #main .group-table td{padding:10px 4px}
+    #main .group-table th:first-child, #main .group-table td:first-child{width:30px;padding-left:6px}
+    #main .group-table td:nth-child(2){width:100%;max-width:0}
+    #main .group-table .who{gap:8px;min-width:0}
+    #main .group-table .who > span:not(.player-avatar):not(.q-chip){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #main .group-table .player-avatar{width:26px !important;height:26px !important;font-size:10px;flex-shrink:0}
+    #main .group-table td:last-child{font-size:15px}
+    #main .group-table td:not(:nth-child(2)), #main .group-table th{white-space:nowrap}
+    #main .group-table .q-chip{font-size:0;min-width:8px;width:8px;height:8px;padding:0;flex-shrink:0}
+    #main .group-table:not(.lb-table) th:nth-child(7), #main .group-table:not(.lb-table) td:nth-child(7),
+    #main .group-table:not(.lb-table) th:nth-child(8), #main .group-table:not(.lb-table) td:nth-child(8){display:none}
+    #main .lb-table th:nth-child(5), #main .lb-table td:nth-child(5),
+    #main .lb-table th:nth-child(6), #main .lb-table td:nth-child(6),
+    #main .lb-table th:nth-child(7), #main .lb-table td:nth-child(7),
+    #main .lb-table th:nth-child(9), #main .lb-table td:nth-child(9),
+    #main .lb-table th:nth-child(10), #main .lb-table td:nth-child(10){display:none}
+    #main .lb-table .rank-badge{width:24px;height:24px;font-size:12px}
+    .table-hint{display:block;font-size:12px;color:var(--muted);text-align:center;padding-top:4px}
+
+    /* Fixtures: one compact card per match */
+    #main .fx-table{min-width:0;display:block}
+    #main .fx-table thead{display:none}
+    #main .fx-table tbody{display:block}
+    #main .fx-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px 10px;padding:12px 2px;border-top:1px solid var(--divider)}
+    #main .fx-table tbody tr:first-child{border-top:0}
+    #main .fx-table td{display:block;padding:0;border:0;min-width:0}
+    #main .fx-table td:nth-child(1){grid-column:1 / 3;grid-row:1;font-size:12px;white-space:normal !important}
+    #main .fx-table td:nth-child(5){grid-column:3;grid-row:1;justify-self:end}
+    #main .fx-table td:nth-child(2){grid-column:1;grid-row:2}
+    #main .fx-table td:nth-child(3){grid-column:2;grid-row:2;text-align:center}
+    #main .fx-table td:nth-child(4){grid-column:3;grid-row:2}
+    #main .fx-table td:nth-child(6){grid-column:1 / -1;grid-row:3}
+    #main .fx-table td:nth-child(6) .btn{width:100%;background:var(--surface-2);border:1px solid var(--border)}
+    #main .fx-table td[colspan]{grid-column:1 / -1;grid-row:auto}
+    #main .fx-table .who{gap:6px;font-size:13px;line-height:1.25}
+    #main .fx-table .who.right{justify-content:flex-end;text-align:right}
+    #main .fx-table .who{overflow-wrap:anywhere}
+    #main .fx-table .player-avatar{width:24px !important;height:24px !important;font-size:9px;flex-shrink:0}
+    #main .fx-table .result-pill{font-size:16px;min-width:54px;padding:4px 8px}
+    #main .fx-table .badge{font-size:11px}
+
+    /* Registered players: name, then phone and date underneath */
+    #main .reg-table{min-width:0;display:block}
+    #main .reg-table thead{display:none}
+    #main .reg-table tbody{display:block}
+    #main .reg-table tr{display:grid;grid-template-columns:26px minmax(0,1fr) auto;align-items:center;gap:2px 10px;padding:10px 2px;border-top:1px solid var(--divider)}
+    #main .reg-table tbody tr:first-child{border-top:0}
+    #main .reg-table td{display:block;padding:0;border:0;min-width:0}
+    #main .reg-table td[colspan]{grid-column:1 / -1}
+    #main .reg-table .rg-n{grid-column:1;grid-row:1;color:var(--muted)}
+    #main .reg-table .rg-p{grid-column:2;grid-row:1}
+    #main .reg-table .rg-x{grid-column:3;grid-row:1 / span 3}
+    #main .reg-table .rg-ph{grid-column:2;grid-row:2;padding-left:40px;font-size:12px;white-space:normal !important;overflow-wrap:anywhere}
+    #main .reg-table .rg-d{grid-column:2;grid-row:auto;padding-left:40px;font-size:12px}
+    #main .reg-table .rg-x{align-self:center}
+    #main .reg-table .rg-a, #main .reg-table .rg-empty{display:none}
+    #main .reg-table .rg-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #main .reg-table .player-avatar{width:30px !important;height:30px !important}
+  }

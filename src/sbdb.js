@@ -30,12 +30,20 @@ function makeSupabaseDb(sb){
     const docs = [...w.rows.entries()].map(([id, data])=>({id, exists:true, data:()=>data}));
     w.cbs.forEach(c=>{ try{ c.cb({docs, size:docs.length, empty:!docs.length}) }catch(e){ console.error(e) } });
   }
-  async function loadAll(table, coll){
+  /* Loads a whole collection; on a bad connection it keeps retrying quietly (3s, 6s, 12s … up to a minute). */
+  async function loadAll(table, coll, attempt=0){
     const w = watchers[table].get(coll); if(!w) return;
+    clearTimeout(w.retry);
     const rows = new Map();
     for(let from=0;;from+=1000){
-      const {data, error} = await sb.from(table).select('id,data').eq('coll', coll).order('id').range(from, from+999);
-      if(error){ w.cbs.forEach(c=>c.err && c.err(sbError(error))); return }
+      let res;
+      try{ res = await sb.from(table).select('id,data').eq('coll', coll).order('id').range(from, from+999) }catch(e){ res = {error:{message:String(e && e.message || 'Failed to fetch')}} }
+      const {data, error} = res;
+      if(error){
+        if(attempt===0) w.cbs.forEach(c=>c.err && c.err(sbError(error)));
+        w.retry = setTimeout(()=>loadAll(table, coll, attempt+1), Math.min(60000, 3000*2**attempt));
+        return;
+      }
       data.forEach(r=>rows.set(r.id, r.data));
       if(data.length<1000) break;
     }
@@ -67,10 +75,9 @@ function makeSupabaseDb(sb){
       });
   }
   // Phones and tablets drop live connections in the background, so refresh on return.
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.visibilityState!=='visible') return;
-    Object.keys(watchers).forEach(table=>watchers[table].forEach((_, coll)=>loadAll(table, coll)));
-  });
+  const reloadAll = ()=>Object.keys(watchers).forEach(table=>watchers[table].forEach((_, coll)=>loadAll(table, coll)));
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') reloadAll() });
+  window.addEventListener('online', reloadAll);
   return {
     collection(path){
       const m = sbPath(path);
@@ -114,6 +121,7 @@ async function loadRole(){
   STORE.owner = AUTH.role==='owner';
 }
 async function signIn(){
+  if(!AUTH.sb){ toast('Still connecting. Try again in a moment.', true); return }
   const email = document.getElementById('si_email').value.trim().toLowerCase(), pw = document.getElementById('si_pw').value;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('Enter your email address', true); return }
   if(pw.length<8){ toast('Passwords are at least 8 characters', true); return }
@@ -127,6 +135,7 @@ async function signIn(){
   location.reload();
 }
 async function signUp(){
+  if(!AUTH.sb){ toast('Still connecting. Try again in a moment.', true); return }
   const email = document.getElementById('si_email').value.trim().toLowerCase(), pw = document.getElementById('si_pw').value;
   if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ toast('Enter your email address', true); return }
   if(pw.length<8){ toast('Choose a password with at least 8 characters', true); return }
@@ -138,6 +147,7 @@ async function signUp(){
   document.getElementById('si_msg').innerHTML = `<div class="config-helper"><b>Check your email.</b> We sent a confirmation link to ${esc(email)}. Open it, then come back here and sign in.</div>`;
 }
 async function forgotPassword(){
+  if(!AUTH.sb){ toast('Still connecting. Try again in a moment.', true); return }
   const email = document.getElementById('si_email').value.trim().toLowerCase();
   if(!email){ toast('Enter your email first', true); document.getElementById('si_email').focus(); return }
   const {error} = await AUTH.sb.auth.resetPasswordForEmail(email, {redirectTo: location.origin + '/#reset'});
@@ -145,8 +155,10 @@ async function forgotPassword(){
   document.getElementById('si_msg').innerHTML = `<div class="config-helper">If ${esc(email)} has an account, a link to reset the password is on its way.</div>`;
 }
 async function signOut(){
+  if(!AUTH.sb){ toast('Still connecting. Try again in a moment.', true); return }
   const ok = await confirmDialog('Sign out', 'Sign out of organiser tools on this device?', 'Sign out');
   if(!ok) return;
+  try{ localStorage.removeItem(ROLE_KEY) }catch{}
   await AUTH.sb.auth.signOut();
   location.hash = ''; location.reload();
 }
@@ -194,6 +206,7 @@ async function saveNewPassword(){
 /* ---- Organiser list (owner manages) ---- */
 async function loadOrganisers(){
   const {data, error} = await AUTH.sb.from('organisers').select('email,role,added_at').order('role', {ascending:false}).order('email');
+  AUTH.orgLoaded = true;
   if(!error){ AUTH.organisers = data || []; if(currentView==='admin') renderOrganiserList() }
 }
 function organisersCardHTML(){
@@ -209,6 +222,7 @@ function organisersCardHTML(){
 }
 function renderOrganiserList(){
   const el = document.getElementById('orgList'); if(!el) return;
+  if(!AUTH.orgLoaded){ el.innerHTML = '<div class="text-sm" style="color:var(--on-navy-soft)">Loading…</div>'; return }
   el.innerHTML = AUTH.organisers.map(o=>`<div class="org-row"><span class="org-email">${esc(o.email)}</span><span class="org-role">${o.role==='owner'?'Owner':'Organiser'}</span>${STORE.owner && o.role!=='owner' ? `<button type="button" class="btn btn-sm btn-outline-navy" onclick="removeOrganiser('${esc(o.email)}')">Remove</button>`:''}</div>`).join('') || '<div class="text-sm">No organisers yet</div>';
 }
 async function addOrganiser(){
@@ -235,6 +249,7 @@ async function initPush(){
   if(!('serviceWorker' in navigator)) return;
   try{
     PUSH.reg = await navigator.serviceWorker.register('/sw.js');
+    watchForUpdates(PUSH.reg);
     if(PUSH.supported) PUSH.sub = await PUSH.reg.pushManager.getSubscription();
     if(PUSH.sub) AUTH.sb.rpc('push_subscribe', subArgs(PUSH.sub)); // keep the server copy fresh
   }catch(e){ console.warn('service worker', e) }

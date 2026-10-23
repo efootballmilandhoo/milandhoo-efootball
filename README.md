@@ -10,18 +10,24 @@ brackets, leaderboard and Hall of Fame, with push notifications.
 
 ## Editing
 
-The page is assembled from `src/`:
+The site is built from `src/`:
 
 | File | What it holds |
 |---|---|
-| `src/theme.css`, `src/web.css` | Styles |
-| `src/shell.html` | Sidebar, top bar and page frame |
+| `src/theme.css`, `src/web.css`, `src/ui.css` | Styles (design, motion, layout polish) |
+| `src/shell.html` | Sidebar, top bar, phone header and bottom navigation |
 | `src/sbdb.js` | Supabase data layer, organiser sign-in, push subscription |
 | `src/app.js` | The app: tournaments, fixtures, brackets, exports, admin |
-| `src/notify.js` | Updates bell, pop-up alerts, install guide |
+| `src/perf.js` | Instant start from saved data, picture storage, lazy libraries, update notice |
+| `src/notify.js` | Updates bell, pop-up alerts, install guide, animations |
+| `src/sw.js` | Service worker template (offline shell, caching, push) |
 
-After editing, run `python3 build.py` to regenerate `public/index.html`, then commit and push.
-Vercel redeploys automatically.
+Run `python3 build.py` after editing. It writes `public/index.html`, versioned files in
+`public/assets/` (cached for a year) and `public/sw.js`. Commit and push; Vercel redeploys
+automatically and open apps offer a one-tap reload.
+
+Pictures (player photos, logos, banners) are stored in the Supabase Storage bucket `media`;
+any picture saved inline is moved there automatically when an organiser is signed in.
 
 ## Organisers
 
