@@ -474,7 +474,10 @@ function evalKO(fmt, legs, pens, tb){
   return r;
 }
 /* Two-leg ties that end level on aggregate go to a tie-breaker match when the knockout match settings say so. */
-function koTieMatch(t){ return t.knockoutFormat==='2leg' && t.rules?.koMatch?.tiebreak==='MATCH' }
+/* How a 2-leg tie that is level on aggregate is decided: 'MATCH' (tie-breaker match) or 'PENS'.
+   Set in the Tie-breaker match section; older tournaments kept it in the knockout settings. */
+function tbMode(t){ return t.rules?.tbMatch?.tiebreak || t.rules?.koMatch?.tiebreak || '' }
+function koTieMatch(t){ return t.knockoutFormat==='2leg' && tbMode(t)==='MATCH' }
 function koResult(t, m){
   if(t.knockoutFormat==='bo3' && !Array.isArray(m.games) && hasScore(m.score1) && hasScore(m.score2)){
     // older saves stored only the series score
@@ -736,7 +739,7 @@ function startCountdown(targetDateTime, elementId){
 }
 
 /* =========================
-   FILE SAVING & JPEG EXPORT
+   FILE SAVING & PNG / PDF EXPORT
    ========================= */
 async function saveFile(filename, data){
   const blob0 = data instanceof Blob ? data : new Blob([data], {type: /\.json$/.test(filename) ? 'application/json' : 'application/octet-stream'});
@@ -820,9 +823,9 @@ function sheetCanvas(sheet, W, H, scale){
 }
 async function captureSheet(sheet, filename, W, H, scale){
   const canvas = await sheetCanvas(sheet, W, H, scale);
-  const blob = await new Promise(r=>canvas.toBlob(r, 'image/jpeg', 0.94));
+  const blob = await new Promise(r=>canvas.toBlob(r, 'image/png'));
   if(!blob) throw new Error('empty');
-  await saveFile(`${filename}.jpeg`, blob);
+  await saveFile(`${filename}.png`, blob);
 }
 /* Hands finished export files to the person.
    Phones: a "ready" card whose button opens the share sheet (Save Image / Save to Files / WhatsApp…) with every page at once.
@@ -876,7 +879,7 @@ function chooseExportFormat(pages){
       <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">✕</button></div>
       <div class="modal-body">
         <div class="export-choice">
-          <button type="button" class="export-option" onclick="__exportPick('jpeg')">${ICON.image}<b>Image (JPEG)</b><span>${pages>1?`${pages} images, one per page`:'One image'}. Best for WhatsApp, Instagram and Viber.</span></button>
+          <button type="button" class="export-option" onclick="__exportPick('png')">${ICON.image}<b>Image (PNG)</b><span>${pages>1?`${pages} images, one per page`:'One image'}. Best for WhatsApp, Instagram and Viber.</span></button>
           <button type="button" class="export-option" onclick="__exportPick('pdf')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><b>PDF document</b><span>${pages>1?`One file with all ${pages} pages`:'One page'}. Best for printing and sharing as a file.</span></button>
         </div>
       </div>`);
@@ -917,9 +920,9 @@ async function renderSheets(pages, width, base){
       for(let i=0;i<built.length;i++){
         if(built.length>1) toast(`Generating page ${i+1} of ${built.length}…`);
         const canvas = await sheetCanvas(built[i].sheet, W, H, scale);
-        const blob = await new Promise(res=>canvas.toBlob(res, 'image/jpeg', 0.94));
+        const blob = await new Promise(res=>canvas.toBlob(res, 'image/png'));
         if(!blob) throw new Error('empty');
-        files.push({name:`${built.length>1 ? `${base}_page${i+1}` : base}.jpeg`, blob});
+        files.push({name:`${built.length>1 ? `${base}_page${i+1}` : base}.png`, blob});
       }
       await deliverFiles(files);
     }
@@ -929,15 +932,19 @@ async function renderSheets(pages, width, base){
 
 function exportStandingsSheet(t){
   const isLeague = t.format==='league';
-  const groups = t.groupData || [];
-  const cols = isLeague ? 1 : Math.min(2, groups.length);
   const q = isLeague ? 1 : t.qualifyPerGroup;
-  const body = `<div class="xs-grid" style="grid-template-columns:repeat(${cols}, 600px)">
-    ${groups.map(g=>`<div class="xs-card">${isLeague?'':`<div class="xs-card-title">Group ${esc(g.name)}</div>`}${standingsTable(t, g, q)}</div>`).join('')}
-  </div>
-  <div class="xs-legend"><span class="q-chip">Q</span> ${isLeague?'League leader':`Qualifies for the knockout stage (top ${q} per group)`}</div>`;
+  // League: one table. Groups: the selected group, or every group on its own page when "All" is selected.
+  const cur = isLeague ? '*' : (currentGroup(t) || '*');
+  const groups = (t.groupData || []).filter(g=>cur==='*' || g.name===cur);
+  if(!groups.length){ toast('No standings to export yet', true); return }
   const dl = t.groupDeadline ? `<div class="xs-deadline ${new Date(t.groupDeadline)<new Date()?'passed':''}"><span class="xs-deadline-icon">${ICON.calendar}</span><div><div class="xs-deadline-label">${isLeague?'League deadline':'Group stage deadline'}</div><div class="xs-deadline-date">${fmtDateTime(t.groupDeadline)}</div></div><div class="xs-deadline-note">${new Date(t.groupDeadline)<new Date()?'Deadline passed · unplayed matches counted as 0-0 draws':'Unplayed matches after this count as 0-0 draws'}</div></div>` : '';
-  return renderSheet(sheetHeader(t, t.name, `${isLeague?'League table':'Group standings'} · as of ${fmtDate(new Date())}${t.groupDeadline?` · Deadline ${fmtDateTime(t.groupDeadline)}`:''}`) + dl + body + sheetFoot(), null, `${slug(t.name)}_standings`);
+  const legend = `<div class="xs-legend"><span class="q-chip">Q</span> ${isLeague?'League leader':`Qualifies for the knockout stage (top ${q} per group)`}</div>`;
+  const pages = groups.map((g, i)=>{
+    const body = `<div class="xs-grid" style="grid-template-columns:repeat(1, 640px)"><div class="xs-card">${isLeague?'':`<div class="xs-card-title">Group ${esc(g.name)}</div>`}${standingsTable(t, g, q)}</div></div>`;
+    const sub = `${isLeague?'League table':`Group ${esc(g.name)} standings`} · as of ${fmtDate(new Date())}${t.groupDeadline?` · Deadline ${fmtDateTime(t.groupDeadline)}`:''}`;
+    return sheetHeader(t, t.name, sub) + dl + body + legend + sheetFoot(i+1, groups.length);
+  });
+  return renderSheets(pages, null, `${slug(t.name)}_standings${isLeague || cur==='*' ? '' : '_group_'+slug(cur)}`);
 }
 
 function fixtureLine(t, f){
@@ -950,31 +957,29 @@ function fixtureLine(t, f){
     <span class="xf-b ${w2?'w':''}">${esc(playerName(f.team2))}</span>
   </div>`;
 }
+const MATCHDAYS_PER_PAGE = 3;
+/* Fixtures export: every group on its own pages (or just the selected group), 3 matchdays per page. */
 function exportFixturesSheet(t){
   const fx = t.fixtures || [];
   const done = f=>hasScore(f.score1)&&hasScore(f.score2);
   const dl = t.groupDeadline ? ` · Deadline ${fmtDateTime(t.groupDeadline)}` : '';
-  if(t.format==='league'){
-    const mds = [...new Set(fx.map(f=>f.matchday))].sort((a,b)=>a-b);
-    const sections = mds.map(md=>({title:`Matchday ${md}`, rows: fx.filter(f=>f.matchday===md)}));
-    const cols = Math.max(1, Math.min(3, sections.length));
-    const body = `<div class="xs-grid" style="grid-template-columns:repeat(${cols}, 420px)">
-      ${sections.map(s=>`<div class="xs-card"><div class="xs-card-title">${esc(s.title)}</div>${s.rows.map(f=>fixtureLine(t,f)).join('')}</div>`).join('')}
-    </div>`;
-    return renderSheet(sheetHeader(t, t.name, `Fixtures &amp; results · ${fx.filter(done).length} of ${fx.length} played${dl}`) + body + sheetFoot(), null, `${slug(t.name)}_fixtures`);
-  }
-  // Group stage: the selected group, or every group on its own page when "All" is selected.
-  const cur = currentGroup(t) || '*';
-  const groups = (t.groupData||[]).filter(g=>cur==='*' || g.name===cur);
-  if(!groups.length){ toast('No fixtures to export yet', true); return }
-  const pages = groups.map((g, i)=>{
-    const rows = fx.filter(f=>f.group===g.name);
-    const mds = [...new Set(rows.map(f=>f.matchday))].sort((a,b)=>a-b);
-    const body = `<div class="xs-grid" style="grid-template-columns:repeat(1, 560px)"><div class="xs-card">
-      <div class="xs-card-title">Group ${esc(g.name)}</div>
-      ${mds.map(md=>`<div class="xs-md">Matchday ${md}</div>${rows.filter(f=>f.matchday===md).map(f=>fixtureLine(t,f)).join('')}`).join('')}
+  const isLeague = t.format==='league';
+  const cur = isLeague ? '*' : (currentGroup(t) || '*');
+  const blocks = isLeague ? [{name:null, rows:fx}] : (t.groupData||[]).filter(g=>cur==='*' || g.name===cur).map(g=>({name:g.name, rows:fx.filter(f=>f.group===g.name)}));
+  const parts = [];
+  blocks.forEach(b=>{
+    const mds = [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y);
+    chunk(mds, MATCHDAYS_PER_PAGE).forEach(set=>{ if(set.length) parts.push({...b, mds:set}) });
+  });
+  if(!parts.length){ toast('No fixtures to export yet', true); return }
+  const pages = parts.map((pt, i)=>{
+    const mdLabel = pt.mds.length>1 ? `Matchdays ${pt.mds[0]}–${pt.mds.at(-1)}` : `Matchday ${pt.mds[0]}`;
+    const body = `<div class="xs-grid" style="grid-template-columns:repeat(1, 600px)"><div class="xs-card">
+      <div class="xs-card-title">${pt.name ? `Group ${esc(pt.name)} · ` : ''}${mdLabel}</div>
+      ${pt.mds.map(md=>`<div class="xs-md">Matchday ${md}</div>${pt.rows.filter(f=>f.matchday===md).map(f=>fixtureLine(t,f)).join('')}`).join('')}
     </div></div>`;
-    return sheetHeader(t, t.name, `Group ${esc(g.name)} · Fixtures &amp; results · ${rows.filter(done).length} of ${rows.length} played${dl}${groups.length>1?` · Page ${i+1} of ${groups.length}`:''}`) + body + sheetFoot(i+1, groups.length);
+    const sub = `${pt.name ? `Group ${esc(pt.name)} · ` : ''}${mdLabel} · Fixtures &amp; results · ${pt.rows.filter(done).length} of ${pt.rows.length} played${dl}`;
+    return sheetHeader(t, t.name, sub) + body + sheetFoot(i+1, parts.length);
   });
   return renderSheets(pages, null, `${slug(t.name)}_fixtures${cur==='*' ? '' : '_group_'+slug(cur)}`);
 }
@@ -1888,7 +1893,7 @@ function tournamentIntro(t){
   const isDeadlinePassed = t.groupDeadline && new Date(t.groupDeadline) < new Date();
   const showDeadline = t.groupDeadline && hasStandings && t.status!=='completed';
   const prize = (cls, n, label, value, winner) => `
-    <div class="prize-card ${cls}"><div class="prize-medal">${n}</div><div style="min-width:0"><div class="prize-label">${label}</div><div class="prize-value">${esc(value||'—')}</div>${winner?`<div class="prize-winner">${esc(playerName(winner))}</div>`:''}</div></div>`;
+    <div class="prize-card ${cls}">${prizeIconHTML(cls, n)}<div style="min-width:0"><div class="prize-label">${label}</div><div class="prize-value">${esc(value||'—')}</div>${winner?`<div class="prize-winner">${esc(playerName(winner))}</div>`:''}</div></div>`;
   return `
     ${t.description?`<div class="card"><div class="text-sm" style="white-space:pre-wrap;color:var(--text-2)">${esc(t.description)}</div></div>`:''}
     ${showDeadline ? `
@@ -1904,7 +1909,87 @@ function tournamentIntro(t){
         ${prize('gold','1','Champion',t.prize.champion,t.champion)}
         ${prize('silver','2','Runner-up',t.prize.runnerUp,t.runnerUp)}
         ${prize('bronze','3','Third place',t.prize.thirdPlace,t.thirdPlace)}
-      </div>`:''}`;
+      </div>
+      ${isAdmin() && isUnlocked() ? `<div class="prize-edit-row"><button type="button" class="btn btn-ghost btn-sm" onclick="openPrizeIconsModal()">${ICON.image} Change prize icons</button></div>` : ''}`:''}`;
+}
+
+/* =========================
+   PRIZE ICONS (community-wide): a number, an emoji or a small picture for champion, runner-up and third place.
+   ========================= */
+const PRIZE_SLOTS = [['gold','1','Champion'],['silver','2','Runner-up'],['bronze','3','Third place']];
+const PRIZE_PRESETS = {gold:['1','🏆','🥇','👑','💰','⭐'], silver:['2','🥈','🏅','💰','⭐','🎁'], bronze:['3','🥉','🏅','💰','⭐','🎁']};
+function prizeIcon(cls){ const v = STORE.settings?.prizeIcons?.[cls]; return typeof v==='string' && v.trim() ? v : '' }
+function prizeIconHTML(cls, n){
+  const v = prizeIcon(cls);
+  if(v && isImgSrc(v)) return `<div class="prize-medal has-img"><img src="${esc(v)}"${imgAttrs(v)} alt=""></div>`;
+  return `<div class="prize-medal${v && v!==n && !/^\d$/.test(v) ? ' is-emoji' : ''}">${esc(v || n)}</div>`;
+}
+let PRIZE_DRAFT = {};
+function openPrizeIconsModal(){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  PRIZE_DRAFT = {};
+  PRIZE_SLOTS.forEach(([cls, n])=>{ PRIZE_DRAFT[cls] = prizeIcon(cls) || n });
+  openModal(`
+    <div class="modal-head"><div class="modal-title">Prize icons</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:18px">
+      <div class="page-sub">Shown on the prize cards of every tournament. Pick a number or emoji, type your own, or upload a small picture (a square PNG with a clear background works best).</div>
+      <div id="prizeIconRows">${prizeIconRows()}</div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-secondary" onclick="resetPrizeIcons()">Use numbers</button>
+      <button type="button" class="btn btn-primary" onclick="savePrizeIcons()">Save icons</button>
+    </div>`);
+}
+function prizeIconRows(){
+  return PRIZE_SLOTS.map(([cls, n, label])=>{
+    const v = PRIZE_DRAFT[cls], img = isImgSrc(v);
+    return `<fieldset class="prize-icon-edit ${cls}">
+      <legend>${label}</legend>
+      <div class="pie-main">
+        <span class="prize-card ${cls}" style="padding:0;border:0;box-shadow:none;background:none">${img ? `<div class="prize-medal has-img"><img src="${esc(v)}" alt=""></div>` : `<div class="prize-medal${/^\d$/.test(v)?'':' is-emoji'}">${esc(v)}</div>`}</span>
+        <div class="pie-presets" role="group" aria-label="${label} icon">
+          ${PRIZE_PRESETS[cls].map(x=>`<button type="button" class="pie-chip ${x===v?'active':''}" aria-pressed="${x===v}" onclick="setPrizeIcon('${cls}','${x}')">${x}</button>`).join('')}
+        </div>
+      </div>
+      <div class="pie-own">
+        <input class="form-input" maxlength="4" placeholder="Own text or emoji" aria-label="${label} icon text" value="${img || PRIZE_PRESETS[cls].includes(v) ? '' : esc(v)}" oninput="if(this.value.trim()) setPrizeIcon('${cls}', this.value.trim(), true)">
+        <label class="btn btn-secondary btn-sm pie-upload">${ICON.image} ${img ? 'Replace picture' : 'Upload picture'}<input type="file" accept="image/*" hidden onchange="onPrizeIconFile('${cls}', this)"></label>
+      </div>
+    </fieldset>`;
+  }).join('');
+}
+function setPrizeIcon(cls, v, typing){
+  PRIZE_DRAFT[cls] = v;
+  if(typing){
+    document.querySelectorAll(`.prize-icon-edit.${cls} .pie-chip`).forEach(b=>{ b.classList.toggle('active', b.textContent===v); b.setAttribute('aria-pressed', b.textContent===v) });
+    const m = document.querySelector(`.prize-icon-edit.${cls} .prize-medal`); if(m){ m.className = 'prize-medal' + (/^\d$/.test(v)?'':' is-emoji'); m.textContent = v }
+    return;
+  }
+  document.getElementById('prizeIconRows').innerHTML = prizeIconRows();
+}
+async function onPrizeIconFile(cls, input){
+  const file = input.files[0]; input.value = '';
+  if(!file) return;
+  try{
+    const res = await readImageFile(file, 192);
+    PRIZE_DRAFT[cls] = res.src;
+    document.getElementById('prizeIconRows').innerHTML = prizeIconRows();
+  }catch(e){ toast('That file is not a picture we can read. Try a PNG or JPG.', true) }
+}
+function resetPrizeIcons(){ PRIZE_SLOTS.forEach(([cls, n])=>{ PRIZE_DRAFT[cls] = n }); document.getElementById('prizeIconRows').innerHTML = prizeIconRows() }
+async function savePrizeIcons(){
+  const out = {};
+  PRIZE_SLOTS.forEach(([cls, n])=>{ const v = String(PRIZE_DRAFT[cls]||'').trim(); if(v && v!==n) out[cls] = v });
+  const btn = document.querySelector('.modal-foot .btn-primary'); if(btn){ btn.disabled = true; btn.textContent = 'Saving…' }
+  for(const cls of Object.keys(out)){
+    if(isDataImg(out[cls]) && AUTH.sb && navigator.onLine!==false){
+      try{ out[cls] = await uploadDataUrl(out[cls], 'brand') }catch(e){ console.warn('prize icon upload later', e) }
+    }
+  }
+  saveSettings({prizeIcons: out});
+  if(Object.values(out).some(isDataImg)) scheduleOffload(1500);
+  closeModal(); rerender();
+  toast('Prize icons updated');
 }
 
 function nextStepText(t){
@@ -2196,7 +2281,7 @@ function renderStandingsTab(t, admin, canEditScores){
       ${content}
       <div class="section-foot" style="margin-top:14px">
         <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span>
-        <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} Export standings</button>
+        <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} ${isLeague || t.groupData.length<2 ? 'Export standings' : cur && cur!=='*' ? `Export Group ${esc(cur)} standings` : 'Export standings · one page per group'}</button>
       </div>
     </section>
     ${admin && canEditScores ? `<div class="config-helper">Enter scores on the <strong>Fixtures</strong> tab; the table updates instantly.</div>`:''}`;
@@ -2254,7 +2339,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
         </table>
       </div>
       <div class="section-foot no-export" style="justify-content:flex-end">
-        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} ${t.format==='league' ? 'Export fixtures' : currentGroup(t) && currentGroup(t)!=='*' ? `Export Group ${esc(currentGroup(t))} fixtures` : 'Export fixtures · one page per group'}</button>
+        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} ${t.format==='league' ? 'Export fixtures' : currentGroup(t) && currentGroup(t)!=='*' ? `Export Group ${esc(currentGroup(t))} fixtures` : 'Export fixtures · each group separately'}</button>
       </div>
     </section>`;
 }
@@ -2774,7 +2859,7 @@ const MATCH_FIELDS = [
   {k:'windows', label:'Sub pauses', opts:[1,2,3,4,5,6].map(n=>[String(n), String(n)])},
   {k:'condition', label:'Player condition', opts:[['RANDOM','RANDOM'],['EXCELLENT','EXCELLENT']]},
   {k:'injuries', label:'Injuries', opts:[['OFF','OFF'],['ON','ON']]},
-  {k:'tiebreak', label:'Level on aggregate (2 legs)', opts:[['MATCH','Tie-breaker match'],['PENS','Penalties']], ko2leg:true},
+  {k:'tiebreak', label:'When level on aggregate', opts:[['MATCH','Play a tie-breaker match'],['PENS','Go straight to penalties']], tbOnly:true},
 ];
 function fmtShort(d){ if(!d) return '—'; const dt = new Date(d); if(isNaN(dt)) return '—'; return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' · ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) }
 function ruleSections(t){
@@ -2782,6 +2867,7 @@ function ruleSections(t){
   if(t.format==='league') s.push({key:'group', title:'League', short:'League'});
   if(t.format==='group_knockout') s.push({key:'group', title:'Group stage', short:'Group stage'});
   if(t.format!=='league') s.push({key:'ko', title: t.format==='single_elimination' ? 'Knockout' : 'Knockout stage', short:'Knockout'});
+  if(t.format!=='league' && t.knockoutFormat==='2leg') s.push({key:'tb', title:'Tie-breaker match', short:'Tie-breaker'});
   return s;
 }
 function expectedKoRounds(t){
@@ -2804,11 +2890,11 @@ function koDeadlineRounds(t){
 }
 function stageData(t, key){
   const r = t.rules || {};
-  return {
-    rules: key==='group' ? (r.groupRules||'') : (r.koRules||''),
-    match: (key==='group' ? r.groupMatch : r.koMatch) || {},
-    custom: (key==='group' ? r.groupSettings : r.koSettings) || []
-  };
+  const pre = key==='group' ? 'group' : key==='tb' ? 'tb' : 'ko';
+  const match = {...(r[pre+'Match'] || {})};
+  if(key==='tb'){ const mode = tbMode(t); if(mode) match.tiebreak = mode }
+  if(key==='ko') delete match.tiebreak;
+  return { rules: r[pre+'Rules'] || '', match, custom: r[pre+'Settings'] || [] };
 }
 function settingsList(t, key){
   const d = stageData(t, key), m = d.match, out = [];
@@ -2818,7 +2904,8 @@ function settingsList(t, key){
   if(m.subs || m.windows) out.push({label:'Substitutions', value:[m.subs?`${m.subs} subs`:'', m.windows?`${m.windows} pause${m.windows==='1'?'':'s'}`:''].filter(Boolean).join(' · ')});
   if(m.condition) out.push({label:'Player condition', value:m.condition});
   if(m.injuries) out.push({label:'Injuries', value:m.injuries});
-  if(m.tiebreak && key==='ko' && t.knockoutFormat==='2leg') out.push({label:'Level on aggregate', value: m.tiebreak==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
+  if(key==='tb' && m.tiebreak) out.unshift({label:'Level on aggregate', value: m.tiebreak==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
+  if(key==='ko' && t.knockoutFormat==='2leg' && tbMode(t)) out.push({label:'Level on aggregate', value: tbMode(t)==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
   return out.concat(d.custom.filter(x=>x.label && x.value));
 }
 function stageHasContent(t, key){
@@ -2892,11 +2979,11 @@ function openRulesModal(tid, key){
   openModal(`
     <div class="modal-head"><div class="modal-title">${esc(sec.title)} · rules &amp; settings</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:20px">
-      <div class="page-sub">Only for <b>${esc(t.name)}</b>. Everyone can read these on the tournament's Rules tab.</div>
+      <div class="page-sub">${key==='tb' ? `Used when a 2-leg knockout tie in <b>${esc(t.name)}</b> is level on aggregate. These settings apply to the tie-breaker match only.` : `Only for <b>${esc(t.name)}</b>. Everyone can read these on the tournament's Rules tab.`}</div>
       <fieldset class="rules-edit">
         <legend>Match settings</legend>
         <div class="match-fields">
-          ${MATCH_FIELDS.filter(f=>!f.ko2leg || (key==='ko' && t.knockoutFormat==='2leg')).map(f=>`<label class="match-field" for="mf_${f.k}"><span>${f.label}</span>
+          ${MATCH_FIELDS.filter(f=>!f.tbOnly || key==='tb').map(f=>`<label class="match-field" for="mf_${f.k}"><span>${f.label}</span>
             <select class="form-select" id="mf_${f.k}" data-mf="${f.k}"><option value="">Not set</option>${f.opts.map(([v,l])=>`<option value="${v}" ${String(d.match[f.k]||'')===v?'selected':''}>${l}</option>`).join('')}</select></label>`).join('')}
         </div>
         <div class="form-label" style="margin:16px 0 8px">Other settings (optional)</div>
@@ -2946,18 +3033,30 @@ function generateRules(tid, key){
     if(m.time) L.push(`Each match is ${m.time} minutes.`);
     L.push('Agree the match time with your opponent and send the final score screenshot to the organisers.');
     L.push('If a match disconnects, replay it from the same score and time if both players agree; otherwise the organisers decide.');
+  } else if(key==='tb'){
+    const mode = m.tiebreak || tbMode(t);
+    if(mode==='PENS'){
+      L.push('If the aggregate score is level after the second leg, there is no tie-breaker match. A penalty shoot-out decides who goes through.');
+    } else {
+      L.push('If the aggregate score is level after both legs, the two players play one tie-breaker match.');
+      L.push('The winner of the tie-breaker match goes through. Goals from the two legs do not carry over.');
+      if(m.extra==='ON' && m.pens==='ON') L.push('If the tie-breaker match is level after full time, it goes to extra time and then penalties.');
+      else if(m.extra==='ON') L.push('If the tie-breaker match is level after full time, it goes to extra time, then penalties if still level.');
+      else L.push('If the tie-breaker match is level after full time, a penalty shoot-out decides it.');
+      if(m.time) L.push(`The tie-breaker match is ${m.time} minutes.`);
+      L.push('Play the tie-breaker as soon as possible after the second leg, and before the round deadline.');
+      L.push('Send the final score screenshot of the tie-breaker to the organisers straight after the match.');
+    }
   } else {
     const fmt = t.knockoutFormat;
     if(fmt==='2leg') L.push('Every tie is played over two legs. The aggregate score decides who goes through.');
     else if(fmt==='bo3') L.push('Every tie is best of 3 games. The first player to win 2 games goes through.');
     else L.push('Every tie is a single match. The winner goes through.');
     let lvl = fmt==='2leg' ? 'If the aggregate score is level after the second leg' : fmt==='bo3' ? 'If a game is level after full time' : 'If the score is level after full time';
-    if(fmt==='2leg' && m.tiebreak==='MATCH'){
-      L.push('If the aggregate score is level after the second leg, the two players play a tie-breaker match. The winner of the tie-breaker goes through.');
-      lvl = 'If the tie-breaker match is level after full time';
-      if(!(m.extra==='ON' || m.pens==='ON')) L.push(`${lvl}, a penalty shoot-out decides it.`);
+    if(fmt==='2leg' && tbMode(t)==='MATCH'){
+      L.push('If the aggregate score is level after the second leg, the two players play a tie-breaker match. The winner of the tie-breaker goes through (see the Tie-breaker match rules).');
     }
-    if(m.extra==='ON' && m.pens==='ON') L.push(`${lvl}, it goes to extra time and then penalties.`);
+    else if(m.extra==='ON' && m.pens==='ON') L.push(`${lvl}, it goes to extra time and then penalties.`);
     else if(m.extra==='ON') L.push(`${lvl}, it goes to extra time.`);
     else if(m.pens==='ON') L.push(`${lvl}, penalties decide it.`);
     if(t.format==='group_knockout') L.push(t.seeding==='random' ? 'The bracket is drawn at random, but players from the same group never meet in the first round.' : 'Group winners face runners-up, and players from the same group never meet in the first round.');
@@ -2976,7 +3075,12 @@ function saveRules(tid, key){
   const {all, t} = getT(tid);
   const r = {...(t.rules||{})};
   if(key==='group'){ r.groupRules = text; r.groupMatch = match; r.groupSettings = custom }
+  else if(key==='tb'){
+    r.tbRules = text; r.tbMatch = match; r.tbSettings = custom;
+    if(r.koMatch && r.koMatch.tiebreak){ r.koMatch = {...r.koMatch}; delete r.koMatch.tiebreak }
+  }
   else {
+    const oldMode = r.koMatch?.tiebreak; if(oldMode && !r.tbMatch?.tiebreak) match.tiebreak = oldMode;
     r.koRules = text; r.koMatch = match; r.koSettings = custom;
     const dl = {...(r.roundDeadlines||{})};
     document.querySelectorAll('[data-round]').forEach(el=>{ const v = readDT(el.id); if(v) dl[el.dataset.round] = v; else delete dl[el.dataset.round] });
@@ -2991,13 +3095,22 @@ function saveRules(tid, key){
 
 function exportRulesSheet(tid, key){
   const t = STORE.tournaments.find(x=>x.id===tid);
-  const secs = ruleSections(t).filter(s=>!key || s.key===key);
-  const body = `<div class="xs-grid" style="grid-template-columns:repeat(${secs.length}, 560px)">${secs.map(sec=>rulesSectionHTML(t, sec, false)).join('')}</div>`;
-  const what = key ? `${secs[0].title} rules &amp; match settings` : 'Rules &amp; match settings';
-  const dlBits = [];
-  if(secs.some(s=>s.key==='group') && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
-  if(secs.some(s=>s.key==='ko')){ const d = t.rules?.roundDeadlines||{}; const fin = d['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
-  return renderSheet(sheetHeader(t, t.name, `${what} · ${formatLabel(t.format)}${dlBits.length?'<br>'+dlBits.join(' · '):''}`) + body + sheetFoot(), secs.length*560 + (secs.length-1)*18 + 56, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
+  const secs = ruleSections(t).filter(s=>!key || s.key===key).filter(s=>key || stageHasContent(t, s.key));
+  if(!secs.length){ toast('Nothing to export yet', true); return }
+  // The tie-breaker match always gets a page of its own.
+  const groupsOfSecs = [secs.filter(s=>s.key!=='tb'), secs.filter(s=>s.key==='tb')].filter(g=>g.length);
+  const cols = Math.max(...groupsOfSecs.map(g=>g.length));
+  const width = cols*560 + (cols-1)*18 + 56;
+  const pages = groupsOfSecs.map((list, i)=>{
+    const body = `<div class="xs-grid" style="grid-template-columns:repeat(${list.length}, 560px)">${list.map(sec=>rulesSectionHTML(t, sec, false)).join('')}</div>`;
+    const what = list.length===1 ? `${list[0].title} rules &amp; match settings` : 'Rules &amp; match settings';
+    const dlBits = [];
+    if(list.some(s=>s.key==='group') && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
+    if(list.some(s=>s.key==='ko')){ const d = t.rules?.roundDeadlines||{}; const fin = d['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
+    if(list.some(s=>s.key==='tb')) dlBits.push('Used when a 2-leg tie is level on aggregate');
+    return sheetHeader(t, t.name, `${what} · ${formatLabel(t.format)}${dlBits.length?'<br>'+dlBits.join(' · '):''}`) + body + sheetFoot(i+1, groupsOfSecs.length);
+  });
+  return renderSheets(pages, width, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
 }
 
 /* =========================

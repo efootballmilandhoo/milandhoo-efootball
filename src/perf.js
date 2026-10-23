@@ -147,6 +147,12 @@ async function offloadImages(){
       const v = STORE.settings && STORE.settings[f];
       if(isDataImg(v)){ const url = await uploadDataUrl(v, 'brand'); if(STORE.settings[f]===v) saveSettings({[f]:url}) }
     }
+    const pi = STORE.settings && STORE.settings.prizeIcons;
+    if(pi && Object.values(pi).some(isDataImg)){
+      const next = {...pi};
+      for(const k of Object.keys(next)) if(isDataImg(next[k])) next[k] = await uploadDataUrl(next[k], 'brand');
+      if(STORE.settings.prizeIcons===pi) saveSettings({prizeIcons: next});
+    }
     for(const k of ['cover','sidecard','hofcover']){
       const v = STORE[k] && STORE[k].image;
       if(isDataImg(v)){ const url = await uploadDataUrl(v, 'brand'); if(STORE[k].image===v) savePicDoc(k, url) }

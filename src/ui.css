@@ -242,3 +242,19 @@
   .ready-file{padding:14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--border);font-weight:600;overflow-wrap:anywhere}
   .xs-md{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 0 4px;border-top:1px solid var(--divider);margin-top:6px}
   .xs-card-title + .xs-md{border-top:0;margin-top:0;padding-top:4px}
+
+/* Prize icons */
+.prize-medal.is-emoji{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",var(--font-display);font-size:24px;line-height:1}
+.prize-medal.has-img{background:none !important;overflow:hidden}
+.prize-medal.has-img img{width:100%;height:100%;object-fit:contain;display:block}
+.prize-edit-row{display:flex;justify-content:flex-end;margin-top:-6px}
+.prize-icon-edit{border:1px solid var(--border);border-radius:14px;padding:12px 14px 14px;margin:0;min-width:0}
+.prize-icon-edit+.prize-icon-edit{margin-top:12px}
+.prize-icon-edit legend{font-weight:700;font-size:13px;padding:0 6px;color:var(--ink)}
+.pie-main{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pie-presets{display:flex;flex-wrap:wrap;gap:6px}
+.pie-chip{min-width:44px;height:44px;border-radius:12px;border:1px solid var(--border-2);background:var(--surface);font-size:20px;font-weight:800;font-family:var(--font-display);cursor:pointer;color:var(--ink)}
+.pie-chip.active{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary-soft, rgba(37,99,235,.18));background:var(--surface-2)}
+.pie-own{display:flex;gap:8px;margin-top:10px;align-items:center;flex-wrap:wrap}
+.pie-own .form-input{flex:1 1 140px;min-width:0}
+.pie-upload{cursor:pointer;min-height:44px}
