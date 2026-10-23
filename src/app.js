@@ -791,7 +791,7 @@ function sheetHeader(t, title, subtitle){
   return `<div class="xs-head">
     ${t && t.logo && isImgSrc(t.logo) ? `<span class="xs-tlogo"><img src="${esc(t.logo)}"${imgAttrs(t.logo)} alt=""></span>` : ''}
     <div class="xs-titles">
-      <div class="xs-kicker">${esc(commFull().toUpperCase().replace('EFOOTBALL','eFOOTBALL'))}</div>
+      <div class="xs-kicker">${esc(commFull().toUpperCase().replace(/EFOOTBALL/g,'eFOOTBALL'))}</div>
       <div class="xs-title">${esc(title)}</div>
       ${subtitle ? `<div class="xs-sub">${subtitle}</div>` : ''}
     </div>
@@ -1367,7 +1367,7 @@ function renderDashboard(){
       </div>`).join('');
 
   const topRows = rankPlayers(stats).slice(0,5).map((x,i)=>`
-      <div class="row-grid top-row"><span class="rank-badge ${x.s.pts>0?rankClass(x.rank-1):''}">${x.rank}</span>${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
+      <div class="row-grid top-row">${rankMark(x)}${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
   const hofLatest = [...STORE.hof].sort(hofSort).slice(0,4);
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
@@ -1434,11 +1434,11 @@ function rankPlayers(stats){
   return list;
 }
 const MEDAL_BY_RANK = {1:'gold', 2:'silver', 3:'bronze'};
-/* Rank marker: a medal for positions 1–3 (once points are scored), a numbered tile otherwise; "=" marks a shared position. */
-function rankMark(x, size=26){
-  const m = x.s.pts>0 && MEDAL_BY_RANK[x.rank];
-  return m ? medalHTML(m, String(x.rank), size) : `<span class="lbx-rank">${x.rank}${x.tied?'<small>=</small>':''}</span>`;
+/* Position badge: metallic disc for 1st–3rd, a plain tile otherwise. "=" marks a shared position. */
+function rankBadge(rank, metal, tied){
+  return `<span class="rk ${metal ? 'rk-'+metal : ''}" aria-label="Position ${rank}${tied?', shared':''}">${rank}${tied?'<small>=</small>':''}</span>`;
 }
+function rankMark(x){ return rankBadge(x.rank, x.s.pts>0 && MEDAL_BY_RANK[x.rank], x.tied) }
 
 /* =========================
    PLAYERS
@@ -3263,7 +3263,7 @@ function renderHallOfFame(){
       <div class="decorated">
         ${ranked.slice(0,6).map((t,i)=>{ const p = hofPlayer(t.h); return `
           <button type="button" class="decorated-item ${hofFilter.player===t.key?'active':''}" data-key="${esc(hofFilter.player===t.key?'all':t.key)}" onclick="setHofFilter('player', this.dataset.key)" aria-pressed="${hofFilter.player===t.key}">
-            ${i<3 ? medalHTML(['gold','silver','bronze'][i], String(i+1), 28) : `<span class="lbx-rank">${i+1}</span>`}${renderAvatar(p,36)}
+            ${rankBadge(i+1, ['gold','silver','bronze'][i])}${renderAvatar(p,36)}
             <span class="grow"><b>${esc(p.name)}</b><span class="decorated-counts">${decoratedCounts(t)}</span></span>
           </button>`}).join('')}
       </div>
@@ -3310,7 +3310,7 @@ function exportDecoratedSheet(){
     + `<div class="xs-card"><table class="lbx dec-table">
       <thead><tr><th>#</th><th class="l">Player</th><th>${medalHTML('gold','1',20)}<span>Champion</span></th><th>${medalHTML('silver','2',20)}<span>Runner-up</span></th><th>${medalHTML('bronze','3',20)}<span>Third</span></th><th>Awards</th><th>Total</th></tr></thead>
       <tbody>${part.map((t,j)=>{ const k = i*DEC_PER_PAGE + j, p = hofPlayer(t.h); return `<tr class="${k<3?'top':''}">
-        <td>${k<3 ? medalHTML(['gold','silver','bronze'][k], String(k+1), 26) : `<span class="lbx-rank">${k+1}</span>`}</td>
+        <td>${rankBadge(k+1, ['gold','silver','bronze'][k])}</td>
         <td class="l"><span class="who">${renderAvatar(p, 34)}<span>${esc(p.name)}</span></span></td>
         <td>${cell(t.champion,'gold')}</td><td>${cell(t.runner_up,'silver')}</td><td>${cell(t.third,'bronze')}</td><td>${cell(t.award,'award')}</td>
         <td><span class="lbx-pts">${t.total}</span></td></tr>` }).join('')}</tbody></table></div>`
@@ -3473,16 +3473,18 @@ function renderLeaderboard(){
 const ORDINAL = {1:'1st', 2:'2nd', 3:'3rd'};
 function lbPodCard(group){
   const r = group[0].rank, m = MEDAL_BY_RANK[r], lead = group[0], n = group.length;
-  const names = n===1 ? esc(lead.p.name) : n<=3 ? group.map(x=>esc(x.p.name)).join(', ') : `${group.slice(0,2).map(x=>esc(x.p.name)).join(', ')} <span class="lb-pod-more">+${n-2} more</span>`;
   const stat = (v,l) => `<span><b>${v}</b>${l}</span>`;
-  return `<div class="lb-pod p${r} ${m} ${n>1?'tie':''}">
-    <div class="lb-pod-top"><span class="lb-pod-pos">${medalHTML(m, String(r), 22)}${ORDINAL[r]}${n>1?' <i>· shared</i>':''}</span><span class="lb-pod-pts"><b>${lead.s.pts}</b><span>PTS</span></span></div>
-    <div class="lb-pod-who">
-      <span class="lb-pod-avs">${group.slice(0,3).map(x=>renderAvatar(x.p, n>1?40:52)).join('')}</span>
-      <div class="lb-pod-name">${names}</div>
-    </div>
-    ${n===1 ? `<div class="lb-pod-stats">${stat(lead.s.wins,'W')}${stat(lead.s.draws,'D')}${stat(lead.s.losses,'L')}${stat(Math.round(parseFloat(lead.s.winPct))+'%','Win')}${stat(lead.s.tourneyWins,'Titles')}</div>`
-      : `<div class="lb-pod-stats tied">${n} players on ${lead.s.pts} points</div>`}
+  const head = `<div class="lb-pod-top"><span class="lb-pod-pos">${rankBadge(r, m)}${ORDINAL[r]}${n>1?' <i>· shared</i>':''}</span><span class="lb-pod-pts"><b>${lead.s.pts}</b><span>PTS</span></span></div>`;
+  if(n===1) return `<div class="lb-pod p${r} ${m}">
+    ${head}
+    <div class="lb-pod-who">${renderAvatar(lead.p, 52)}<div class="lb-pod-name">${esc(lead.p.name)}</div></div>
+    <div class="lb-pod-stats">${stat(lead.s.wins,'W')}${stat(lead.s.draws,'D')}${stat(lead.s.losses,'L')}${stat(Math.round(parseFloat(lead.s.winPct))+'%','Win')}${stat(lead.s.tourneyWins,'Titles')}</div>
+  </div>`;
+  // Shared position: everyone on these points, in table order.
+  return `<div class="lb-pod p${r} ${m} tie">
+    ${head}
+    <div class="lb-pod-tied-note">${n} players share this position</div>
+    <ul class="lb-pod-list">${group.map(x=>`<li>${renderAvatar(x.p, 30)}<span class="who2"><span class="nmrow"><span class="nm">${esc(x.p.name)}</span>${x.s.tourneyWins ? `<i>${x.s.tourneyWins} title${x.s.tourneyWins>1?'s':''}</i>` : ''}</span><span class="mini">${x.s.wins}W · ${x.s.draws}D · ${x.s.losses}L · ${Math.round(parseFloat(x.s.winPct))}%</span></span></li>`).join('')}</ul>
   </div>`;
 }
 function lbLegend(){
