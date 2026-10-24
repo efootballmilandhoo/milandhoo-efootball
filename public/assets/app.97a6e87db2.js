@@ -2638,7 +2638,10 @@ function setFixtureQuery(tid, v){
 function fixtureRows(t, admin, canEdit){
   const cur = t.format==='league' ? '*' : currentGroup(t);
   const q = fixtureQuery.trim().toLowerCase();
-  const list = (t.fixtures||[]).filter(f=>(cur==='*' || f.group===cur) && (!q || playerName(f.team1).toLowerCase().includes(q) || playerName(f.team2).toLowerCase().includes(q)));
+  const done = f => hasScore(f.score1) && hasScore(f.score2);
+  // Played matches first (latest result on top), then pending matches in schedule order.
+  const list = (t.fixtures||[]).map((f,i)=>({f,i})).filter(({f})=>(cur==='*' || f.group===cur) && (!q || playerName(f.team1).toLowerCase().includes(q) || playerName(f.team2).toLowerCase().includes(q)))
+    .sort((a,b)=> (done(b.f)-done(a.f)) || (done(a.f) ? String(b.f.scoredAt||'').localeCompare(String(a.f.scoredAt||'')) : 0) || a.i-b.i).map(x=>x.f);
   if(!list.length) return `<tr><td colspan="${admin&&canEdit?7:6}" class="t-center text-muted" style="padding:32px">No fixtures match.</td></tr>`;
   return list.map(f=>{
     const done = hasScore(f.score1) && hasScore(f.score2);
@@ -2711,10 +2714,11 @@ function readScore(id){ const v = document.getElementById(id)?.value; if(v===und
 function saveFixtureScore(tid, fid, clear=false){
   const {all, t} = getT(tid);
   const f = t.fixtures.find(x=>x.id===fid);
-  if(clear){ f.score1 = null; f.score2 = null }
+  if(clear){ f.score1 = null; f.score2 = null; delete f.scoredAt }
   else {
     const s1 = readScore('fs_score1'), s2 = readScore('fs_score2');
     if(s1===null || s2===null || Number.isNaN(s1) || Number.isNaN(s2)){ toast('Enter both scores as whole numbers (0 or more)', true); return }
+    if(f.score1!==s1 || f.score2!==s2 || !f.scoredAt) f.scoredAt = new Date().toISOString();
     f.score1 = s1; f.score2 = s2;
   }
   DB.set('tournaments', all);
