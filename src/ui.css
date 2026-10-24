@@ -395,23 +395,27 @@
   .xs-points b{color:var(--ink)}
   .dec-table th{vertical-align:bottom}
   .dec-table th .medal{display:flex;margin:0 auto 4px}
-  .dec-table th span:not(.medal-n){display:block}
+  .dec-table th > span:not(.rk){display:block}
   .dec-n{display:inline-flex;min-width:28px;justify-content:center;padding:2px 8px;border-radius:999px;font-weight:800}
   .dec-n.gold{background:var(--gold-tint);color:var(--gold-ink)}
   .dec-n.silver{background:#EEF1F6;color:#3E4A63}
   .dec-n.bronze{background:#FBEBDD;color:#7A3F10}
   .dec-n.award{background:var(--purple-tint);color:var(--purple-ink)}
 
-  /* ---------- Position badges ---------- */
-  .rk{display:inline-flex;align-items:center;justify-content:center;flex:none;min-width:28px;height:28px;padding:0 6px;border-radius:9px;background:var(--surface-3);color:var(--text-2);font-weight:800;font-size:13px;line-height:1;font-variant-numeric:tabular-nums}
+  /* ---------- Position badges ----------
+     Centred with line-height (not flexbox) and drawn with simple top-to-bottom gradients and borders,
+     so image/PDF exports (html2canvas) render them exactly like the page. */
+  .rk{--h:28px;display:inline-block;vertical-align:middle;flex:none;box-sizing:border-box;min-width:var(--h);height:var(--h);line-height:var(--h);padding:0 6px;border-radius:9px;background:var(--surface-3);color:var(--text-2);font-family:var(--font-body);font-weight:800;font-size:13px;text-align:center;white-space:nowrap}
   .rk small{font-size:10px;margin-left:1px;opacity:.75}
-  .rk-gold,.rk-silver,.rk-bronze{width:28px;padding:0;border-radius:50%;font-family:var(--font-display);font-size:16px;position:relative}
-  .rk-gold{background:linear-gradient(150deg,#FFE58A 0%,#F7BC1C 48%,#D99400 100%);color:#4A3200;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6),0 3px 8px -2px rgba(217,148,0,.55)}
-  .rk-silver{background:linear-gradient(150deg,#FBFCFE 0%,#D3DAE6 50%,#9FAAC0 100%);color:#253049;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.75),0 3px 8px -2px rgba(110,124,153,.5)}
-  .rk-bronze{background:linear-gradient(150deg,#FAD3AE 0%,#DFA06A 50%,#AE6227 100%);color:#3F1D05;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 3px 8px -2px rgba(174,98,39,.5)}
+  .rk-gold,.rk-silver,.rk-bronze,.rk-award{width:var(--h);padding:0;border-radius:50%;border:1.5px solid;line-height:calc(var(--h) - 3px);font-size:calc(var(--h) * .46)}
+  .rk-gold{background:linear-gradient(180deg,#FFE27A 0%,#F2B21B 100%);border-color:#D99400;color:#4A3200;box-shadow:0 2px 6px -2px rgba(217,148,0,.6)}
+  .rk-silver{background:linear-gradient(180deg,#F4F6FA 0%,#C3CCDB 100%);border-color:#99A4BA;color:#253049;box-shadow:0 2px 6px -2px rgba(110,124,153,.55)}
+  .rk-bronze{background:linear-gradient(180deg,#F7C9A0 0%,#D58E55 100%);border-color:#AE6227;color:#3F1D05;box-shadow:0 2px 6px -2px rgba(174,98,39,.55)}
+  .rk-award{background:linear-gradient(180deg,#C9B6FF 0%,#8B6BF0 100%);border-color:#6A4BD6;color:#FFFFFF;box-shadow:0 2px 6px -2px rgba(106,75,214,.55)}
+  .rk-award svg{display:inline-block;vertical-align:middle;margin-top:-1px}
   .rk-gold small,.rk-silver small,.rk-bronze small{display:none}
-  .lb-pod-pos .rk{width:24px;min-width:24px;height:24px;font-size:14px}
-  .top-row .rk{min-width:26px;height:26px}
+  .lb-pod-pos .rk{--h:24px}
+  .top-row .rk{--h:26px}
 
   /* Page titles never split mid-word: the search box shrinks first, then wraps below the title. */
   .page-title{word-break:normal;overflow-wrap:break-word}
@@ -423,11 +427,10 @@
   .user-chip, .user-chip *{white-space:nowrap}
 
   /* Sized placement badges (Hall of Fame, forms, exports) */
-  .rk.rk-sz{width:var(--s);min-width:var(--s);height:var(--s);font-size:calc(var(--s) * .56);padding:0}
-  .rk-award{width:28px;padding:0;border-radius:50%;background:linear-gradient(150deg,#E6DCFF 0%,#A98BFF 50%,#6A4BD6 100%);color:#FFFFFF;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.55),0 3px 8px -2px rgba(106,75,214,.5)}
+  .rk.rk-sz{--h:var(--s)}
   .hof-type .rk{transition:transform .2s}
   .hof-type:has(input:checked) .rk{transform:translateY(-2px) scale(1.06)}
-  .dec-table th .rk{display:flex;margin:0 auto 6px}
+  .dec-table th .rk{display:block;margin:0 auto 6px}
   /* Prize cards: the default numbers use the same metallic badges */
   .prize-card.gold .prize-medal:not(.is-emoji):not(.has-img){background:linear-gradient(150deg,#FFE58A 0%,#F7BC1C 48%,#D99400 100%);color:#4A3200;box-shadow:inset 0 0 0 2px rgba(255,255,255,.6),0 4px 10px -3px rgba(217,148,0,.55)}
   .prize-card.silver .prize-medal:not(.is-emoji):not(.has-img){background:linear-gradient(150deg,#FBFCFE 0%,#D3DAE6 50%,#9FAAC0 100%);color:#253049;box-shadow:inset 0 0 0 2px rgba(255,255,255,.75),0 4px 10px -3px rgba(110,124,153,.5)}

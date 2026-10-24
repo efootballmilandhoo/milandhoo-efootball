@@ -3557,7 +3557,7 @@ function renderHallOfFame(){
       <div class="decorated">
         ${ranked.slice(0,6).map((t,i)=>{ const p = hofPlayer(t.h); return `
           <button type="button" class="decorated-item ${hofFilter.player===t.key?'active':''}" data-key="${esc(hofFilter.player===t.key?'all':t.key)}" onclick="setHofFilter('player', this.dataset.key)" aria-pressed="${hofFilter.player===t.key}">
-            ${rankBadge(i+1, ['gold','silver','bronze'][i])}${renderAvatar(p,36)}
+            ${rankBadge(t.rank, MEDAL_BY_RANK[t.rank], t.tied)}${renderAvatar(p,36)}
             <span class="grow"><b>${esc(p.name)}</b><span class="decorated-counts">${decoratedCounts(t)}</span></span>
           </button>`}).join('')}
       </div>
@@ -3590,7 +3590,14 @@ function hofTally(all){
   all.forEach(h=>{ const k = hofKey(h); const t = tally[k] = tally[k] || {key:k, h, champion:0, runner_up:0, third:0, award:0, total:0}; t[h.type in t ? h.type : 'award']++; t.total++ });
   return tally;
 }
-function hofRanked(tally){ return Object.values(tally).sort((a,b)=> b.champion-a.champion || b.runner_up-a.runner_up || b.third-a.third || b.award-a.award || hofPlayer(a.h).name.localeCompare(hofPlayer(b.h).name)) }
+function hofRanked(tally){
+  const list = Object.values(tally).sort((a,b)=> b.champion-a.champion || b.runner_up-a.runner_up || b.third-a.third || b.award-a.award || hofPlayer(a.h).name.localeCompare(hofPlayer(b.h).name));
+  // Players with exactly the same record share the position (1, 2, 2, 2, 5 …).
+  const same = (a,b) => a.champion===b.champion && a.runner_up===b.runner_up && a.third===b.third && a.award===b.award;
+  list.forEach((x,i)=>{ x.rank = i && same(x, list[i-1]) ? list[i-1].rank : i+1 });
+  list.forEach((x,i)=>{ x.tied = (i>0 && list[i-1].rank===x.rank) || (i<list.length-1 && list[i+1].rank===x.rank) });
+  return list;
+}
 function decoratedCounts(t){
   return `${t.champion?`<i class="gold">${t.champion}× Champion</i>`:''}${t.runner_up?`<i class="silver">${t.runner_up}× Runner-up</i>`:''}${t.third?`<i class="bronze">${t.third}× 3rd</i>`:''}${t.award?`<i class="award">${t.award} award${t.award>1?'s':''}</i>`:''}`;
 }
@@ -3603,12 +3610,12 @@ function exportDecoratedSheet(){
   const pages = parts.map((part, i)=> sheetHeader(null, 'Most Decorated Players', `Hall of Fame · ${ranked.length} player${ranked.length===1?'':'s'}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''} · ${fmtDate(new Date())}`)
     + `<div class="xs-card"><table class="lbx dec-table">
       <thead><tr><th>#</th><th class="l">Player</th><th>${medalHTML('gold','1',20)}<span>Champion</span></th><th>${medalHTML('silver','2',20)}<span>Runner-up</span></th><th>${medalHTML('bronze','3',20)}<span>Third</span></th><th>Awards</th><th>Total</th></tr></thead>
-      <tbody>${part.map((t,j)=>{ const k = i*DEC_PER_PAGE + j, p = hofPlayer(t.h); return `<tr class="${k<3?'top':''}">
-        <td>${rankBadge(k+1, ['gold','silver','bronze'][k])}</td>
+      <tbody>${part.map(t=>{ const p = hofPlayer(t.h); return `<tr class="${t.rank<=3?'top':''}">
+        <td>${rankBadge(t.rank, MEDAL_BY_RANK[t.rank], t.tied)}</td>
         <td class="l"><span class="who">${renderAvatar(p, 34)}<span>${esc(p.name)}</span></span></td>
         <td>${cell(t.champion,'gold')}</td><td>${cell(t.runner_up,'silver')}</td><td>${cell(t.third,'bronze')}</td><td>${cell(t.award,'award')}</td>
         <td><span class="lbx-pts">${t.total}</span></td></tr>` }).join('')}</tbody></table></div>`
-    + `<div class="xs-points">Ranked by titles, then runner-up finishes, third places and awards. Includes our tournaments and other organisers' events.</div>`
+    + `<div class="xs-points">Ranked by titles, then runner-up finishes, third places and awards. Players with the same record share the position. Includes our tournaments and other organisers' events.</div>`
     + sheetFoot(i+1, parts.length));
   return renderSheets(pages, 900, 'most_decorated');
 }
