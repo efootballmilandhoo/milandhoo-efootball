@@ -2546,27 +2546,29 @@ function renderStatsTab(t){
     <div class="section-foot" style="justify-content:flex-end"><button type="button" class="export-btn" onclick="exportStatsSheet('${t.id}')">${ICON_DL} Export stats</button></div>
   </section>`;
 }
-/* Stats export: one 16:9 landscape page (1920 × 1080). */
+/* Stats export: one 5:4 page (1500 × 1200). */
 function exportStatsSheet(tid){
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
   const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
   const {matches, rows, goals, draws, biggest, highest, defs, unbeaten} = S;
   const rec = (m, label) => `<div class="x169-rec"><span>${label}</span><b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b><small>${esc(m.stage)}</small></div>`;
-  const page = `<div class="x169">
+  const page = `<div class="x54 x54-stats">
     ${sheetHeader(t, t.name, `Tournament stats · ${matches.length} matches · ${fmtDate(new Date())}`)}
     <div class="x169-strip">
-      ${statNum('matches','blue','Matches', matches.length)}
-      ${statNum('goals','green','Goals', goals)}
-      ${statNum('avg','purple','Per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
-      ${statNum('draw','slate','Draws', draws)}
-      ${rec(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goals`)}
-      ${highest!==biggest ? rec(highest, `Most goals · ${highest.ga+highest.gb}`) : ''}
+      ${statNum('matches','blue','Matches played', matches.length)}
+      ${statNum('goals','green','Goals scored', goals)}
+      ${statNum('avg','purple','Goals per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
+      ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
+    </div>
+    <div class="x169-strip">
+      ${rec(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goal margin`)}
+      ${highest!==biggest ? rec(highest, `Highest-scoring · ${highest.ga+highest.gb} goals`) : ''}
       <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
     </div>
     <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4})).join('')}</div>
     ${sheetFoot()}
   </div>`;
-  return renderSheets([page], 1920, `${slug(t.name)}_stats`);
+  return renderSheets([page], X54.w, `${slug(t.name)}_stats`);
 }
 
 function editFixtureScore(tid, fid){
@@ -2585,7 +2587,7 @@ function editFixtureScore(tid, fid){
       </div>
     </div>
     <div class="modal-foot">
-      ${hasScore(f.score1) ? `<button class="btn btn-ghost" style="margin-right:auto;color:var(--danger)" onclick="saveFixtureScore('${tid}','${fid}',true)">Clear result</button>`:''}
+      ${hasScore(f.score1) ? `<button class="btn btn-ghost" style="margin-right:auto;color:var(--danger)" onclick="clearFixtureResult('${tid}','${fid}')">Clear result</button>`:''}
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveFixtureScore('${tid}','${fid}')">Save</button>
     </div>`);
@@ -2773,7 +2775,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
       <div class="ko-summary" id="km_sum" role="status"></div>
     </div>
     <div class="modal-foot">
-      ${m.winner || legs.some(l=>hasScore(l[0])||hasScore(l[1])) ? `<button type="button" class="btn btn-ghost" style="margin-right:auto;color:var(--danger-ink)" onclick="saveKnockoutMatch('${tid}',${roundIdx},'${matchId}',true)">Clear result</button>`:''}
+      ${m.winner || legs.some(l=>hasScore(l[0])||hasScore(l[1])) ? `<button type="button" class="btn btn-ghost" style="margin-right:auto;color:var(--danger-ink)" onclick="clearKnockoutResult('${tid}',${roundIdx},'${matchId}')">Clear result</button>`:''}
       <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button type="button" class="btn btn-primary" onclick="saveKnockoutMatch('${tid}',${roundIdx},'${matchId}')">Save result</button>
     </div>`);
@@ -2827,6 +2829,13 @@ function koPreview(tid, roundIdx, matchId){
   sum.innerHTML = msg;
 }
 
+async function clearKnockoutResult(tid, roundIdx, matchId){
+  const t = STORE.tournaments.find(x=>x.id===tid), m = t?.knockoutBracket?.[roundIdx]?.find(x=>x.id===matchId); if(!m) return;
+  const later = m.winner && t.knockoutBracket.slice(roundIdx+1).some(r=>r.some(x=>x.team1===m.winner || x.team2===m.winner));
+  const ok = await confirmDialog('Clear result', `Clear the result of ${playerName(m.team1)} vs ${playerName(m.team2)}?${later ? ` ${playerName(m.winner)} will also be removed from the next round, along with any result there.` : ''}`, 'Clear result');
+  if(!ok){ openKnockoutMatchModal(tid, roundIdx, matchId); return }
+  saveKnockoutMatch(tid, roundIdx, matchId, true);
+}
 function saveKnockoutMatch(tid, roundIdx, matchId, clear=false){
   const t0 = STORE.tournaments.find(x=>x.id===tid);
   const fmt = t0.knockoutFormat;
@@ -3181,15 +3190,15 @@ function rulesSectionHTML(t, sec, admin){
       </span>
     </div>
     ${groupDl}
-    <div class="rules-block">
+    <div class="rules-block rb-rules">
       <h3>Rules</h3>
       ${lines.length ? `<ol class="rules-list">${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ol>` : `<p class="rules-empty">No rules added yet.</p>`}
     </div>
-    <div class="rules-block">
+    <div class="rules-block rb-settings">
       <h3>Match settings</h3>
       ${settings.length ? `<dl class="settings-grid">${settings.map(x=>`<div><dt>${esc(x.label)}</dt><dd>${esc(x.value)}</dd></div>`).join('')}</dl>` : `<p class="rules-empty">No match settings added yet.</p>`}
     </div>
-    ${sec.key==='ko' ? `<div class="rules-block">
+    ${sec.key==='ko' ? `<div class="rules-block rb-dl">
       <h3>Round deadlines</h3>
       ${hasDl ? `<div class="deadline-list">${rounds.map(x=>{ const d = dl[x]; const past = d && new Date(d) < new Date(); return `<div class="${past?'past':''}"><span>${esc(x)}</span>${past?'<i>Passed</i>':''}<b>${d ? fmtDateTime(d) : 'Not set'}</b></div>` }).join('')}</div>` : `<p class="rules-empty">No round deadlines set yet.</p>`}
     </div>` : ''}
@@ -3341,23 +3350,21 @@ function saveRules(tid, key){
   toast('Rules saved');
 }
 
+/* Export pages in a 5:4 shape (1500 × 1200). */
+const X54 = {w:1500, h:1200};
 function exportRulesSheet(tid, key){
   const t = STORE.tournaments.find(x=>x.id===tid);
   const secs = ruleSections(t).filter(s=>!key || s.key===key).filter(s=>key || stageHasContent(t, s.key));
   if(!secs.length){ toast('Nothing to export yet', true); return }
-  // The tie-breaker match always gets a page of its own.
-  const groupsOfSecs = [secs.filter(s=>s.key!=='tb'), secs.filter(s=>s.key==='tb')].filter(g=>g.length);
-  const cols = Math.max(...groupsOfSecs.map(g=>g.length));
-  const width = cols*560 + (cols-1)*18 + 56;
-  const pages = groupsOfSecs.map((list, i)=>{
-    const body = `<div class="xs-grid" style="grid-template-columns:repeat(${list.length}, 560px)">${list.map(sec=>rulesSectionHTML(t, sec, false)).join('')}</div>`;
+  // One 5:4 page per stage: rules on the left, match settings and deadlines on the right.
+  const pages = secs.map((sec, i)=>{
     const dlBits = [];
-    if(list.some(s=>s.key==='group') && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
-    if(list.some(s=>s.key==='ko')){ const d = t.rules?.roundDeadlines||{}; const fin = d['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
-    if(list.some(s=>s.key==='tb')) dlBits.push('Used when a 2-leg tie is level on aggregate');
-    return sheetHeader(t, t.name, dlBits.join(' · ')) + body + sheetFoot(i+1, groupsOfSecs.length);
+    if(sec.key==='group' && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
+    if(sec.key==='ko'){ const fin = (t.rules?.roundDeadlines||{})['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
+    if(sec.key==='tb') dlBits.push('Used when a 2-leg tie is level on aggregate');
+    return `<div class="x54 x54-rules">${sheetHeader(t, t.name, [`${sec.title} · Rules &amp; match settings`, ...dlBits].join(' · '))}${rulesSectionHTML(t, sec, false)}${sheetFoot(i+1, secs.length)}</div>`;
   });
-  return renderSheets(pages, width, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
+  return renderSheets(pages, X54.w, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
 }
 
 /* =========================

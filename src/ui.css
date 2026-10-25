@@ -578,3 +578,28 @@
   }
   .fx-acts .btn{white-space:nowrap}
   .t-actions .btn{white-space:nowrap}
+
+  /* ---------- 5:4 export pages (1500 × 1200) ---------- */
+  .x54{display:flex;flex-direction:column;gap:18px;min-height:1144px}
+  .x54 .xs-titles{flex:1;min-width:0;max-width:none}
+  .x54 .xs-head{padding:20px 26px}
+  .x54 .xs-foot{margin-top:auto;flex-direction:row;justify-content:space-between;padding:12px 22px}
+  .x54 .xs-date{border-top:0;padding-top:0;width:auto;max-width:none}
+  .x54-stats .x169-strip .st-num{flex:1 1 0}
+  .x54-stats .x169-grid{flex:1}
+  .x54-stats .st-lead-many .st-pchip{font-size:12px}
+  .x54-rules .rules-card{flex:1;height:auto;display:flex;flex-direction:column;gap:26px;padding:28px 30px}
+  .x54-rules .rules-chip{font-size:22px;padding:8px 18px}
+  .x54-rules .rules-block h3{font-size:13px}
+  .x54-rules .rules-list{gap:10px}
+  .x54-rules .rules-list li{font-size:18px;line-height:1.5;grid-template-columns:34px 1fr;gap:12px;padding:10px 14px;background:var(--surface-2);border:1px solid var(--divider);border-radius:12px;align-items:center}
+  .x54-rules .rules-list li::before{width:32px;height:32px;font-size:15px}
+  .x54-rules .settings-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+  .x54-rules .settings-grid > div{padding:14px 16px}
+  .x54-rules .settings-grid dd{font-size:22px}
+  .x54-rules .deadline-list{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;border:0;background:none}
+  .x54-rules .deadline-list > div{display:flex !important;flex-direction:column;align-items:flex-start;border-top:1px solid var(--border) !important;gap:4px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);padding:14px 16px}
+  .x54-rules .deadline-list b{font-size:17px;text-align:left}
+  .x54-rules .deadline-list span{flex:none}
+  .x54-rules .rules-deadline b{font-size:24px}
+  .x54-rules .settings-grid:has(> div:nth-child(6):last-child), .x54-rules .settings-grid:has(> div:nth-child(5):last-child), .x54-rules .settings-grid:has(> div:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
