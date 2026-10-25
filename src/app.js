@@ -2468,11 +2468,9 @@ const STAT_DEFS = rows => {
     {icon:'goals', c:'green', title:'Most goals scored', val:r=>r.gf, unit:'goals'},
     {icon:'shield', c:'blue', title:'Fewest goals conceded', hint:minNote, val:r=>r.ga, desc:false, unit:'conceded', min},
     {icon:'plusminus', c:'gold', title:'Best goal difference', val:r=>r.gd, fmt:sgn, unit:'goal diff'},
-    {icon:'leak', c:'red', title:'Most goals conceded', val:r=>r.ga, unit:'conceded'},
     {icon:'wins', c:'purple', title:'Most wins', val:r=>r.w, unit:'wins'},
     {icon:'glove', c:'teal', title:'Most clean sheets', hint:'Matches without conceding', val:r=>r.cs, unit:'clean sheets'},
-    {icon:'pace', c:'blue', title:'Goals per match', hint:minNote, val:r=>r.gpg, fmt:dec1, unit:'per match', min},
-    {icon:'draw', c:'slate', title:'Most draws', val:r=>r.d, unit:'draws'}
+    {icon:'pace', c:'blue', title:'Goals per match', hint:minNote, val:r=>r.gpg, fmt:dec1, unit:'per match', min}
   ]};
 };
 /* Leaders and the next positions, everyone included when a position is shared. maxPos limits how far down the list goes. */
@@ -2565,7 +2563,7 @@ function exportStatsSheet(tid){
       ${highest!==biggest ? rec(highest, `Highest-scoring · ${highest.ga+highest.gb} goals`) : ''}
       <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
     </div>
-    <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:3, maxNames:8})).join('')}</div>
+    <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4, maxNames:10})).join('')}</div>
     ${sheetFoot()}
   </div>`;
   return renderSheets([page], X54.w, `${slug(t.name)}_stats`);
@@ -3196,7 +3194,7 @@ function rulesSectionHTML(t, sec, admin){
     </div>
     <div class="rules-block rb-settings">
       <h3>Match settings</h3>
-      ${settings.length ? `<dl class="settings-grid">${settings.map(x=>`<div><dt>${esc(x.label)}</dt><dd>${esc(x.value)}</dd></div>`).join('')}</dl>` : `<p class="rules-empty">No match settings added yet.</p>`}
+      ${settings.length ? `<dl class="settings-grid">${settings.map(x=>`<div><dt>${esc(x.label)}</dt><dd class="${String(x.value).length>12?'long':''}">${esc(x.value)}</dd></div>`).join('')}</dl>` : `<p class="rules-empty">No match settings added yet.</p>`}
     </div>
     ${sec.key==='ko' ? `<div class="rules-block rb-dl">
       <h3>Round deadlines</h3>

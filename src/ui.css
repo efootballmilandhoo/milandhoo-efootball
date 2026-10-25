@@ -671,3 +671,24 @@
   .x54-rules .rules-list{gap:8px}
   .x54-rules .rules-list li{font-size:19px;padding:10px 16px}
   .x54-rules .rules-deadline{display:none} /* the deadline is already in the page header */
+
+  /* Stats export: 6 cards in a 3 × 2 grid */
+  .x54-stats .x169-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .x54-stats .st-nm.many{font-size:15px;line-height:22px}
+  /* Rules export: bigger match settings */
+  .x54-rules .settings-grid{gap:14px}
+  .x54-rules .settings-grid > div{padding:18px 22px;border-radius:14px;display:flex;flex-direction:column;gap:6px}
+  .x54-rules .settings-grid dt{font-size:18px;font-weight:600;color:var(--text-2)}
+  .x54-rules .settings-grid dd{font-size:40px;line-height:1.05}
+  .x54-stats{gap:14px}
+  .x54-stats .st-card{gap:10px;padding:14px 16px}
+  .x54-stats .st-list li{padding:7px 2px}
+  .x54-rules .rules-card{gap:18px}
+  .x54-rules .settings-grid > div{padding:14px 20px;gap:4px}
+  .x54-rules .settings-grid dd{font-size:36px}
+  .x54-rules .deadline-list > div{padding:12px 16px}
+  /* Knockout page also carries round deadlines: a little tighter so it stays 5:4 */
+  .x54-rules .rules-card:has(.rb-dl){gap:14px}
+  .x54-rules .rules-card:has(.rb-dl) .rules-list li{padding:8px 16px}
+  .x54-rules .rules-card:has(.rb-dl) .settings-grid > div{padding:12px 20px}
+  .x54-rules .settings-grid dd.long{font-size:28px;line-height:1.15}
