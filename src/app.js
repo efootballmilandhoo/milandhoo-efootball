@@ -2500,7 +2500,7 @@ function statCard(d, rows, opts={}){
         : `<div class="st-lead-one">${renderAvatar(statPlayer(lead.rows[0].id), 40)}<b>${esc(statPlayer(lead.rows[0].id).name)}</b></div>`}
     </div>
     ${rest.length ? `<ol class="st-list">${rest.map(g=>`<li><span class="st-rk">${g.rk}${g.rows.length>1?'<small>=</small>':''}</span>
-        <span class="st-nm">${namesOf(g.rows).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
+        <span class="st-nm ${g.rows.length>4?'many':''}">${(opts.maxNames && g.rows.length>opts.maxNames ? namesOf(g.rows.slice(0,opts.maxNames)).concat(`+${g.rows.length-opts.maxNames} more`) : namesOf(g.rows)).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
   </div>`;
 }
 function matchLine(m, label){
@@ -2565,7 +2565,7 @@ function exportStatsSheet(tid){
       ${highest!==biggest ? rec(highest, `Highest-scoring · ${highest.ga+highest.gb} goals`) : ''}
       <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
     </div>
-    <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4})).join('')}</div>
+    <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:3, maxNames:8})).join('')}</div>
     ${sheetFoot()}
   </div>`;
   return renderSheets([page], X54.w, `${slug(t.name)}_stats`);

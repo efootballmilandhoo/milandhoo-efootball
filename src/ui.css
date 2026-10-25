@@ -603,3 +603,71 @@
   .x54-rules .deadline-list span{flex:none}
   .x54-rules .rules-deadline b{font-size:24px}
   .x54-rules .settings-grid:has(> div:nth-child(6):last-child), .x54-rules .settings-grid:has(> div:nth-child(5):last-child), .x54-rules .settings-grid:has(> div:nth-child(3):last-child){grid-template-columns:repeat(3,minmax(0,1fr))}
+
+  /* ---------- 5:4 exports: larger, higher-contrast text for easy reading ---------- */
+  .x54{--muted:#3E4A66;--text-2:#253049;--divider:#E3E9F3;-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+  .x54 .xs-head{padding:24px 30px}
+  .x54 .xs-kicker{font-size:14px;letter-spacing:.16em;color:#C9D4EE}
+  .x54 .xs-title{font-size:48px}
+  .x54 .xs-sub{font-size:18px;color:#E3E9F7;margin-top:8px}
+  .x54 .xs-foot{padding:14px 26px}
+  .x54 .xs-follow-label{font-size:13px;color:#C9D4EE}
+  .x54 .xs-social small{font-size:12px;color:#C9D4EE}
+  .x54 .xs-social b{font-size:17px}
+  .x54 .xs-date{font-size:14px;color:#C9D4EE}
+
+  /* Stats page */
+  .x54-stats{gap:16px}
+  .x54-stats .st-num{padding:14px 18px;gap:14px}
+  .x54-stats .st-num span{font-size:16px;font-weight:700;color:var(--text-2)}
+  .x54-stats .st-num b{font-size:40px}
+  .x54-stats .st-num small{font-size:14px;color:var(--muted)}
+  .x54-stats .si{width:46px;height:46px;border-radius:13px}
+  .x54-stats .si svg{width:24px;height:24px}
+  .x54-stats .x169-rec{padding:12px 18px;gap:4px}
+  .x54-stats .x169-rec span{font-size:13px;letter-spacing:.06em;color:var(--muted)}
+  .x54-stats .x169-rec b{font-size:19px}
+  .x54-stats .x169-rec b i{font-size:20px;padding:1px 9px}
+  .x54-stats .x169-rec small{font-size:14px}
+  .x54-stats .x169-grid{gap:14px}
+  .x54-stats .st-card{padding:16px;gap:12px;border-color:#D3DCEB}
+  .x54-stats .st-head{gap:12px}
+  .x54-stats .st-head .si{width:40px;height:40px}
+  .x54-stats .st-head b{font-size:19px;line-height:1.2}
+  .x54-stats .st-head span{font-size:14px;color:var(--muted)}
+  .x54-stats .st-lead{padding:14px;gap:10px;background:#F1F5FC}
+  .x54-stats .st-lead-tag{font-size:12px;letter-spacing:.06em;color:var(--muted)}
+  .x54-stats .st-lead-val{font-size:44px}
+  .x54-stats .st-lead-val small{font-size:12px;letter-spacing:.04em;color:var(--muted)}
+  .x54-stats .st-lead-one{margin-top:-36px}
+  .x54-stats .st-lead-one b{font-size:20px}
+  .x54-stats .st-pchip{font-size:15px;padding:4px 12px 4px 4px}
+  .x54-stats .st-pchip .player-avatar{width:26px !important;height:26px !important;font-size:9px}
+  .x54-stats .st-list li{font-size:16px;padding:9px 2px}
+  .x54-stats .st-rk{font-size:15px;min-width:26px;line-height:24px;color:var(--text-2)}
+  .x54-stats .st-nm{line-height:24px;font-weight:600}
+  .x54-stats .st-list b{font-size:17px;line-height:24px}
+
+  /* Rules pages */
+  .x54-rules .rules-block h3{font-size:15px;letter-spacing:.08em;color:var(--muted)}
+  .x54-rules .rules-list li{font-size:20px;color:var(--ink);padding:12px 16px}
+  .x54-rules .rules-list li::before{width:34px;height:34px;font-size:16px;background:var(--primary);color:#FFFFFF}
+  .x54-rules .settings-grid dt{font-size:15px;color:var(--muted)}
+  .x54-rules .settings-grid dd{font-size:26px}
+  .x54-rules .deadline-list span{font-size:16px;color:var(--text-2)}
+  .x54-rules .deadline-list b{font-size:20px}
+  .x54-rules .rules-deadline small{font-size:15px}
+  .x54-rules .rules-deadline b{font-size:28px}
+  .x54-rules .rules-chip{font-size:24px}
+
+  /* fit the 5:4 frame */
+  .x54 .xs-head{padding:20px 30px}
+  .x54 .xs-title{font-size:44px}
+  .x54-stats .st-num{padding:12px 18px}
+  .x54-stats .st-num b{font-size:36px}
+  .x54-stats .x169-rec{padding:10px 18px}
+  .x54-stats .st-nm.many{font-size:14px;line-height:20px;font-weight:600;color:var(--text-2)}
+  .x54-rules .rules-card{gap:22px;padding:24px 28px}
+  .x54-rules .rules-list{gap:8px}
+  .x54-rules .rules-list li{font-size:19px;padding:10px 16px}
+  .x54-rules .rules-deadline{display:none} /* the deadline is already in the page header */
