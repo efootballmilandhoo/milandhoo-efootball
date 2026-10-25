@@ -2011,8 +2011,10 @@ function renderDashboard(){
         <div class="champ-mini">${t.champion?`<span>Champion</span><b>${esc(playerName(t.champion))}</b>`:''}</div>
       </div>`).join('');
 
-  const topRows = rankPlayers(stats).slice(0,5).map((x,i)=>`
-      <div class="row-grid top-row">${rankMark(x)}${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.winPct}%</span><span class="row-num"><b>${x.s.pts}</b> pts</span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
+  // Top 5 positions; everyone sharing the 5th place (or any place) is included.
+  const ranked = rankPlayers(stats), cutRank = ranked[4]?.rank ?? Infinity;
+  const topRows = ranked.filter(x=>x.rank<=cutRank).map(x=>`
+      <div class="row-grid top-row">${rankMark(x)}${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.tourneyWins ? `<span class="lbx-title">${x.s.tourneyWins}</span>` : '–'}</span><span class="row-num"><b>${x.s.pts}</b></span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
   const hofLatest = [...STORE.hof].sort(hofSort).slice(0,4);
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
@@ -2060,7 +2062,7 @@ function renderDashboard(){
     <div class="grid grid-2">
       <section class="card" style="display:flex;flex-direction:column;gap:6px">
         <div class="card-head" style="margin-bottom:4px"><h2 class="card-title">Top Players</h2><button type="button" class="btn-link" onclick="navigate('leaderboard')">Leaderboard →</button></div>
-        <div class="row-grid top-row row-head"><span>#</span><span></span><span>Player</span><span class="row-num">Win %</span><span class="row-num">Wins</span></div>
+        <div class="row-grid top-row row-head"><span>#</span><span></span><span>Player</span><span class="row-num">Titles</span><span class="row-num">PTS</span></div>
         ${topRows}
       </section>
       <section class="card" style="display:flex;flex-direction:column;gap:6px">
@@ -4532,7 +4534,7 @@ function h2hPicker(side, label, p){
   return `<div class="h2h-sel"><span>${label}</span>
     <div class="h2h-combo">
       ${renderAvatar(p, 28)}
-      <input class="form-input" id="h2h_${side}" value="${esc(p.name)}" autocomplete="off" placeholder="Type a player name…" aria-label="${label} — type a player name"
+      <input class="form-input" id="h2h_${side}" value="${esc(p.name)}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="h2h-pick-${side}-${Date.now()}" placeholder="Type a player name…" aria-label="${label} — type a player name"
         onfocus="this.select();h2hFilter('${side}', '')" oninput="h2hFilter('${side}', this.value)" onkeydown="h2hKey(event,'${side}')" onblur="setTimeout(()=>h2hClose('${side}', true), 150)">
       <svg class="h2h-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
       <div class="h2h-drop" id="h2h_${side}_drop" role="listbox"></div>
