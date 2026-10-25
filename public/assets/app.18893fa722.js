@@ -1373,7 +1373,6 @@ function exportAsJPEG(elementId, filename){
     return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename);
   }
   if(elementId==='leaderboardExport') return exportLeaderboardSheet();
-  if(t && elementId==='statsExport') return exportGenericSheet(el, t, t.name, `Tournament stats · ${fmtDate(new Date())}`, filename);
   return exportLeaderboardSheet();
 }
 
@@ -2739,19 +2738,67 @@ function statRank(rows, val, desc=true){
   list.forEach((r,i)=>{ r._v = val(r); r._rk = i && r._v===list[i-1]._v ? list[i-1]._rk : i+1 });
   return list;
 }
-function statCard({icon, tint, title, hint, rows, val, desc=true, fmt=v=>v, unit='', min=0}){
-  const pool = rows.filter(r=>r.p>0 && r.p>=min);
-  if(!pool.length) return `<div class="st-card"><div class="st-head"><span class="stat-icon ${tint}">${ICON[icon]||''}</span><div><b>${title}</b>${hint?`<span>${hint}</span>`:''}</div></div><div class="st-empty">No results yet</div></div>`;
-  const list = statRank(pool, val, desc);
-  const lead = list.filter(r=>r._rk===1);
-  const rest = list.filter(r=>r._rk>1).slice(0,4);
-  return `<div class="st-card">
-    <div class="st-head"><span class="stat-icon ${tint}">${ICON[icon]||''}</span><div><b>${title}</b>${hint?`<span>${hint}</span>`:''}</div></div>
-    <div class="st-lead">
-      <div class="st-lead-who">${lead.slice(0,3).map(r=>renderAvatar(statPlayer(r.id), 40)).join('')}<div class="st-lead-names">${lead.map(r=>esc(statPlayer(r.id).name)).join(', ')}${lead.length>1?`<small>Shared · ${lead.length} players</small>`:''}</div></div>
-      <div class="st-lead-val">${fmt(lead[0]._v)}${unit?`<small>${unit}</small>`:''}</div>
+/* Stat icons: one consistent line set (24px grid, 1.9 stroke), shown white on a coloured tile. */
+const SI = (d) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const STAT_ICON = {
+  goals: SI('<path d="M3 20V6l4-2h10l4 2v14"/><path d="M3 9h18M7 4v16M17 4v16M3 14h18"/><circle cx="12" cy="17" r="2.6" fill="#FFFFFF" stroke="none"/>'),
+  shield: SI('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.3 2.3 4.2-4.6"/>'),
+  plusminus: SI('<circle cx="12" cy="12" r="9"/><path d="M8.5 9h7M12 5.5v7M8.5 16h7"/>'),
+  leak: SI('<path d="M3 20V6l4-2h10l4 2v14"/><path d="M3 9h18M7 4v16M17 4v16"/><path d="M12 10v7m-3-3 3 3 3-3"/>'),
+  wins: SI('<path d="M7 4h10v4.5a5 5 0 0 1-10 0z"/><path d="M7 6H4.5a2.5 2.5 0 0 0 2.6 4M17 6h2.5a2.5 2.5 0 0 1-2.6 4M12 13.5V17M8.5 20.5h7M9.5 17h5"/>'),
+  glove: SI('<path d="M7 21v-4.5L4.6 13a1.7 1.7 0 0 1 2.7-2l1.2 1.4V5.5a1.4 1.4 0 0 1 2.8 0V11m0-6.5a1.4 1.4 0 0 1 2.8 0V11m0-5a1.4 1.4 0 0 1 2.8 0V11m0-3a1.4 1.4 0 0 1 2.8 0v7.5c0 3-2 5.5-5 5.5H7z"/>'),
+  pace: SI('<path d="M4.2 17a8.5 8.5 0 1 1 15.6 0"/><path d="m12 13 4-4.5"/><circle cx="12" cy="13" r="1.4" fill="#FFFFFF" stroke="none"/><path d="M7 7.5 8 8.5M12 5v1.5M17 7.5 16 8.5"/>'),
+  draw: SI('<rect x="3" y="4" width="18" height="16" rx="4"/><path d="M8 10h8M8 14h8"/>'),
+  matches: SI('<circle cx="12" cy="12" r="9"/><path d="m12 7.2 3.2 2.3-1.2 3.8h-4l-1.2-3.8z"/><path d="M12 3v4.2M20.5 9.5l-5.3 0M16.8 19.5 14 13.3M7.2 19.5 10 13.3M3.5 9.5h5.3"/>'),
+  ball: SI('<circle cx="12" cy="12" r="9"/><path d="m12 7.2 3.2 2.3-1.2 3.8h-4l-1.2-3.8z"/>'),
+  avg: SI('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  bolt: SI('<path d="M13 2 4.5 13.5H12L11 22l8.5-11.5H12z"/>'),
+  fire: SI('<path d="M12 22c4 0 7-2.8 7-7 0-3.3-2.2-5.6-3.6-7.2-.4 1.8-1.4 3-2.6 3.6.3-3.4-1.3-6.5-4.3-8.4.4 3.2-1.3 5.1-2.7 6.8A8.7 8.7 0 0 0 5 15c0 4.2 3 7 7 7z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.6 1.2-2.6 2.2-3.6.3 1 .9 1.6 1.6 1.9.1-1 .6-1.8 1.2-2.4.7 1 1 2 1 3.1 0 2.4-1.3 4.1-3 4.1z"/>'),
+  unbeaten: SI('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m12 8 1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="#FFFFFF" stroke="none"/>')
+};
+const statIco = (k, c) => `<span class="si si-${c}">${STAT_ICON[k]||''}</span>`;
+const STAT_DEFS = rows => {
+  const maxP = Math.max(0, ...rows.map(r=>r.p));
+  const min = Math.max(1, Math.ceil(maxP/2));
+  const minNote = min>1 ? `Players with ${min}+ matches` : '';
+  const dec1 = v => (Math.round(v*10)/10).toFixed(1), sgn = v => (v>0?'+':'') + v;
+  return {min, minNote, list: [
+    {icon:'goals', c:'green', title:'Most goals scored', val:r=>r.gf, unit:'goals'},
+    {icon:'shield', c:'blue', title:'Fewest goals conceded', hint:minNote, val:r=>r.ga, desc:false, unit:'conceded', min},
+    {icon:'plusminus', c:'gold', title:'Best goal difference', val:r=>r.gd, fmt:sgn, unit:'goal diff'},
+    {icon:'leak', c:'red', title:'Most goals conceded', val:r=>r.ga, unit:'conceded'},
+    {icon:'wins', c:'purple', title:'Most wins', val:r=>r.w, unit:'wins'},
+    {icon:'glove', c:'teal', title:'Most clean sheets', hint:'Matches without conceding', val:r=>r.cs, unit:'clean sheets'},
+    {icon:'pace', c:'blue', title:'Goals per match', hint:minNote, val:r=>r.gpg, fmt:dec1, unit:'per match', min},
+    {icon:'draw', c:'slate', title:'Most draws', val:r=>r.d, unit:'draws'}
+  ]};
+};
+/* Leaders and the next positions, everyone included when a position is shared. maxPos limits how far down the list goes. */
+function statGroups(rows, d, maxPos){
+  const pool = rows.filter(r=>r.p>0 && r.p>=(d.min||0));
+  const list = statRank(pool, d.val, d.desc!==false);
+  const groups = [];
+  list.forEach(r=>{ const g = groups.at(-1); if(g && g.rk===r._rk) g.rows.push(r); else groups.push({rk:r._rk, v:r._v, rows:[r]}) });
+  return groups.filter(g=>g.rk<=maxPos);
+}
+const namesOf = rows => rows.map(r=>esc(statPlayer(r.id).name));
+function statCard(d, rows, opts={}){
+  const fmt = d.fmt || (v=>v);
+  const groups = statGroups(rows, d, opts.maxPos || 5);
+  const head = `<div class="st-head">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<span>${d.hint}</span>`:''}</div></div>`;
+  if(!groups.length) return `<div class="st-card">${head}<div class="st-empty">No results yet</div></div>`;
+  const [lead, ...rest] = groups;
+  const shared = lead.rows.length>1;
+  return `<div class="st-card st-${d.c}">
+    ${head}
+    <div class="st-lead ${shared?'shared':''}">
+      <div class="st-lead-top"><span class="st-lead-tag">${shared ? `1st · shared by ${lead.rows.length}` : 'Leader'}</span><div class="st-lead-val">${fmt(lead.v)}<small>${d.unit||''}</small></div></div>
+      ${shared
+        ? `<div class="st-lead-many">${lead.rows.map(r=>`<span class="st-pchip">${renderAvatar(statPlayer(r.id), 22)}${esc(statPlayer(r.id).name)}</span>`).join('')}</div>`
+        : `<div class="st-lead-one">${renderAvatar(statPlayer(lead.rows[0].id), 40)}<b>${esc(statPlayer(lead.rows[0].id).name)}</b></div>`}
     </div>
-    ${rest.length ? `<ol class="st-list">${rest.map(r=>`<li><span class="st-rk">${r._rk}</span>${renderAvatar(statPlayer(r.id), 24)}<span class="st-nm">${esc(statPlayer(r.id).name)}</span><b>${fmt(r._v)}</b></li>`).join('')}</ol>` : ''}
+    ${rest.length ? `<ol class="st-list">${rest.map(g=>`<li><span class="st-rk">${g.rk}${g.rows.length>1?'<small>=</small>':''}</span>
+        <span class="st-nm">${namesOf(g.rows).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
   </div>`;
 }
 function matchLine(m, label){
@@ -2760,50 +2807,64 @@ function matchLine(m, label){
     <div class="st-match-row"><span class="who right ${m.ga>m.gb?'win':''}">${esc(pa.name)}${renderAvatar(pa, 28)}</span><span class="result-pill">${m.ga} – ${m.gb}</span><span class="who ${m.gb>m.ga?'win':''}">${renderAvatar(pb, 28)}${esc(pb.name)}</span></div>
     <span class="st-match-stage">${esc(m.stage)}</span></div>`;
 }
-function renderStatsTab(t){
+function statsSummary(t){
   const {matches, rows} = tournamentStats(t);
-  if(!matches.length) return `<div class="card empty"><div class="empty-title">No stats yet</div><div class="text-sm">Stats appear here as soon as the first result is entered.</div></div>`;
-  const goals = matches.reduce((s,m)=>s+m.ga+m.gb,0);
-  const draws = matches.filter(m=>m.ga===m.gb).length;
-  const maxP = Math.max(...rows.map(r=>r.p));
-  const min = Math.max(1, Math.ceil(maxP/2));
-  const minNote = min>1 ? `Players with ${min}+ matches` : '';
+  if(!matches.length) return null;
+  const goals = matches.reduce((s,m)=>s+m.ga+m.gb,0), draws = matches.filter(m=>m.ga===m.gb).length;
   const biggest = matches.slice().sort((x,y)=> Math.abs(y.ga-y.gb)-Math.abs(x.ga-x.gb) || (y.ga+y.gb)-(x.ga+x.gb))[0];
-  // Highest-scoring match: prefer a different match from the biggest win when one has as many goals.
   const byGoals = matches.slice().sort((x,y)=> (y.ga+y.gb)-(x.ga+x.gb) || Math.abs(x.ga-x.gb)-Math.abs(y.ga-y.gb));
   const highest = byGoals.find(m=>m!==biggest && m.ga+m.gb===byGoals[0].ga+byGoals[0].gb) || byGoals[0];
-  const unbeaten = rows.filter(r=>r.p>=min && r.l===0).sort((a,b)=>b.p-a.p || b.w-a.w);
-  const dec1 = v => (Math.round(v*10)/10).toFixed(1);
-  const sgn = v => (v>0?'+':'') + v;
+  const defs = STAT_DEFS(rows);
+  const unbeaten = rows.filter(r=>r.p>=defs.min && r.l===0).sort((a,b)=>b.p-a.p || b.w-a.w);
+  return {matches, rows, goals, draws, biggest, highest, defs, unbeaten};
+}
+function statNum(icon, c, label, value, sub){ return `<div class="st-num">${statIco(icon, c)}<div><span>${label}</span><b>${value}</b>${sub?`<small>${sub}</small>`:''}</div></div>` }
+function renderStatsTab(t){
+  const S = statsSummary(t);
+  if(!S) return `<div class="card empty"><div class="empty-title">No stats yet</div><div class="text-sm">Stats appear here as soon as the first result is entered.</div></div>`;
+  const {matches, rows, goals, draws, biggest, highest, defs, unbeaten} = S;
   return `
-  <section id="statsExport" class="export-container st-wrap" aria-label="Tournament stats">
-    <div class="grid grid-4">
-      ${statTile('ball','tint-blue','Matches played', matches.length)}
-      ${statTile('goal','tint-green','Goals scored', goals)}
-      ${statTile('clock','tint-purple','Goals per match', dec1(goals/matches.length))}
-      ${statTile('check','tint-orange','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
+  <section class="st-wrap" aria-label="Tournament stats">
+    <div class="st-nums">
+      ${statNum('matches','blue','Matches played', matches.length)}
+      ${statNum('goals','green','Goals scored', goals)}
+      ${statNum('avg','purple','Goals per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
+      ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
     </div>
-    <div class="st-grid">
-      ${statCard({icon:'goal', tint:'tint-green', title:'Most goals scored', rows, val:r=>r.gf, unit:'goals'})}
-      ${statCard({icon:'check', tint:'tint-blue', title:'Fewest goals conceded', hint:minNote, rows, val:r=>r.ga, desc:false, unit:'conceded', min})}
-      ${statCard({icon:'trophy', tint:'tint-gold', title:'Best goal difference', rows, val:r=>r.gd, fmt:sgn})}
-      ${statCard({icon:'alarm', tint:'tint-orange', title:'Most goals conceded', rows, val:r=>r.ga, unit:'conceded'})}
-      ${statCard({icon:'users', tint:'tint-purple', title:'Most wins', rows, val:r=>r.w, unit:'wins'})}
-      ${statCard({icon:'check', tint:'tint-green', title:'Most clean sheets', hint:'Matches without conceding', rows, val:r=>r.cs, unit:'clean sheets'})}
-      ${statCard({icon:'ball', tint:'tint-blue', title:'Goals per match', hint:minNote, rows, val:r=>r.gpg, fmt:dec1, unit:'per match', min})}
-      ${statCard({icon:'clock', tint:'tint-orange', title:'Most draws', rows, val:r=>r.d, unit:'draws'})}
-    </div>
+    <div class="st-grid">${defs.list.map(d=>statCard(d, rows)).join('')}</div>
     <div class="st-grid st-grid-2">
-      <div class="st-card"><div class="st-head"><span class="stat-icon tint-gold">${ICON.trophy}</span><div><b>Match records</b></div></div>
+      <div class="st-card"><div class="st-head">${statIco('bolt','gold')}<div><b>Match records</b></div></div>
         ${matchLine(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goal margin`)}
         ${highest!==biggest ? matchLine(highest, `Highest-scoring match · ${highest.ga+highest.gb} goals`) : ''}
       </div>
-      <div class="st-card"><div class="st-head"><span class="stat-icon tint-green">${ICON.check}</span><div><b>Still unbeaten</b><span>${minNote || 'No defeats so far'}</span></div></div>
-        ${unbeaten.length ? `<ol class="st-list">${unbeaten.slice(0,8).map(r=>`<li>${renderAvatar(statPlayer(r.id), 24)}<span class="st-nm">${esc(statPlayer(r.id).name)}</span><span class="st-wdl">${r.w}W ${r.d}D</span></li>`).join('')}</ol>` : '<div class="st-empty">Everyone has lost at least once.</div>'}
+      <div class="st-card"><div class="st-head">${statIco('unbeaten','green')}<div><b>Still unbeaten</b><span>${defs.minNote || 'No defeats so far'}</span></div></div>
+        ${unbeaten.length ? `<ol class="st-list">${unbeaten.map(r=>`<li><span class="st-avs">${renderAvatar(statPlayer(r.id), 22)}</span><span class="st-nm">${esc(statPlayer(r.id).name)}</span><span class="st-wdl">${r.w}W ${r.d}D</span></li>`).join('')}</ol>` : '<div class="st-empty">Everyone has lost at least once.</div>'}
       </div>
     </div>
-    <div class="section-foot no-export" style="justify-content:flex-end"><button type="button" class="export-btn" onclick="exportAsJPEG('statsExport','${slug(t.name)}_stats')">${ICON_DL} Export stats</button></div>
+    <div class="section-foot" style="justify-content:flex-end"><button type="button" class="export-btn" onclick="exportStatsSheet('${t.id}')">${ICON_DL} Export stats</button></div>
   </section>`;
+}
+/* Stats export: one 16:9 landscape page (1920 × 1080). */
+function exportStatsSheet(tid){
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
+  const {matches, rows, goals, draws, biggest, highest, defs, unbeaten} = S;
+  const rec = (m, label) => `<div class="x169-rec"><span>${label}</span><b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b><small>${esc(m.stage)}</small></div>`;
+  const page = `<div class="x169">
+    ${sheetHeader(t, t.name, `Tournament stats · ${matches.length} matches · ${fmtDate(new Date())}`)}
+    <div class="x169-strip">
+      ${statNum('matches','blue','Matches', matches.length)}
+      ${statNum('goals','green','Goals', goals)}
+      ${statNum('avg','purple','Per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
+      ${statNum('draw','slate','Draws', draws)}
+      ${rec(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goals`)}
+      ${highest!==biggest ? rec(highest, `Most goals · ${highest.ga+highest.gb}`) : ''}
+      <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
+    </div>
+    <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4})).join('')}</div>
+    ${sheetFoot()}
+  </div>`;
+  return renderSheets([page], 1920, `${slug(t.name)}_stats`);
 }
 
 function editFixtureScore(tid, fid){
