@@ -692,3 +692,14 @@
   .x54-rules .rules-card:has(.rb-dl) .rules-list li{padding:8px 16px}
   .x54-rules .rules-card:has(.rb-dl) .settings-grid > div{padding:12px 20px}
   .x54-rules .settings-grid dd.long{font-size:28px;line-height:1.15}
+
+  .st-rec-group{display:flex;flex-direction:column;gap:8px}
+  .st-rec-group .st-match{gap:6px}
+  .st-rec-list{display:flex;flex-direction:column;border:1px solid var(--divider);border-radius:12px;background:var(--surface-2);overflow:hidden}
+  .st-rec-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--divider);font-size:14px;font-weight:600;color:var(--ink)}
+  .st-rec-row:first-child{border-top:0}
+  .st-rec-row > span:first-child{text-align:right}
+  .st-rec-row .win{color:var(--primary-dark)}
+  .st-rec-row .result-pill{font-size:14px;padding:3px 10px;min-width:56px}
+  .st-rec-row small{font-size:12px;color:var(--muted);font-weight:500;white-space:nowrap}
+  @media(max-width:560px){.st-rec-row{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);font-size:13px}.st-rec-row small{grid-column:1 / -1;text-align:center}}

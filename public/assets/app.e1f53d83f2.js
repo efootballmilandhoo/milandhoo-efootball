@@ -2799,9 +2799,14 @@ function statCard(d, rows, opts={}){
         <span class="st-nm ${g.rows.length>4?'many':''}">${(opts.maxNames && g.rows.length>opts.maxNames ? namesOf(g.rows.slice(0,opts.maxNames)).concat(`+${g.rows.length-opts.maxNames} more`) : namesOf(g.rows)).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
   </div>`;
 }
+/* One record match on a single compact line; winner in blue. */
+function recRow(m){
+  const pa = statPlayer(m.a), pb = statPlayer(m.b);
+  return `<div class="st-rec-row"><span class="${m.ga>m.gb?'win':''}">${esc(pa.name)}</span><span class="result-pill">${m.ga} – ${m.gb}</span><span class="${m.gb>m.ga?'win':''}">${esc(pb.name)}</span><small>${esc(m.stage)}</small></div>`;
+}
 function matchLine(m, label){
   const pa = statPlayer(m.a), pb = statPlayer(m.b);
-  return `<div class="st-match"><span class="st-match-label">${label}</span>
+  return `<div class="st-match">${label?`<span class="st-match-label">${label}</span>`:''}
     <div class="st-match-row"><span class="who right ${m.ga>m.gb?'win':''}">${esc(pa.name)}${renderAvatar(pa, 28)}</span><span class="result-pill">${m.ga} – ${m.gb}</span><span class="who ${m.gb>m.ga?'win':''}">${renderAvatar(pb, 28)}${esc(pb.name)}</span></div>
     <span class="st-match-stage">${esc(m.stage)}</span></div>`;
 }
@@ -2809,18 +2814,22 @@ function statsSummary(t){
   const {matches, rows} = tournamentStats(t);
   if(!matches.length) return null;
   const goals = matches.reduce((s,m)=>s+m.ga+m.gb,0), draws = matches.filter(m=>m.ga===m.gb).length;
-  const biggest = matches.slice().sort((x,y)=> Math.abs(y.ga-y.gb)-Math.abs(x.ga-x.gb) || (y.ga+y.gb)-(x.ga+x.gb))[0];
-  const byGoals = matches.slice().sort((x,y)=> (y.ga+y.gb)-(x.ga+x.gb) || Math.abs(x.ga-x.gb)-Math.abs(y.ga-y.gb));
-  const highest = byGoals.find(m=>m!==biggest && m.ga+m.gb===byGoals[0].ga+byGoals[0].gb) || byGoals[0];
+  // Every match that shares a record is kept.
+  const margin = m => Math.abs(m.ga-m.gb), total = m => m.ga+m.gb;
+  const maxMargin = Math.max(...matches.map(margin)), maxGoals = Math.max(...matches.map(total));
+  const biggestAll = matches.filter(m=>margin(m)===maxMargin).sort((x,y)=>total(y)-total(x));
+  const highestAll = matches.filter(m=>total(m)===maxGoals).sort((x,y)=>margin(y)-margin(x));
+  const biggest = biggestAll[0], highest = highestAll[0];
   const defs = STAT_DEFS(rows);
   const unbeaten = rows.filter(r=>r.p>=defs.min && r.l===0).sort((a,b)=>b.p-a.p || b.w-a.w);
-  return {matches, rows, goals, draws, biggest, highest, defs, unbeaten};
+  return {matches, rows, goals, draws, biggest, highest, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten};
 }
 function statNum(icon, c, label, value, sub){ return `<div class="st-num">${statIco(icon, c)}<div><span>${label}</span><b>${value}</b>${sub?`<small>${sub}</small>`:''}</div></div>` }
 function renderStatsTab(t){
   const S = statsSummary(t);
   if(!S) return `<div class="card empty"><div class="empty-title">No stats yet</div><div class="text-sm">Stats appear here as soon as the first result is entered.</div></div>`;
-  const {matches, rows, goals, draws, biggest, highest, defs, unbeaten} = S;
+  const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
+  const shareNote = n => n>1 ? ` · shared by ${n} matches` : '';
   return `
   <section class="st-wrap" aria-label="Tournament stats">
     <div class="st-nums">
@@ -2832,8 +2841,8 @@ function renderStatsTab(t){
     <div class="st-grid">${defs.list.map(d=>statCard(d, rows)).join('')}</div>
     <div class="st-grid st-grid-2">
       <div class="st-card"><div class="st-head">${statIco('bolt','gold')}<div><b>Match records</b></div></div>
-        ${matchLine(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goal margin`)}
-        ${highest!==biggest ? matchLine(highest, `Highest-scoring match · ${highest.ga+highest.gb} goals`) : ''}
+        <div class="st-rec-group"><span class="st-match-label">Biggest win · ${maxMargin} goal margin${shareNote(biggestAll.length)}</span><div class="st-rec-list">${biggestAll.map(recRow).join('')}</div></div>
+        <div class="st-rec-group"><span class="st-match-label">Highest-scoring match · ${maxGoals} goals${shareNote(highestAll.length)}</span><div class="st-rec-list">${highestAll.map(recRow).join('')}</div></div>
       </div>
       <div class="st-card"><div class="st-head">${statIco('unbeaten','green')}<div><b>Still unbeaten</b><span>${defs.minNote || 'No defeats so far'}</span></div></div>
         ${unbeaten.length ? `<ol class="st-list">${unbeaten.map(r=>`<li><span class="st-avs">${renderAvatar(statPlayer(r.id), 22)}</span><span class="st-nm">${esc(statPlayer(r.id).name)}</span><span class="st-wdl">${r.w}W ${r.d}D</span></li>`).join('')}</ol>` : '<div class="st-empty">Everyone has lost at least once.</div>'}
@@ -2846,7 +2855,8 @@ function renderStatsTab(t){
 function exportStatsSheet(tid){
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
   const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
-  const {matches, rows, goals, draws, biggest, highest, defs, unbeaten} = S;
+  const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
+  const recs = (list, label) => `<div class="x169-rec"><span>${label}${list.length>1?` · ${list.length} matches`:''}</span>${list.slice(0,2).map(m=>`<b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b>`).join('')}${list.length>2?`<small>+${list.length-2} more</small>`:`<small>${list.length===1?esc(list[0].stage):''}</small>`}</div>`;
   const rec = (m, label) => `<div class="x169-rec"><span>${label}</span><b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b><small>${esc(m.stage)}</small></div>`;
   const page = `<div class="x54 x54-stats">
     ${sheetHeader(t, t.name, `Tournament stats · ${matches.length} matches · ${fmtDate(new Date())}`)}
@@ -2857,8 +2867,8 @@ function exportStatsSheet(tid){
       ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
     </div>
     <div class="x169-strip">
-      ${rec(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goal margin`)}
-      ${highest!==biggest ? rec(highest, `Highest-scoring · ${highest.ga+highest.gb} goals`) : ''}
+      ${recs(biggestAll, `Biggest win · ${maxMargin} goal margin`)}
+      ${recs(highestAll, `Highest-scoring · ${maxGoals} goals`)}
       <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
     </div>
     <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4, maxNames:10})).join('')}</div>
@@ -3333,7 +3343,7 @@ function getPlayerFixtures(t, pid){
     if(f.team1!==pid && f.team2!==pid) return;
     const me1 = f.team1===pid, played = hasScore(f.score1) && hasScore(f.score2);
     const my = me1?f.score1:f.score2, opp = me1?f.score2:f.score1;
-    list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score: played?`${my} - ${opp}`:null, goals: played?[my,opp]:null, result: !played?null: my>opp?'win':my<opp?'loss':'draw'});
+    list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score: played?`${my} - ${opp}`:null, goals: played?[my,opp]:null, result: !played?null: my>opp?'win':my<opp?'loss':'draw', at: f.scoredAt||''});
   });
   (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
     if(m.isBye || (m.team1!==pid && m.team2!==pid)) return;
@@ -3353,7 +3363,9 @@ function renderPlayerViewTab(t){
   const selectedId = selectedPlayerFilter && registered.includes(selectedPlayerFilter) ? selectedPlayerFilter : registered[0];
   if(!selectedId) return `<div class="card empty"><div class="empty-title">No players registered</div></div>`;
   const p = STORE.players.find(x=>x.id===selectedId) || {name:'Unknown player'};
-  const fixtures = getPlayerFixtures(t, selectedId);
+  // Played matches first (latest result on top), then pending ones in schedule order.
+  const fixtures = getPlayerFixtures(t, selectedId).map((f,i)=>({...f, _i:i}))
+    .sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
   const done = fixtures.filter(f=>f.result);
   let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
   const wins = done.filter(f=>f.result==='win').length;
