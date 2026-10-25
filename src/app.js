@@ -4203,13 +4203,15 @@ function h2hData(a, b){
       ties.push({t, round:m.round, winner:m.winner});
     });
   });
-  const res = {aw:0, d:0, bw:0, agf:0, bgf:0};
-  matches.forEach(m=>{ res.agf+=m.ga; res.bgf+=m.gb; if(m.ga>m.gb) res.aw++; else if(m.gb>m.ga) res.bw++; else res.d++ });
+  const res = {aw:0, d:0, bw:0, agf:0, bgf:0, acs:0, bcs:0};
+  matches.forEach(m=>{ res.agf+=m.ga; res.bgf+=m.gb; if(m.ga>m.gb) res.aw++; else if(m.gb>m.ga) res.bw++; else res.d++; if(m.gb===0) res.acs++; if(m.ga===0) res.bcs++ });
+  res.awp = matches.length ? Math.round(res.aw/matches.length*100) : 0;
+  res.bwp = matches.length ? Math.round(res.bw/matches.length*100) : 0;
   const best = side => { const list = matches.filter(m=> side==='a' ? m.ga>m.gb : m.gb>m.ga); if(!list.length) return null; return list.slice().sort((x,y)=> Math.abs(y.ga-y.gb)-Math.abs(x.ga-x.gb) || (y.ga+y.gb)-(x.ga+x.gb))[0] };
   const stats = calculateAllStats(), ranked = rankPlayers(stats);
   const rankOf = id => ranked.find(x=>x.p.id===id)?.rank || '–';
   const both = ts.filter(t=>(t.registrations||[]).some(r=>r.playerId===a) && (t.registrations||[]).some(r=>r.playerId===b)).length;
-  return {matches, ties, res, bestA:best('a'), bestB:best('b'), sa:stats[a], sb:stats[b], rankA:rankOf(a), rankB:rankOf(b), both,
+  return {na: playerName(a), nb: playerName(b), matches, ties, res, bestA:best('a'), bestB:best('b'), sa:stats[a], sb:stats[b], rankA:rankOf(a), rankB:rankOf(b), both,
     koA: ties.filter(x=>x.winner===a).length, koB: ties.filter(x=>x.winner===b).length};
 }
 function h2hDefaults(){
@@ -4221,6 +4223,34 @@ function h2hDefaults(){
   }
 }
 function setH2H(side, id){ H2H[side] = id; if(H2H.a===H2H.b){ const other = STORE.players.find(p=>p.id!==id); H2H[side==='a'?'b':'a'] = other?.id || null } renderH2H() }
+/* Type-to-search player picker: type part of a name, then tap a match (or press Enter for the first). */
+function h2hPicker(side, label, p){
+  return `<div class="h2h-sel"><span>${label}</span>
+    <div class="h2h-combo">
+      ${renderAvatar(p, 28)}
+      <input class="form-input" id="h2h_${side}" value="${esc(p.name)}" autocomplete="off" placeholder="Type a player name…" aria-label="${label} — type a player name"
+        onfocus="this.select();h2hFilter('${side}', '')" oninput="h2hFilter('${side}', this.value)" onkeydown="h2hKey(event,'${side}')" onblur="setTimeout(()=>h2hClose('${side}', true), 150)">
+      <svg class="h2h-chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/></svg>
+      <div class="h2h-drop" id="h2h_${side}_drop" role="listbox"></div>
+    </div></div>`;
+}
+function h2hFilter(side, q){
+  const d = document.getElementById(`h2h_${side}_drop`); if(!d) return;
+  const other = side==='a' ? H2H.b : H2H.a;
+  const k = String(q||'').trim().toLowerCase();
+  const list = STORE.players.filter(p=>p.id!==other && (!k || p.name.toLowerCase().includes(k)))
+    .sort((x,y)=> (k ? (x.name.toLowerCase().indexOf(k) - y.name.toLowerCase().indexOf(k)) : 0) || x.name.localeCompare(y.name));
+  d.innerHTML = list.length ? list.map(p=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="setH2H('${side}','${p.id}')">${renderAvatar(p, 28)}<span class="sd-txt"><b>${esc(p.name)}</b></span></button>`).join('') : `<div class="sd-empty">No player matches “${esc(q)}”</div>`;
+  d.classList.add('show');
+}
+function h2hClose(side, restore){
+  document.getElementById(`h2h_${side}_drop`)?.classList.remove('show');
+  if(restore){ const inp = document.getElementById(`h2h_${side}`), p = STORE.players.find(x=>x.id===H2H[side]); if(inp && p && document.activeElement!==inp) inp.value = p.name }
+}
+function h2hKey(e, side){
+  if(e.key==='Enter'){ e.preventDefault(); document.querySelector(`#h2h_${side}_drop.show .sd-item`)?.click() }
+  if(e.key==='Escape'){ h2hClose(side, true); e.target.blur() }
+}
 function swapH2H(){ [H2H.a, H2H.b] = [H2H.b, H2H.a]; renderH2H() }
 const H2H_SWAP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"/></svg>';
 function h2hBar(label, va, vb, fmt=v=>v, lowerIsBetter=false){
@@ -4228,6 +4258,32 @@ function h2hBar(label, va, vb, fmt=v=>v, lowerIsBetter=false){
   const pa = tot ? Math.round(x/tot*100) : 50;
   const lead = x===y ? '' : ((x>y) !== lowerIsBetter ? 'a' : 'b');
   return `<div class="h2h-row"><b class="${lead==='a'?'lead':''}">${fmt(va)}</b><div class="h2h-mid"><span>${label}</span><div class="h2h-bar"><i class="a" style="width:${pa}%"></i><i class="b" style="width:${100-pa}%"></i></div></div><b class="r ${lead==='b'?'lead':''}">${fmt(vb)}</b></div>`;
+}
+function h2hVsBody(D){
+  const r = D.res, n = D.matches.length;
+  if(!n) return `<div class="st-empty">No results between these two players yet in live or completed tournaments.</div>`;
+  return `<div class="h2h-chips"><span><b>${n}</b>Matches</span><span><b>${r.d}</b>Draws</span>${D.ties.length?`<span><b>${D.ties.length}</b>Knockout ties</span>`:''}</div>
+    ${h2hBar('Wins', r.aw, r.bw)}
+    ${h2hBar('Win rate', r.awp, r.bwp, v=>v+'%')}
+    ${h2hBar('Goals scored', r.agf, r.bgf)}
+    ${h2hBar('Goals per match', r.agf/n, r.bgf/n, v=>(Math.round(v*10)/10).toFixed(1))}
+    ${h2hBar('Clean sheets', r.acs, r.bcs)}
+    ${D.ties.length ? h2hBar('Knockout ties won', D.koA, D.koB) : ''}
+    <div class="h2h-best">
+      <div><span>${esc(D.na)} · biggest win</span><b>${D.bestA ? `${D.bestA.ga}–${D.bestA.gb}` : '–'}</b><small>${D.bestA ? esc(D.bestA.t.name) : 'No wins yet'}</small></div>
+      <div class="r"><span>${esc(D.nb)} · biggest win</span><b>${D.bestB ? `${D.bestB.gb}–${D.bestB.ga}` : '–'}</b><small>${D.bestB ? esc(D.bestB.t.name) : 'No wins yet'}</small></div>
+    </div>`;
+}
+function h2hCareerBody(D){
+  return `${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
+    ${h2hBar('Runner-up', D.sa.tourneyRunnerUp, D.sb.tourneyRunnerUp)}
+    ${h2hRankRow(D.rankA, D.rankB)}
+    ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}`;
+}
+/* Leaderboard position: the better (lower) rank is highlighted. */
+function h2hRankRow(a, b){
+  const lead = a===b ? '' : (a<b ? 'a' : 'b');
+  return `<div class="h2h-row"><b class="${lead==='a'?'lead':''}">#${a}</b><div class="h2h-mid"><span>Leaderboard rank</span><div class="h2h-rank"><i class="${lead==='a'?'on a':''}"></i><i class="${lead==='b'?'on b':''}"></i></div></div><b class="r ${lead==='b'?'lead':''}">#${b}</b></div>`;
 }
 function renderH2H(){
   setHeader('Community', 'Head to Head');
@@ -4241,9 +4297,9 @@ function renderH2H(){
   const winPct = s => Math.round(parseFloat(s?.winPct||0));
   main.innerHTML = `
     <section class="card h2h-pick">
-      <label class="h2h-sel"><span>Player</span><select class="form-select" onchange="setH2H('a', this.value)" aria-label="First player">${opts(H2H.a)}</select></label>
+      ${h2hPicker('a', 'Player', pa)}
       <button type="button" class="btn btn-secondary btn-icon h2h-swap" onclick="swapH2H()" aria-label="Swap players" title="Swap players">${H2H_SWAP}</button>
-      <label class="h2h-sel"><span>Against</span><select class="form-select" onchange="setH2H('b', this.value)" aria-label="Second player">${opts(H2H.b)}</select></label>
+      ${h2hPicker('b', 'Against', pb)}
     </section>
 
     <section class="h2h-hero">
@@ -4259,25 +4315,11 @@ function renderH2H(){
     <div class="grid grid-2 h2h-grid">
       <section class="card h2h-card">
         <div class="h2h-card-h">${statIco('h2hvs','blue')}<b>Against each other</b></div>
-        ${n ? `
-          ${h2hBar('Wins', r.aw, r.bw)}
-          ${h2hBar('Goals scored', r.agf, r.bgf)}
-          ${h2hBar('Goals per match', r.agf/n, r.bgf/n, v=>(Math.round(v*10)/10).toFixed(1))}
-          ${D.ties.length ? h2hBar('Knockout ties won', D.koA, D.koB) : ''}
-          <div class="h2h-best">
-            <div><span>Biggest win</span><b>${D.bestA ? `${D.bestA.ga}–${D.bestA.gb}` : '–'}</b><small>${D.bestA ? esc(D.bestA.t.name) : ''}</small></div>
-            <div class="r"><span>Biggest win</span><b>${D.bestB ? `${D.bestB.gb}–${D.bestB.ga}` : '–'}</b><small>${D.bestB ? esc(D.bestB.t.name) : ''}</small></div>
-          </div>` : `<div class="st-empty">No results between these two players yet in live or completed tournaments.</div>`}
+        ${h2hVsBody(D)}
       </section>
       <section class="card h2h-card">
         <div class="h2h-card-h">${statIco('wins','gold')}<b>Career comparison</b></div>
-        ${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
-        ${h2hBar('Runner-up', D.sa.tourneyRunnerUp, D.sb.tourneyRunnerUp)}
-        ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}
-        ${h2hBar('Matches played', D.sa.matches, D.sb.matches)}
-        ${h2hBar('Win rate', winPct(D.sa), winPct(D.sb), pct)}
-        ${h2hBar('Goals scored', D.sa.gf, D.sb.gf)}
-        ${h2hBar('Goals conceded', D.sa.ga, D.sb.ga, v=>v, true)}
+        ${h2hCareerBody(D)}
       </section>
     </div>
 
@@ -4302,13 +4344,8 @@ function exportH2H(){
   const hero = `<div class="fb-h2h-hero"><div class="s">${renderAvatar(pa, 96)}<b>${esc(pa.name)}</b></div>
       <div class="m"><div class="big"><b>${r.aw}</b><i>–</i><b>${r.d}</b><i>–</i><b>${r.bw}</b></div><div class="lbl"><span>Wins</span><span>Draws</span><span>Wins</span></div><div class="sub">${n} match${n===1?'':'es'}${D.ties.length?` · knockout ties ${D.koA}–${D.koB}`:''}</div></div>
       <div class="s">${renderAvatar(pb, 96)}<b>${esc(pb.name)}</b></div></div>`;
-  const comp = `<div class="fb-card fb-h2h-comp">
-      ${n ? h2hBar('Goals scored vs each other', r.agf, r.bgf) : ''}
-      ${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
-      ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}
-      ${h2hBar('Win rate', winPct(D.sa), winPct(D.sb), v=>v+'%')}
-      ${h2hBar('Matches played', D.sa.matches, D.sb.matches)}
-    </div>`;
+  const comp = `<div class="fb-h2h-cards"><div class="fb-card fb-h2h-comp"><div class="fb-h2h-h">Against each other</div>${h2hVsBody(D)}</div>
+    <div class="fb-card fb-h2h-comp"><div class="fb-h2h-h">Career comparison</div>${h2hCareerBody(D)}</div></div>`;
   const rows = D.matches.map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(pa.name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(pb.name)}</span></div><div class="fb-h2h-st">${esc(m.t.name)} · ${esc(m.stage)}</div>`);
   const title = `${pa.name} vs ${pb.name}`;
   const first = fbSheet(null, title, 'Head to head · live and completed tournaments', hero + comp, 1, 1);
