@@ -1100,11 +1100,12 @@ const SOCIALS = [
   {network:'Facebook', handle:'EFootball Mobile Milandhoo', url:'https://www.facebook.com/search/top?q=EFootball%20Mobile%20Milandhoo', icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M14.5 8H13a2 2 0 0 0-2 2v11M8.5 13h6"/></svg>'},
   {network:'Instagram', handle:'@efootball.milandhoo', url:'https://www.instagram.com/efootball.milandhoo/', icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.6" fill="currentColor"/></svg>'}
 ];
+/* Slim one-line footer for every export: socials on the left, export date on the right. */
 function sheetFoot(page, pages){
-  return `<div class="xs-foot">
-    <div class="xs-follow-label">FOLLOW US</div>
-    <div class="xs-socials">${SOCIALS.map(x=>`<span class="xs-social">${x.icon}<span><small>${x.network}</small><b>${esc(x.handle)}</b></span></span>`).join('')}</div>
-    <div class="xs-date">Exported ${fmtDateTime(new Date())}${pages>1 ? ` · Page ${page} of ${pages}` : ''}</div>
+  return `<div class="xs-fbar">
+    <span class="xs-fbar-follow">Follow us</span>
+    ${SOCIALS.map(x=>`<span class="xs-fbar-social">${x.icon}<b>${esc(x.handle)}</b></span>`).join('')}
+    <span class="xs-fbar-date">Exported ${fmtDateTime(new Date())}${pages>1 ? ` · Page ${page} of ${pages}` : ''}</span>
   </div>`;
 }
 function chunk(arr, n){ const out = []; for(let i=0;i<arr.length;i+=n) out.push(arr.slice(i,i+n)); return out.length ? out : [[]] }
