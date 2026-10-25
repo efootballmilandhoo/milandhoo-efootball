@@ -1037,27 +1037,35 @@ function fbRules(tid, key){
   return renderSheets(parts.map((pt, i)=>sheet(pt.sec, pt.body, i+1, parts.length)), FB.w, `${slug(t.name)}_rules`);
 }
 
+/* Stats export: exactly two pages. 1) overview numbers and match records, 2) the six leader boards. */
+function fbStatCard(d, rows){
+  const fmt = d.fmt || (v=>v);
+  const groups = statGroups(rows, d, 3);
+  const names = (g, max) => { const n = g.rows.map(r=>esc(statPlayer(r.id).name)); return n.length>max ? n.slice(0,max).join(', ') + ` +${n.length-max}` : n.join(', ') };
+  if(!groups.length) return `<div class="fsc"><div class="fsc-h">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<small>${d.hint}</small>`:''}</div></div><div class="fsc-empty">No results yet</div></div>`;
+  const [lead, ...rest] = groups;
+  return `<div class="fsc">
+    <div class="fsc-h">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<small>${d.hint}</small>`:''}</div></div>
+    <div class="fsc-lead"><div class="fsc-who">${names(lead, 3)}${lead.rows.length>1?`<small>Shared 1st</small>`:''}</div><div class="fsc-val">${fmt(lead.v)}<small>${d.unit||''}</small></div></div>
+    ${rest.map(g=>`<div class="fsc-row"><span class="fsc-rk">${g.rk}</span><span class="fsc-nm">${names(g, 2)}</span><b>${fmt(g.v)}</b></div>`).join('')}
+  </div>`;
+}
 function fbStats(tid){
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
   const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
   const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
-  const matchRows = list => list.map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</span></div>`).join('');
-  // Every match sharing a record is listed; long lists continue on the next page.
-  const items = [
-    `<div class="fb-nums">
-      ${statNum('matches','blue','Matches played', matches.length)}
-      ${statNum('goals','green','Goals scored', goals)}
-      ${statNum('avg','purple','Goals per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
-      ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
-    </div>`,
-    ...chunk(biggestAll, 8).map((set, k)=>`<div class="fb-rec"><div class="fb-rec-h">Biggest win · ${maxMargin} goal margin${biggestAll.length>1?` · ${biggestAll.length} matches`:''}${k?' (cont.)':''}</div>${matchRows(set)}</div>`),
-    ...chunk(highestAll, 8).map((set, k)=>`<div class="fb-rec"><div class="fb-rec-h">Highest-scoring match · ${maxGoals} goals${highestAll.length>1?` · ${highestAll.length} matches`:''}${k?' (cont.)':''}</div>${matchRows(set)}</div>`),
-    `<div class="fb-rec"><div class="fb-rec-h">Still unbeaten${defs.minNote?` · ${defs.minNote.toLowerCase()}`:''}</div><div class="fb-unb">${unbeaten.length ? unbeaten.map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') : '<span>Nobody, everyone has lost at least once</span>'}</div></div>`
-  ];
-  const overview = fbPack(items, (set, i, n)=>fbSheet(t, t.name, `Tournament stats · Overview · ${matches.length} matches`, set.join(''), i+1, n));
-  const leaders = chunk(defs.list, 3).map(set=>fbSheet(t, t.name, `Tournament stats · Leaders · ${matches.length} matches`, `<div class="fb-stgrid one">${set.map(d=>statCard(d, rows, {maxPos:3, maxNames:6})).join('')}</div>`, 1, 1));
+  const recBlock = (list, label) => `<div class="fsr"><div class="fsr-h">${label}${list.length>1?` <span>${list.length} matches</span>`:''}</div>${list.slice(0,3).map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</span></div>`).join('')}${list.length>3?`<div class="fsr-more">+${list.length-3} more matches with the same record</div>`:''}</div>`;
+  const nums = `<div class="fsn">
+      <div><span>Matches</span><b>${matches.length}</b></div>
+      <div><span>Goals</span><b>${goals}</b></div>
+      <div><span>Per match</span><b>${(Math.round(goals/matches.length*10)/10).toFixed(1)}</b></div>
+      <div><span>Draws</span><b>${draws}</b></div>
+    </div>`;
+  const unb = `<div class="fsr"><div class="fsr-h">Still unbeaten${defs.minNote?` <span>${defs.minNote.toLowerCase()}</span>`:''}</div><div class="fb-unb">${unbeaten.length ? unbeaten.slice(0,8).map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') + (unbeaten.length>8?`<span>+${unbeaten.length-8} more</span>`:'') : '<span>Nobody yet</span>'}</div></div>`;
+  const p1 = fbSheet(t, t.name, `Tournament stats · Overview · ${matches.length} matches`, nums + recBlock(biggestAll, `Biggest win · ${maxMargin} goal margin`) + recBlock(highestAll, `Highest-scoring match · ${maxGoals} goals`) + unb, 1, 2);
+  const p2 = fbSheet(t, t.name, `Tournament stats · Leaders`, `<div class="fsg">${defs.list.map(d=>fbStatCard(d, rows)).join('')}</div>`, 2, 2);
   EXPORT_CTX.zPerPage = true;
-  return renderSheets(fbRenumber([...overview, ...leaders]), FB.w, `${slug(t.name)}_stats`);
+  return renderSheets([p1, p2], FB.w, `${slug(t.name)}_stats`);
 }
 
 /* Standard player-fixtures export (a copy of the Player View card), kept as its own function so it has a Facebook layout too. */
@@ -2970,13 +2978,14 @@ function renderStandingsTab(t, admin, canEditScores){
     <div class="tabs-wrap">
       <span class="page-sub">${t.groupDeadline?`Deadline ${fmtDateTime(t.groupDeadline)}`:'3 pts win · 1 pt draw'}</span>
       ${isLeague ? '' : groupSwitcher(t, 'pickGroup')}
+      <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} ${isLeague || t.groupData.length<2 ? 'Export standings' : cur && cur!=='*' ? `Export Group ${esc(cur)} standings` : 'Export standings · one page per group'}</button>
     </div>
     <section id="standingsExport" class="export-container" aria-label="${isLeague?'League table':'Group standings'}">
       <div class="export-header" style="margin-bottom:12px"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">${isLeague?'League table':'Group standings'} · ${fmtDate(new Date())}</div></div>
       ${content}
       <div class="section-foot" style="margin-top:14px">
         <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span>
-        <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} ${isLeague || t.groupData.length<2 ? 'Export standings' : cur && cur!=='*' ? `Export Group ${esc(cur)} standings` : 'Export standings · one page per group'}</button>
+
       </div>
     </section>
     ${admin && canEditScores ? `<div class="config-helper">Enter scores on the <strong>Fixtures</strong> tab; the table updates instantly.</div>`:''}`;
@@ -3029,6 +3038,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A5878" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
           <input id="fx-search" type="search" placeholder="Search player…" aria-label="Search fixtures by player" value="${esc(fixtureQuery)}" oninput="setFixtureQuery('${t.id}', this.value)" style="font-size:13px">
         </label>
+        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} ${t.format==='league' ? 'Export fixtures' : currentGroup(t) && currentGroup(t)!=='*' ? `Export Group ${esc(currentGroup(t))} fixtures` : 'Export fixtures · each group separately'}</button>
       </div>
       <div class="table-wrap">
         <table class="fx-table">
@@ -3036,9 +3046,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
           <tbody id="fixturesBody">${fixtureRows(t, admin, canEdit)}</tbody>
         </table>
       </div>
-      <div class="section-foot no-export" style="justify-content:flex-end">
-        <button type="button" class="export-btn" onclick="exportAsJPEG('fixturesExport','${slug(t.name)}_fixtures')">${ICON_DL} ${t.format==='league' ? 'Export fixtures' : currentGroup(t) && currentGroup(t)!=='*' ? `Export Group ${esc(currentGroup(t))} fixtures` : 'Export fixtures · each group separately'}</button>
-      </div>
+
     </section>`;
 }
 
@@ -3174,6 +3182,7 @@ function renderStatsTab(t){
   const shareNote = n => n>1 ? ` · shared by ${n} matches` : '';
   return `
   <section class="st-wrap" aria-label="Tournament stats">
+    <div class="h2h-top"><span class="page-sub">Built from every result entered in this tournament</span><button type="button" class="export-btn" onclick="exportStatsSheet('${t.id}')">${ICON_DL} Export stats</button></div>
     <div class="st-nums">
       ${statNum('matches','blue','Matches played', matches.length)}
       ${statNum('goals','green','Goals scored', goals)}
@@ -3190,7 +3199,6 @@ function renderStatsTab(t){
         ${unbeaten.length ? `<ol class="st-list">${unbeaten.map(r=>`<li><span class="st-avs">${renderAvatar(statPlayer(r.id), 22)}</span><span class="st-nm">${esc(statPlayer(r.id).name)}</span><span class="st-wdl">${r.w}W ${r.d}D</span></li>`).join('')}</ol>` : '<div class="st-empty">Everyone has lost at least once.</div>'}
       </div>
     </div>
-    <div class="section-foot" style="justify-content:flex-end"><button type="button" class="export-btn" onclick="exportStatsSheet('${t.id}')">${ICON_DL} Export stats</button></div>
   </section>`;
 }
 /* Stats export: one 5:4 page (1500 × 1200). */
@@ -4578,7 +4586,9 @@ function h2hCareerBody(D){
   return `<div class="h2h-bars">${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
     ${h2hBar('Runner-up', D.sa.tourneyRunnerUp, D.sb.tourneyRunnerUp)}
     ${h2hRankRow(D.rankA, D.rankB)}
-    ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}</div>`;
+    ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}
+    ${h2hBar('Matches played', D.sa.matches, D.sb.matches)}
+    ${h2hBar('Matches won', D.sa.wins, D.sb.wins)}</div>`;
 }
 /* Leaderboard position: the better (lower) rank is highlighted. */
 function h2hRankRow(a, b){
@@ -4625,13 +4635,12 @@ function renderH2H(){
     <section class="card h2h-card">
       <div class="h2h-card-h">${statIco('matches','purple')}<b>Match results</b></div>
       ${n ? `<div class="h2h-list">${D.matches.map(m=>`<div class="h2h-m">
-          <span class="h2h-res ${m.ga>m.gb?'win':m.ga<m.gb?'loss':'draw'}">${m.ga>m.gb?'W':m.ga<m.gb?'L':'D'}</span>
           <span class="h2h-m-a ${m.ga>m.gb?'w':''}">${esc(pa.name)}</span>
           <span class="result-pill">${m.ga} – ${m.gb}</span>
           <span class="h2h-m-b ${m.gb>m.ga?'w':''}">${esc(pb.name)}</span>
           <small>${esc(m.t.name)} · ${esc(m.stage)}</small>
         </div>`).join('')}</div>` : `<div class="st-empty">Matches between ${esc(pa.name)} and ${esc(pb.name)} will appear here.</div>`}
-      <div class="text-xs text-muted">From live and completed tournaments. W/D/L is from ${esc(pa.name)}'s side. Played in ${D.both} tournament${D.both===1?'':'s'} together.</div>
+      <div class="text-xs text-muted">From live and completed tournaments. Played in ${D.both} tournament${D.both===1?'':'s'} together.</div>
     </section>`;
 }
 function exportH2H(){
