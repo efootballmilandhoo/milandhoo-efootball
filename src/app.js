@@ -496,6 +496,278 @@ function getQualifiers(t){
 }
 
 /* =========================
+   FACEBOOK-SIZE EXPORTS (1080 × 1350, portrait 4:5)
+   Each export has its own layout with large text for phone screens. Pages are always exactly
+   1080 × 1350; anything taller is scaled to fit so the size never changes.
+   ========================= */
+const EXPORT_CTX = {};
+const FB = {w:1080, h:1350};
+async function renderFbSheets(pages, width, base, format, ready){
+  const pdfReady = format==='pdf' ? ensureJsPDF() : null;
+  if(typeof html2canvas !== 'function'){ toast('Preparing export…'); await ready }
+  if(typeof html2canvas !== 'function'){ toast('Export is unavailable right now. Check your connection and try again.', true); return }
+  if(pdfReady && !(await pdfReady)){ toast('PDF export is unavailable right now. Check your connection and try again.', true); return }
+  toast(pages.length>1 ? `Generating ${pages.length} Facebook images…` : 'Generating Facebook image…');
+  const designed = EXPORT_CTX.fb;
+  const built = pages.map(html=>buildSheet(html, designed ? FB.w : width));
+  if(designed) built.forEach(b=>b.sheet.classList.add('fb'));
+  const S = 2, FW = FB.w*S, FH = FB.h*S;
+  try{
+    const canvases = [];
+    for(let i=0;i<built.length;i++){
+      const sh = built[i].sheet;
+      await sheetReady(sh);
+      if(built.length>1) toast(`Generating image ${i+1} of ${built.length}…`);
+      const W = Math.ceil(sh.scrollWidth), H = Math.ceil(sh.scrollHeight);
+      if(designed && H > FB.h + 2) console.warn('fb export taller than 1350, scaled to fit:', base, i+1, H);
+      const c = await sheetCanvas(sh, W, H, S);
+      const out = document.createElement('canvas'); out.width = FW; out.height = FH;
+      const g = out.getContext('2d'); g.fillStyle = '#EEF2F8'; g.fillRect(0,0,FW,FH);
+      const k = Math.min(FW/c.width, FH/c.height);
+      const dw = c.width*k, dh = c.height*k;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(c, (FW-dw)/2, designed ? 0 : (FH-dh)/2, dw, dh);
+      canvases.push(out);
+    }
+    const name = `${base}_facebook`;
+    if(format==='pdf'){
+      const pdf = new window.jspdf.jsPDF({orientation:'portrait', unit:'px', format:[FB.w, FB.h], hotfixes:['px_scaling'], compress:true});
+      canvases.forEach((c,i)=>{ if(i) pdf.addPage([FB.w, FB.h], 'portrait'); pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, FB.w, FB.h, undefined, 'FAST') });
+      await deliverFiles([{name:`${name}.pdf`, blob:pdf.output('blob')}]);
+    } else {
+      const files = [];
+      for(let i=0;i<canvases.length;i++){
+        const blob = await new Promise(res=>canvases[i].toBlob(res, 'image/png'));
+        if(!blob) throw new Error('empty');
+        files.push({name:`${canvases.length>1 ? `${name}_${i+1}` : name}.png`, blob});
+      }
+      await deliverFiles(files);
+    }
+  }catch(e){ console.error(e); toast('Export failed. Try again.', true) }
+  finally{ built.forEach(b=>b.host.remove()) }
+}
+/* Height a Facebook page would have, measured off-screen. */
+function fbMeasure(html){ const b = buildSheet(html, FB.w); b.sheet.classList.add('fb'); const h = b.sheet.scrollHeight; b.host.remove(); return h }
+function fbSheet(t, title, sub, body, i, n){ return `<div class="fbp">${sheetHeader(t, title, sub)}<div class="fb-body">${body}</div>${sheetFoot(i, n)}</div>` }
+const fbPageLabel = (i, n) => n>1 ? ` · ${i+1}/${n}` : '';
+const fbDone = f => hasScore(f.score1) && hasScore(f.score2);
+const fbPos = (n, q) => `<span class="fb-pos ${q?'q':''}">${n}</span>`;
+
+function fbStandings(t){
+  const isLeague = t.format==='league', q = isLeague ? 1 : t.qualifyPerGroup;
+  const cur = isLeague ? '*' : (currentGroup(t) || '*');
+  const groups = (t.groupData || []).filter(g=>cur==='*' || g.name===cur);
+  if(!groups.length){ toast('No standings to export yet', true); return }
+  const parts = [];
+  groups.forEach(g=>{ const rows = computeStandings(t, g); chunk(rows.map((r,i)=>({...r, pos:i+1})), 12).forEach(set=>parts.push({g, set})) });
+  const dl = t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
+  const pages = parts.map((pt, i)=>{
+    const body = `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(pt.g.name)}`}</div>
+      <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
+      ${pt.set.map(r=>{ const gd = r.gf-r.ga; const qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
+      </tbody></table></div>
+      <div class="fb-legend">${fbPos('', true)} ${isLeague ? 'League leader' : `Top ${q} go through to the knockouts`}</div>`;
+    return fbSheet(t, t.name, `${isLeague?'League table':`Group ${esc(pt.g.name)} standings`} · ${fmtDate(new Date())}`, body, i+1, parts.length);
+  });
+  return renderSheets(pages, FB.w, `${slug(t.name)}_standings`);
+}
+
+function fbFixtureRow(f){
+  const done = fbDone(f), w1 = done && f.score1>f.score2, w2 = done && f.score2>f.score1;
+  return `<div class="fbf"><span class="a ${w1?'w':''}">${esc(playerName(f.team1))}</span><span class="sc ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span><span class="b ${w2?'w':''}">${esc(playerName(f.team2))}</span></div>`;
+}
+function fbFixtures(t){
+  const fx = t.fixtures || [], isLeague = t.format==='league';
+  const cur = isLeague ? '*' : (currentGroup(t) || '*');
+  const blocks = isLeague ? [{name:null, rows:fx}] : (t.groupData||[]).filter(g=>cur==='*' || g.name===cur).map(g=>({name:g.name, rows:fx.filter(f=>f.group===g.name)}));
+  // Pack matchdays into pages of at most 13 lines (a matchday heading counts as one line).
+  const parts = [];
+  blocks.forEach(b=>{
+    const mds = [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y);
+    let page = null, used = 0;
+    mds.forEach(md=>{
+      const rows = b.rows.filter(f=>f.matchday===md);
+      if(!page || used + rows.length + 1 > 15){ page = {name:b.name, items:[]}; parts.push(page); used = 0 }
+      page.items.push({md, rows}); used += rows.length + 1;
+    });
+  });
+  if(!parts.length){ toast('No fixtures to export yet', true); return }
+  const pages = parts.map((pt, i)=>{
+    const mds = pt.items.map(x=>x.md);
+    const label = mds.length>1 ? `Matchdays ${mds[0]}–${mds.at(-1)}` : `Matchday ${mds[0]}`;
+    const body = `<div class="fb-card">${pt.items.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>`;
+    return fbSheet(t, t.name, `${pt.name ? `Group ${esc(pt.name)} · ` : ''}${label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`, body, i+1, parts.length);
+  });
+  return renderSheets(pages, FB.w, `${slug(t.name)}_fixtures`);
+}
+
+function fbTie(t, m){
+  const r = koResult(t, m), fmt = t.knockoutFormat, labels = koLegLabels(fmt), legs = koLegs(t, m);
+  const name = id => id ? esc(playerName(id)) : (m.isBye ? 'Bye' : 'TBD');
+  const row = side => { const id = side ? m.team2 : m.team1; return `<div class="fbk-row ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"><span class="nm">${name(id)}</span><span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>` };
+  const bits = [];
+  if(labels.length && !r.legacy) legs.forEach((l,i)=>{ if(hasScore(l[0]) && hasScore(l[1])) bits.push(`${labels[i]} ${l[0]}–${l[1]}`) });
+  if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) bits.push(`Tie-breaker ${m.tb.a}–${m.tb.b}`);
+  if(m.pens && hasScore(m.pens.a) && hasScore(m.pens.b)) bits.push(`Pens ${m.pens.a}–${m.pens.b}`);
+  return `<div class="fbk ${m.isBye?'bye':''}">${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
+}
+function fbRoundPages(t, ri){
+  const round = t.knockoutBracket[ri], dl = (t.rules?.roundDeadlines||{})[round[0]?.round];
+  const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
+  return chunk(ties, 8).map(set=>({title: round[0]?.round || `Round ${ri+1}`, dl, set}));
+}
+function fbBracketPages(t, rounds){
+  const parts = [];
+  rounds.forEach(ri=>fbRoundPages(t, ri).forEach(p=>parts.push(p)));
+  const final = t.knockoutBracket.at(-1)?.[0];
+  return parts.map((pt, i)=>{
+    const champ = i===parts.length-1 && final?.winner && rounds.includes(t.knockoutBracket.length-1) ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : '';
+    const body = `<div class="fb-ties ${pt.set.length===1?'one':''}">${pt.set.map(m=>fbTie(t, m)).join('')}</div>${champ}`;
+    return fbSheet(t, t.name, `${esc(pt.title)} · ${koLabel(t.knockoutFormat)}${pt.dl?` · Deadline ${fmtShort(pt.dl)}`:''}`, body, i+1, parts.length);
+  });
+}
+function fbBracket(t){
+  if(!t.knockoutBracket?.length){ toast('No bracket to export yet', true); return }
+  return renderSheets(fbBracketPages(t, t.knockoutBracket.map((_,i)=>i)), FB.w, `${slug(t.name)}_bracket`);
+}
+function fbRound(tid, ri){
+  const t = STORE.tournaments.find(x=>x.id===tid);
+  if(!t?.knockoutBracket?.[ri]){ toast('Round not found', true); return }
+  return renderSheets(fbBracketPages(t, [ri]), FB.w, `${slug(t.name)}_${slug(t.knockoutBracket[ri][0]?.round)}`);
+}
+
+function fbParticipants(tid){
+  const t = STORE.tournaments.find(x=>x.id===tid), regs = t.registrations || [];
+  if(!regs.length){ toast('No players registered yet', true); return }
+  const groupOf = {}; (t.groupData||[]).forEach(g=>g.players.forEach(p=>{ groupOf[p.playerId] = g.name }));
+  const list = regs.map((r,i)=>({n:i+1, p: STORE.players.find(x=>x.id===r.playerId) || {name:'Unknown player'}, g: groupOf[r.playerId]}));
+  const parts = chunk(list, 16);
+  const pages = parts.map((part, i)=>fbSheet(t, t.name, `Participants · ${regs.length} players${fbPageLabel(i, parts.length)}`,
+    `<div class="fb-people">${part.map(x=>`<div class="fb-person"><span class="n">${x.n}</span>${renderAvatar(x.p, 52)}<b>${esc(x.p.name)}</b>${x.g && t.format==='group_knockout' ? `<i>Group ${esc(x.g)}</i>` : ''}</div>`).join('')}</div>`, i+1, parts.length));
+  return renderSheets(pages, FB.w, `${slug(t.name)}_players`);
+}
+
+function fbLeaderboard(){
+  const all = rankPlayers(calculateAllStats());
+  const parts = chunk(all, 12);
+  const pages = parts.map((part, i)=>fbSheet(null, 'Community Leaderboard', `All-time ranking by total points · ${fmtDate(new Date())}${fbPageLabel(i, parts.length)}`,
+    `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>Win %</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
+      ${part.map(x=>`<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${Math.round(parseFloat(x.s.winPct))}%</td><td>${x.s.tourneyWins||'–'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="fb-legend small"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}</div>`, i+1, parts.length));
+  return renderSheets(pages, FB.w, 'milandhoo_leaderboard');
+}
+
+function fbHof(){
+  const list = hofFiltered();
+  if(!list.length){ toast('Nothing to export yet', true); return }
+  const parts = chunk(list, 10);
+  const pages = parts.map((part, i)=>fbSheet(null, 'Hall of Fame', `${list.length} achievements · ${fmtDate(new Date())}${fbPageLabel(i, parts.length)}`,
+    `<div class="fb-card fb-list">${part.map(h=>{ const ty = HOF_TYPES[h.type] || HOF_TYPES.award; return `<div class="fb-hof">${medalHTML(ty.cls, ty.medal, 48)}<div class="mid"><b>${esc(hofPlayer(h).name)}</b><span>${esc(hofTitle(h))} · ${esc(h.tournament||'')}</span></div><div class="end"><i>${esc(hofOrg(h))}</i><span>${esc(hofDate(h))||''}</span></div></div>` }).join('')}</div>`, i+1, parts.length));
+  return renderSheets(pages, FB.w, 'hall_of_fame');
+}
+
+function fbDecorated(){
+  const ranked = hofRanked(hofTally([...STORE.hof]));
+  if(!ranked.length){ toast('Nothing to export yet', true); return }
+  const parts = chunk(ranked, 14);
+  const cell = n => n ? `<b>${n}</b>` : '<span class="dim">–</span>';
+  const pages = parts.map((part, i)=>fbSheet(null, 'Most Decorated Players', `Hall of Fame · ${ranked.length} players${fbPageLabel(i, parts.length)}`,
+    `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>${medalHTML('gold','1',30)}</th><th>${medalHTML('silver','2',30)}</th><th>${medalHTML('bronze','3',30)}</th><th class="pts">Total</th></tr></thead><tbody>
+      ${part.map(x=>`<tr class="${x.rank<=3?'top':''}"><td>${rankBadge(x.rank, MEDAL_BY_RANK[x.rank], x.tied)}</td><td class="l nm">${esc(hofPlayer(x.h).name)}</td><td>${cell(x.champion)}</td><td>${cell(x.runner_up)}</td><td>${cell(x.third)}</td><td class="pts"><span class="fb-pts">${x.total}</span></td></tr>`).join('')}
+    </tbody></table></div>
+    <div class="fb-legend small">Ranked by titles, then runner-up and third places. Equal records share the position.</div>`, i+1, parts.length));
+  return renderSheets(pages, FB.w, 'most_decorated');
+}
+
+function fbRules(tid, key){
+  const t = STORE.tournaments.find(x=>x.id===tid);
+  const secs = ruleSections(t).filter(s=>!key || s.key===key).filter(s=>key || stageHasContent(t, s.key));
+  if(!secs.length){ toast('Nothing to export yet', true); return }
+  // Pages are measured for real: a stage goes on one page when it fits, otherwise rules first, then settings.
+  const wrap = (sec, body) => `<div class="fb-card fb-rulecard"><span class="fb-chip">${esc(sec.title)}</span>${body}</div>`;
+  const fits = (sec, body) => fbMeasure(fbSheet(t, t.name, `${esc(sec.title)} · Rules &amp; match settings`, wrap(sec, body), 1, 9)) <= FB.h;
+  const parts = [];
+  secs.forEach(sec=>{
+    const lines = ruleLines(stageData(t, sec.key).rules), set = settingsList(t, sec.key);
+    const dl = t.rules?.roundDeadlines || {}, rounds = sec.key==='ko' ? koDeadlineRounds(t).filter(x=>dl[x]) : [];
+    const rulesHTML = (list, start=1) => list.length ? `<div class="fb-sec"><h3>Rules</h3><ol class="fb-rules" style="counter-reset:fbr ${start-1}">${list.map(l=>`<li>${esc(l)}</li>`).join('')}</ol></div>` : '';
+    const setHTML = set.length ? `<div class="fb-sec"><h3>Match settings</h3><div class="fb-set">${set.map(x=>`<div><span>${esc(x.label)}</span><b class="${String(x.value).length>12?'long':''}">${esc(x.value)}</b></div>`).join('')}</div></div>` : '';
+    const dlHTML = rounds.length ? `<div class="fb-sec"><h3>Round deadlines</h3><div class="fb-set dl">${rounds.map(x=>`<div><span>${esc(x)}</span><b>${fmtShort(dl[x])}</b></div>`).join('')}</div></div>` : '';
+    const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>Deadline <b>${fmtDateTime(t.groupDeadline)}</b></span></div>` : '';
+    const all = groupDl + rulesHTML(lines) + setHTML + dlHTML;
+    if(fits(sec, all)){ parts.push({sec, body: all}); return }
+    let cur = [], start = 1;
+    lines.forEach((l, i)=>{
+      if(cur.length && !fits(sec, groupDl + rulesHTML([...cur, l], start))){ parts.push({sec, body: groupDl + rulesHTML(cur, start)}); start = i+1; cur = [] }
+      cur.push(l);
+    });
+    if(cur.length) parts.push({sec, body: groupDl + rulesHTML(cur, start)});
+    if(set.length || rounds.length){
+      if(fits(sec, setHTML + dlHTML)) parts.push({sec, body: setHTML + dlHTML});
+      else { if(set.length) parts.push({sec, body: setHTML}); if(rounds.length) parts.push({sec, body: dlHTML}) }
+    }
+  });
+  const pages = parts.map((pt, i)=>fbSheet(t, t.name, `${esc(pt.sec.title)} · Rules &amp; match settings`, wrap(pt.sec, pt.body), i+1, parts.length));
+  return renderSheets(pages, FB.w, `${slug(t.name)}_rules`);
+}
+
+function fbStats(tid){
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
+  const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
+  const recBlock = (list, label) => `<div class="fb-rec"><div class="fb-rec-h">${label}${list.length>1?` · ${list.length} matches`:''}</div>${list.slice(0,3).map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</span></div>`).join('')}${list.length>3?`<div class="fb-more">+${list.length-3} more</div>`:''}</div>`;
+  const p1 = `<div class="fb-nums">
+      ${statNum('matches','blue','Matches played', matches.length)}
+      ${statNum('goals','green','Goals scored', goals)}
+      ${statNum('avg','purple','Goals per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
+      ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
+    </div>
+    ${recBlock(biggestAll, `Biggest win · ${maxMargin} goal margin`)}
+    ${recBlock(highestAll, `Highest-scoring match · ${maxGoals} goals`)}
+    <div class="fb-rec"><div class="fb-rec-h">Still unbeaten${defs.minNote?` · ${defs.minNote.toLowerCase()}`:''}</div><div class="fb-unb">${unbeaten.length ? unbeaten.map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') : '<span>Nobody, everyone has lost at least once</span>'}</div></div>`;
+  const p2 = `<div class="fb-stgrid">${defs.list.map(d=>statCard(d, rows, {maxPos:3, maxNames:6})).join('')}</div>`;
+  const pages = [p1, p2].map((b,i)=>fbSheet(t, t.name, `Tournament stats · ${i ? 'Leaders' : 'Overview'} · ${matches.length} matches`, b, i+1, 2));
+  return renderSheets(pages, FB.w, `${slug(t.name)}_stats`);
+}
+
+/* Standard player-fixtures export (a copy of the Player View card), kept as its own function so it has a Facebook layout too. */
+function exportPlayerFixturesSheet(t, pid, filename){
+  const el = document.getElementById('playerFixturesExport');
+  if(!el){ toast('Nothing to export', true); return }
+  return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename || `${slug(playerName(pid))}_fixtures`);
+}
+function fbPlayerFixtures(t, pid){
+  if(!t || !pid){ toast('Nothing to export', true); return }
+  const list = getPlayerFixtures(t, pid).map((f,i)=>({...f, _i:i})).sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
+  const done = list.filter(f=>f.result), wins = done.filter(f=>f.result==='win').length;
+  let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
+  const parts = chunk(list, 8);
+  const res = r => r ? `<span class="fb-res ${r}">${r==='win'?'W':r==='loss'?'L':'D'}</span>` : '<span class="fb-res p">–</span>';
+  const pages = parts.map((part, i)=>fbSheet(t, playerName(pid), `${esc(t.name)} · Fixtures &amp; results${fbPageLabel(i, parts.length)}`,
+    `<div class="fb-nums small">
+      ${statNum('matches','blue','Played', done.length, `${list.length-done.length} to play`)}
+      ${statNum('wins','purple','Wins', wins)}
+      ${statNum('goals','green','Goals', gf, `${ga} conceded`)}
+      ${statNum('avg','gold','Win rate', done.length ? Math.round(wins/done.length*100)+'%' : '–')}
+    </div>
+    <div class="fb-card fb-list">${part.map(f=>`<div class="fb-pf">${res(f.result)}<div class="mid"><b>vs ${esc(f.opponent ? playerName(f.opponent) : 'TBD')}</b><span>${esc(f.stage||'')}${f.detail?` · ${esc(f.detail)}`:''}</span></div><span class="sc ${f.score?'':'pending'}">${f.score ? esc(f.score.replace(' - ',' – ')) : 'Pending'}</span></div>`).join('')}</div>`, i+1, parts.length));
+  return renderSheets(pages, FB.w, `${slug(playerName(pid))}_fixtures`);
+}
+
+/* Each export remembers how to rebuild itself, and uses its Facebook layout when that size is chosen. */
+setTimeout(()=>{
+  const map = {exportStandingsSheet:fbStandings, exportFixturesSheet:fbFixtures, exportBracketSheet:fbBracket, exportRoundAsJPEG:fbRound,
+    exportParticipantsSheet:fbParticipants, exportLeaderboardSheet:fbLeaderboard, exportHofSheet:fbHof, exportDecoratedSheet:fbDecorated,
+    exportRulesSheet:fbRules, exportStatsSheet:fbStats, exportPlayerFixturesSheet:fbPlayerFixtures};
+  Object.entries(map).forEach(([n, fbFn])=>{
+    const orig = window[n]; if(typeof orig!=='function' || orig.__wrapped) return;
+    const w = function(...a){ if(EXPORT_CTX.fb) return fbFn(...a); EXPORT_CTX.rerun = ()=>window[n](...a); return orig.apply(this, a) };
+    w.__wrapped = true; window[n] = w;
+  });
+}, 0);
+
+/* =========================
    AUTO-CALCULATE STATS
    Everything is recalculated from the saved results each time, so edits and deletions
    are reflected straight away and nothing can be counted twice.
@@ -899,18 +1171,26 @@ async function shareReadyFiles(){
 }
 
 /* Asks whether to save the export as images or as one PDF. */
+/* Export choices: size (standard, or a Facebook post at 1080 × 1350) and format (PNG or PDF). */
 function chooseExportFormat(pages){
   return new Promise(resolve=>{
     let done = false;
     const finish = v=>{ if(done) return; done = true; window.__exportPick = null; closeModal(); resolve(v) };
     window.__exportPick = finish;
+    window.__exportFb = !!LS.get('export_fb', false);
+    const sizeBtn = (fb, title, sub) => `<button type="button" class="size-opt ${window.__exportFb===fb?'on':''}" data-fb="${fb}" onclick="window.__exportFb=${fb};document.querySelectorAll('.size-opt').forEach(b=>b.classList.toggle('on', b.dataset.fb==='${fb}'))"><b>${title}</b><span>${sub}</span></button>`;
+    const pick = f => `__exportPick&&__exportPick({format:'${f}', fb:window.__exportFb})`;
     openModal(`
       <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">✕</button></div>
-      <div class="modal-body">
-        <div class="export-choice">
-          <button type="button" class="export-option" onclick="__exportPick('png')">${ICON.image}<b>Image (PNG)</b><span>${pages>1?`${pages} images, one per page`:'One image'}. Best for WhatsApp, Instagram and Viber.</span></button>
-          <button type="button" class="export-option" onclick="__exportPick('pdf')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><b>PDF document</b><span>${pages>1?`One file with all ${pages} pages`:'One page'}. Best for printing and sharing as a file.</span></button>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+        <div><div class="form-label">Size</div>
+          <div class="size-choice">${sizeBtn(false, 'Standard', 'Full detail, best for saving and printing')}${sizeBtn(true, 'Facebook post', '1080 × 1350, big text for phones')}</div>
         </div>
+        <div><div class="form-label">Format</div>
+        <div class="export-choice">
+          <button type="button" class="export-option" onclick="${pick('png')}">${ICON.image}<b>Image (PNG)</b><span>One image per page. Best for Facebook, WhatsApp, Instagram and Viber.</span></button>
+          <button type="button" class="export-option" onclick="${pick('pdf')}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><b>PDF document</b><span>All pages in one file. Best for printing and sharing as a file.</span></button>
+        </div></div>
       </div>`);
     const ov = document.getElementById('modal');
     const prev = ov.onclick; ov.onclick = e=>{ if(e.target===ov) finish(null); else if(prev) prev(e) };
@@ -920,8 +1200,22 @@ async function renderSheet(html, width, filename){ return renderSheets([html], w
 /* Every page of one export gets the same width, height and resolution; the footer sits at the bottom. */
 async function renderSheets(pages, width, base){
   const ready = ensureHtml2canvas();
-  const format = await chooseExportFormat(pages.length);
-  if(!format) return;
+  let format, fb = false;
+  const myRerun = EXPORT_CTX.rerun; EXPORT_CTX.rerun = null;
+  if(EXPORT_CTX.preset){ ({format, fb} = EXPORT_CTX.preset) }
+  else {
+    const pick = await chooseExportFormat(pages.length);
+    if(!pick) return;
+    format = pick.format; fb = !!pick.fb;
+    try{ localStorage.setItem('mec_export_fb', JSON.stringify(fb)) }catch{}
+    // Facebook size: rebuild this export with its Facebook layout.
+    if(fb && myRerun){
+      const rerun = myRerun;
+      EXPORT_CTX.fb = true; EXPORT_CTX.preset = {format, fb:true};
+      try{ return await rerun() } finally { EXPORT_CTX.fb = false; EXPORT_CTX.preset = null }
+    }
+  }
+  if(fb) return renderFbSheets(pages, width, base, format, ready);
   const pdfReady = format==='pdf' ? ensureJsPDF() : null;
   if(typeof html2canvas !== 'function'){ toast('Preparing export…'); await ready }
   if(typeof html2canvas !== 'function'){ toast('Export is unavailable right now. Check your connection and try again.', true); return }
@@ -1071,10 +1365,7 @@ function exportAsJPEG(elementId, filename){
   if(t && elementId==='bracketExport') return exportBracketSheet(t);
   const el = document.getElementById(elementId);
   if(!el){ toast('Nothing to export', true); return }
-  if(elementId==='playerFixturesExport'){
-    const pid = document.getElementById('pv_select')?.value;
-    return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename);
-  }
+  if(elementId==='playerFixturesExport') return exportPlayerFixturesSheet(t, document.getElementById('pv_select')?.value, filename);
   if(elementId==='leaderboardExport') return exportLeaderboardSheet();
   return exportLeaderboardSheet();
 }
@@ -2559,7 +2850,8 @@ function exportStatsSheet(tid){
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
   const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
   const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
-  const recs = (list, label) => `<div class="x169-rec"><span>${label}${list.length>1?` · ${list.length} matches`:''}</span>${list.slice(0,2).map(m=>`<b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b>`).join('')}${list.length>2?`<small>+${list.length-2} more</small>`:`<small>${list.length===1?esc(list[0].stage):''}</small>`}</div>`;
+  // Record tiles: score in a centred column so every row lines up.
+  const recs = (list, label) => `<div class="x169-rec xrec"><span>${label}${list.length>1?` · ${list.length} matches`:''}</span>${list.slice(0,2).map(m=>`<div class="xrec-row"><b class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</b><i>${m.ga}–${m.gb}</i><b class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</b></div>`).join('')}<small>${list.length>2 ? `+${list.length-2} more` : list.length===1 ? esc(list[0].stage) : '&nbsp;'}</small></div>`;
   const rec = (m, label) => `<div class="x169-rec"><span>${label}</span><b>${esc(statPlayer(m.a).name)} <i>${m.ga}–${m.gb}</i> ${esc(statPlayer(m.b).name)}</b><small>${esc(m.stage)}</small></div>`;
   const page = `<div class="x54 x54-stats">
     ${sheetHeader(t, t.name, `Tournament stats · ${matches.length} matches · ${fmtDate(new Date())}`)}
@@ -2572,7 +2864,7 @@ function exportStatsSheet(tid){
     <div class="x169-strip">
       ${recs(biggestAll, `Biggest win · ${maxMargin} goal margin`)}
       ${recs(highestAll, `Highest-scoring · ${maxGoals} goals`)}
-      <div class="x169-rec"><span>Still unbeaten</span><b>${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : '—'}</b></div>
+      <div class="x169-rec xrec"><span>Still unbeaten</span><b class="xrec-unb">${unbeaten.length ? unbeaten.map(r=>esc(statPlayer(r.id).name)).join(', ') : 'Nobody'}</b><small>&nbsp;</small></div>
     </div>
     <div class="x169-grid">${defs.list.map(d=>statCard(d, rows, {maxPos:4, maxNames:10})).join('')}</div>
     ${sheetFoot()}
