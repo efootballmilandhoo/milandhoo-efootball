@@ -1037,33 +1037,31 @@ function fbRules(tid, key){
   return renderSheets(parts.map((pt, i)=>sheet(pt.sec, pt.body, i+1, parts.length)), FB.w, `${slug(t.name)}_rules`);
 }
 
-/* Stats export: exactly two pages. 1) overview numbers and match records, 2) the six leader boards. */
+/* Stats export: two pages. 1) tournament numbers and the six leader boards, 2) match records and unbeaten players.
+   One text scale throughout: titles 22, names 20, values 22 (bold), labels 14. */
 function fbStatCard(d, rows){
   const fmt = d.fmt || (v=>v);
   const groups = statGroups(rows, d, 3);
-  const names = (g, max) => { const n = g.rows.map(r=>esc(statPlayer(r.id).name)); return n.length>max ? n.slice(0,max).join(', ') + ` +${n.length-max}` : n.join(', ') };
-  if(!groups.length) return `<div class="fsc"><div class="fsc-h">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<small>${d.hint}</small>`:''}</div></div><div class="fsc-empty">No results yet</div></div>`;
-  const [lead, ...rest] = groups;
+  const names = (g, max) => { const n = g.rows.map(r=>esc(statPlayer(r.id).name)); return n.length>max ? n.slice(0,max).join(', ') + ` +${n.length-max} more` : n.join(', ') };
   return `<div class="fsc">
     <div class="fsc-h">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<small>${d.hint}</small>`:''}</div></div>
-    <div class="fsc-lead"><div class="fsc-who">${names(lead, 3)}${lead.rows.length>1?`<small>Shared 1st</small>`:''}</div><div class="fsc-val">${fmt(lead.v)}<small>${d.unit||''}</small></div></div>
-    ${rest.map(g=>`<div class="fsc-row"><span class="fsc-rk">${g.rk}</span><span class="fsc-nm">${names(g, 2)}</span><b>${fmt(g.v)}</b></div>`).join('')}
+    ${groups.length ? groups.map(g=>`<div class="fsc-row ${g.rk===1?'top':''}"><span class="fsc-rk">${g.rk}</span><span class="fsc-nm">${names(g, g.rk===1?3:2)}</span><b>${fmt(g.v)}</b></div>`).join('') : '<div class="fsc-empty">No results yet</div>'}
   </div>`;
 }
 function fbStats(tid){
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
   const S = statsSummary(t); if(!S){ toast('No stats to export yet', true); return }
   const {matches, rows, goals, draws, biggestAll, highestAll, maxMargin, maxGoals, defs, unbeaten} = S;
-  const recBlock = (list, label) => `<div class="fsr"><div class="fsr-h">${label}${list.length>1?` <span>${list.length} matches</span>`:''}</div>${list.slice(0,3).map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</span></div>`).join('')}${list.length>3?`<div class="fsr-more">+${list.length-3} more matches with the same record</div>`:''}</div>`;
+  const recBlock = (list, label, unit) => `<div class="fsr"><div class="fsr-h"><b>${label}</b><span>${unit}${list.length>1?` · ${list.length} matches`:''}</span></div>${list.slice(0,4).map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(statPlayer(m.a).name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(statPlayer(m.b).name)}</span></div>`).join('')}${list.length>4?`<div class="fsr-more">+${list.length-4} more with the same record</div>`:''}</div>`;
   const nums = `<div class="fsn">
       <div><span>Matches</span><b>${matches.length}</b></div>
       <div><span>Goals</span><b>${goals}</b></div>
       <div><span>Per match</span><b>${(Math.round(goals/matches.length*10)/10).toFixed(1)}</b></div>
       <div><span>Draws</span><b>${draws}</b></div>
     </div>`;
-  const unb = `<div class="fsr"><div class="fsr-h">Still unbeaten${defs.minNote?` <span>${defs.minNote.toLowerCase()}</span>`:''}</div><div class="fb-unb">${unbeaten.length ? unbeaten.slice(0,8).map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') + (unbeaten.length>8?`<span>+${unbeaten.length-8} more</span>`:'') : '<span>Nobody yet</span>'}</div></div>`;
-  const p1 = fbSheet(t, t.name, `Tournament stats · Overview · ${matches.length} matches`, nums + recBlock(biggestAll, `Biggest win · ${maxMargin} goal margin`) + recBlock(highestAll, `Highest-scoring match · ${maxGoals} goals`) + unb, 1, 2);
-  const p2 = fbSheet(t, t.name, `Tournament stats · Leaders`, `<div class="fsg">${defs.list.map(d=>fbStatCard(d, rows)).join('')}</div>`, 2, 2);
+  const unb = `<div class="fsr"><div class="fsr-h"><b>Still unbeaten</b><span>${defs.minNote ? defs.minNote.toLowerCase() : 'no defeats'}</span></div><div class="fb-unb">${unbeaten.length ? unbeaten.slice(0,10).map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') + (unbeaten.length>10?`<span>+${unbeaten.length-10} more</span>`:'') : '<span>Nobody yet</span>'}</div></div>`;
+  const p1 = fbSheet(t, t.name, `Tournament stats · ${matches.length} matches played`, nums + `<div class="fsg">${defs.list.map(d=>fbStatCard(d, rows)).join('')}</div>`, 1, 2);
+  const p2 = fbSheet(t, t.name, `Tournament stats · Match records`, recBlock(biggestAll, 'Biggest win', `${maxMargin} goal margin`) + recBlock(highestAll, 'Highest-scoring match', `${maxGoals} goals`) + unb, 2, 2);
   EXPORT_CTX.zPerPage = true;
   return renderSheets([p1, p2], FB.w, `${slug(t.name)}_stats`);
 }
