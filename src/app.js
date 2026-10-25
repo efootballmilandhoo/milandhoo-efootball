@@ -4263,22 +4263,24 @@ function h2hVsBody(D){
   const r = D.res, n = D.matches.length;
   if(!n) return `<div class="st-empty">No results between these two players yet in live or completed tournaments.</div>`;
   return `<div class="h2h-chips"><span><b>${n}</b>Matches</span><span><b>${r.d}</b>Draws</span>${D.ties.length?`<span><b>${D.ties.length}</b>Knockout ties</span>`:''}</div>
+    <div class="h2h-bars">
     ${h2hBar('Wins', r.aw, r.bw)}
     ${h2hBar('Win rate', r.awp, r.bwp, v=>v+'%')}
     ${h2hBar('Goals scored', r.agf, r.bgf)}
     ${h2hBar('Goals per match', r.agf/n, r.bgf/n, v=>(Math.round(v*10)/10).toFixed(1))}
     ${h2hBar('Clean sheets', r.acs, r.bcs)}
-    ${D.ties.length ? h2hBar('Knockout ties won', D.koA, D.koB) : ''}
+    ${D.ties.length ? h2hBar('Knockout ties won', D.koA, D.koB) : h2hBar('Draws', r.d, r.d)}
+    </div>
     <div class="h2h-best">
       <div><span>${esc(D.na)} · biggest win</span><b>${D.bestA ? `${D.bestA.ga}–${D.bestA.gb}` : '–'}</b><small>${D.bestA ? esc(D.bestA.t.name) : 'No wins yet'}</small></div>
       <div class="r"><span>${esc(D.nb)} · biggest win</span><b>${D.bestB ? `${D.bestB.gb}–${D.bestB.ga}` : '–'}</b><small>${D.bestB ? esc(D.bestB.t.name) : 'No wins yet'}</small></div>
     </div>`;
 }
 function h2hCareerBody(D){
-  return `${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
+  return `<div class="h2h-bars">${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
     ${h2hBar('Runner-up', D.sa.tourneyRunnerUp, D.sb.tourneyRunnerUp)}
     ${h2hRankRow(D.rankA, D.rankB)}
-    ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}`;
+    ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}</div>`;
 }
 /* Leaderboard position: the better (lower) rank is highlighted. */
 function h2hRankRow(a, b){
@@ -4296,6 +4298,7 @@ function renderH2H(){
   const pct = v => v + '%';
   const winPct = s => Math.round(parseFloat(s?.winPct||0));
   main.innerHTML = `
+    <div class="h2h-top"><span class="page-sub">Compare two players across all live and completed tournaments</span><button type="button" class="export-btn" onclick="exportH2H()">${ICON_DL} Export</button></div>
     <section class="card h2h-pick">
       ${h2hPicker('a', 'Player', pa)}
       <button type="button" class="btn btn-secondary btn-icon h2h-swap" onclick="swapH2H()" aria-label="Swap players" title="Swap players">${H2H_SWAP}</button>
@@ -4312,20 +4315,17 @@ function renderH2H(){
       <div class="h2h-side">${renderAvatar(pb, 84)}<b>${esc(pb.name)}</b><span>Leaderboard #${D.rankB}</span></div>
     </section>
 
-    <div class="grid grid-2 h2h-grid">
-      <section class="card h2h-card">
-        <div class="h2h-card-h">${statIco('h2hvs','blue')}<b>Against each other</b></div>
-        ${h2hVsBody(D)}
-      </section>
-      <section class="card h2h-card">
-        <div class="h2h-card-h">${statIco('wins','gold')}<b>Career comparison</b></div>
-        ${h2hCareerBody(D)}
-      </section>
-    </div>
+    <section class="card h2h-card">
+      <div class="h2h-card-h">${statIco('h2hvs','blue')}<b>Against each other</b></div>
+      ${h2hVsBody(D)}
+    </section>
+    <section class="card h2h-card">
+      <div class="h2h-card-h">${statIco('wins','gold')}<b>Career comparison</b></div>
+      ${h2hCareerBody(D)}
+    </section>
 
     <section class="card h2h-card">
-      <div class="h2h-card-h" style="justify-content:space-between"><span class="flex gap-8" style="align-items:center">${statIco('matches','purple')}<b>Match results</b></span>
-        <button type="button" class="export-btn" onclick="exportH2H()">${ICON_DL} Export</button></div>
+      <div class="h2h-card-h">${statIco('matches','purple')}<b>Match results</b></div>
       ${n ? `<div class="h2h-list">${D.matches.map(m=>`<div class="h2h-m">
           <span class="h2h-res ${m.ga>m.gb?'win':m.ga<m.gb?'loss':'draw'}">${m.ga>m.gb?'W':m.ga<m.gb?'L':'D'}</span>
           <span class="h2h-m-a ${m.ga>m.gb?'w':''}">${esc(pa.name)}</span>
