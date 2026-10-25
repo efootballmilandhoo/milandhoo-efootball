@@ -1373,6 +1373,7 @@ function exportAsJPEG(elementId, filename){
     return exportGenericSheet(el, t, playerName(pid), `${esc(t?.name||'')} · Fixtures &amp; results`, filename);
   }
   if(elementId==='leaderboardExport') return exportLeaderboardSheet();
+  if(t && elementId==='statsExport') return exportGenericSheet(el, t, t.name, `Tournament stats · ${fmtDate(new Date())}`, filename);
   return exportLeaderboardSheet();
 }
 
@@ -1922,16 +1923,29 @@ function renderTournamentCards(list){
       : `<div class="champ-box" style="background:var(--surface-2)"><span class="stat-icon tint-blue" style="width:36px;height:36px;border-radius:10px">${ICON.calendar}</span><div style="min-width:0"><small style="color:var(--muted)">${t.status==='completed'?'COMPLETED':'STARTS'}</small><b style="font-size:18px">${fmtDateTime(t.startDateTime||t.date)}</b></div></div>`;
     return `
     <button type="button" class="t-card" onclick="navigate('tournament-detail','${t.id}')">
-      <div class="t-card-head" style="background:${tColor(t)}">
-        ${t.logo ? tournamentLogo(t, 76, 'on-color') : `<span class="t-card-code">${esc(tCode(t))}</span>`}
-        ${statusBadge(t.status)}
-      </div>
+      ${tCardHead(t)}
       <div class="t-card-body">
         <div><div class="t-card-name">${esc(t.name)}</div><div class="t-card-meta">${formatLabel(t.format)}${t.prize?.champion?` · Prize ${esc(t.prize.champion)}`:''}</div></div>
         ${champ}
         <div class="t-card-foot"><span>${n} player${n===1?'':'s'}</span><b>View ${t.status==='completed'?'results':'tournament'} →</b></div>
       </div>
     </button>`}).join('');
+}
+
+/* Card header: navy with a soft glow in the status colour and faint pitch lines; live tournaments show progress. */
+function tCardHead(t){
+  const fx = t.fixtures||[], ko = (t.knockoutBracket||[]).flat().filter(m=>m && !m.isBye && m.team1 && m.team2);
+  const total = fx.length + ko.length, played = fx.filter(f=>hasScore(f.score1)&&hasScore(f.score2)).length + ko.filter(m=>m.winner).length;
+  const stage = t.status==='active' ? (t.format==='single_elimination' || t.knockoutDrawn ? 'Knockout stage' : t.format==='league' ? 'League' : 'Group stage') : t.status==='open' ? 'Registration open' : t.status==='completed' ? 'Finished' : 'Draft';
+  return `<div class="t-card-head st-${esc(t.status)}">
+    <svg class="t-card-pitch" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-opacity=".07" stroke-width="2"><rect x="200" y="-20" width="260" height="180" rx="4"/><circle cx="200" cy="70" r="46"/><path d="M200 -20v180"/><rect x="380" y="25" width="60" height="90"/></g></svg>
+    ${t.logo ? tournamentLogo(t, 76, 'on-color') : `<span class="t-card-code">${esc(tCode(t))}</span>`}
+    <div class="t-card-side">
+      ${t.status==='active' ? `<span class="t-live"><i></i>Live</span>` : statusBadge(t.status)}
+      <span class="t-card-stage">${stage}</span>
+    </div>
+    ${t.status==='active' && total ? `<div class="t-card-prog" title="${played} of ${total} matches played"><i style="width:${Math.round(played/total*100)}%"></i></div>` : ''}
+  </div>`;
 }
 
 function filterTournaments(status){
@@ -2149,6 +2163,7 @@ function availableTabs(t){
   const tabs = [['tab-overview','Overview'],['tab-rules','Rules'],['tab-registration',`Players (${(t.registrations||[]).length})`]];
   if(hasStandings) tabs.push(['tab-standings', t.format==='league'?'Table':'Standings'], ['tab-fixtures','Fixtures']);
   if(hasKO) tabs.push(['tab-knockout','Knockout']);
+  if((t.fixtures||[]).length || t.knockoutDrawn) tabs.push(['tab-stats','Stats']);
   tabs.push(['tab-player','Player View']);
   return tabs;
 }
@@ -2223,6 +2238,7 @@ function renderTabPanel(t, tabId){
   if(tabId==='tab-fixtures') return renderAllFixturesTab(t, admin, canEditScores);
   if(tabId==='tab-knockout') return renderKnockoutTab(t, admin, canEditScores);
   if(tabId==='tab-player') return renderPlayerViewTab(t);
+  if(tabId==='tab-stats') return renderStatsTab(t);
   return '';
 }
 
@@ -2589,7 +2605,7 @@ function standingsTable(t, g, highlightN){
             const p = STORE.players.find(x=>x.id===row.playerId) || {name:'Unknown player'};
             const gd = row.gf-row.ga, q = i<highlightN;
             return `<tr class="${q?'qualify':'out'} ${i===highlightN && i>0?'cut':''}">
-              <td>${i+1}</td>
+              <td><span class="pos">${i+1}</span></td>
               <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${esc(p.name)}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
               <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>
               <td>${row.gf}</td><td>${row.ga}</td><td style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
@@ -2652,7 +2668,7 @@ function fixtureRows(t, admin, canEdit){
       <td class="t-center"><span class="result-pill ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span></td>
       <td><span class="who" style="${done&&f.score2>f.score1?'color:var(--primary-dark)':''}">${renderAvatar(p2,30)}${esc(p2.name)}</span></td>
       <td class="t-right">${done ? `<span class="badge badge-completed">${f.autoDraw?'Auto 0-0':'Completed'}</span>` : `<span class="badge badge-pending">Pending</span>`}</td>
-      ${admin && canEdit ? `<td class="t-right no-export"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button></td>`:''}
+      ${admin && canEdit ? `<td class="t-right no-export"><span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span></td>`:''}
     </tr>`;
   }).join('');
 }
@@ -2686,6 +2702,110 @@ function renderAllFixturesTab(t, admin, canEditScores){
     </section>`;
 }
 
+/* =========================
+   TOURNAMENT STATS
+   Built from every result entered: group/league fixtures plus each knockout leg, game and tie-breaker match.
+   ========================= */
+function tournamentMatches(t){
+  const out = [];
+  (t.fixtures||[]).forEach(f=>{ if(hasScore(f.score1) && hasScore(f.score2)) out.push({a:f.team1, b:f.team2, ga:+f.score1, gb:+f.score2, stage: t.format==='league' ? `Matchday ${f.matchday}` : `Group ${f.group} · MD ${f.matchday}`}) });
+  (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
+    if(!m || m.isBye || !m.team1 || !m.team2) return;
+    const labels = koLegLabels(t.knockoutFormat);
+    koLegs(t, m).forEach((l,i)=>{ if(hasScore(l[0]) && hasScore(l[1])) out.push({a:m.team1, b:m.team2, ga:+l[0], gb:+l[1], stage: `${m.round||'Knockout'}${labels[i]?' · '+labels[i]:''}`}) });
+    if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) out.push({a:m.team1, b:m.team2, ga:+m.tb.a, gb:+m.tb.b, stage:`${m.round||'Knockout'} · Tie-breaker`});
+  }));
+  return out;
+}
+function tournamentStats(t){
+  const matches = tournamentMatches(t);
+  const S = {};
+  const row = id => S[id] = S[id] || {id, p:0, w:0, d:0, l:0, gf:0, ga:0, cs:0, blank:0, form:[]};
+  (t.registrations||[]).forEach(r=>row(r.playerId));
+  matches.forEach(m=>{
+    [[m.a,m.ga,m.gb],[m.b,m.gb,m.ga]].forEach(([id,f,a])=>{
+      const r = row(id); r.p++; r.gf+=f; r.ga+=a;
+      if(f>a) r.w++; else if(f<a) r.l++; else r.d++;
+      if(a===0) r.cs++; if(f===0) r.blank++;
+    });
+  });
+  const rows = Object.values(S).map(r=>({...r, gd:r.gf-r.ga, gpg:r.p ? r.gf/r.p : 0, cpg:r.p ? r.ga/r.p : 0, pts:r.w*3+r.d}));
+  return {matches, rows};
+}
+function statPlayer(id){ return STORE.players.find(p=>p.id===id) || {name: playerName(id)} }
+/* A ranked list with shared positions: equal values share the place. */
+function statRank(rows, val, desc=true){
+  const list = rows.slice().sort((a,b)=> desc ? val(b)-val(a) : val(a)-val(b));
+  list.forEach((r,i)=>{ r._v = val(r); r._rk = i && r._v===list[i-1]._v ? list[i-1]._rk : i+1 });
+  return list;
+}
+function statCard({icon, tint, title, hint, rows, val, desc=true, fmt=v=>v, unit='', min=0}){
+  const pool = rows.filter(r=>r.p>0 && r.p>=min);
+  if(!pool.length) return `<div class="st-card"><div class="st-head"><span class="stat-icon ${tint}">${ICON[icon]||''}</span><div><b>${title}</b>${hint?`<span>${hint}</span>`:''}</div></div><div class="st-empty">No results yet</div></div>`;
+  const list = statRank(pool, val, desc);
+  const lead = list.filter(r=>r._rk===1);
+  const rest = list.filter(r=>r._rk>1).slice(0,4);
+  return `<div class="st-card">
+    <div class="st-head"><span class="stat-icon ${tint}">${ICON[icon]||''}</span><div><b>${title}</b>${hint?`<span>${hint}</span>`:''}</div></div>
+    <div class="st-lead">
+      <div class="st-lead-who">${lead.slice(0,3).map(r=>renderAvatar(statPlayer(r.id), 40)).join('')}<div class="st-lead-names">${lead.map(r=>esc(statPlayer(r.id).name)).join(', ')}${lead.length>1?`<small>Shared · ${lead.length} players</small>`:''}</div></div>
+      <div class="st-lead-val">${fmt(lead[0]._v)}${unit?`<small>${unit}</small>`:''}</div>
+    </div>
+    ${rest.length ? `<ol class="st-list">${rest.map(r=>`<li><span class="st-rk">${r._rk}</span>${renderAvatar(statPlayer(r.id), 24)}<span class="st-nm">${esc(statPlayer(r.id).name)}</span><b>${fmt(r._v)}</b></li>`).join('')}</ol>` : ''}
+  </div>`;
+}
+function matchLine(m, label){
+  const pa = statPlayer(m.a), pb = statPlayer(m.b);
+  return `<div class="st-match"><span class="st-match-label">${label}</span>
+    <div class="st-match-row"><span class="who right ${m.ga>m.gb?'win':''}">${esc(pa.name)}${renderAvatar(pa, 28)}</span><span class="result-pill">${m.ga} – ${m.gb}</span><span class="who ${m.gb>m.ga?'win':''}">${renderAvatar(pb, 28)}${esc(pb.name)}</span></div>
+    <span class="st-match-stage">${esc(m.stage)}</span></div>`;
+}
+function renderStatsTab(t){
+  const {matches, rows} = tournamentStats(t);
+  if(!matches.length) return `<div class="card empty"><div class="empty-title">No stats yet</div><div class="text-sm">Stats appear here as soon as the first result is entered.</div></div>`;
+  const goals = matches.reduce((s,m)=>s+m.ga+m.gb,0);
+  const draws = matches.filter(m=>m.ga===m.gb).length;
+  const maxP = Math.max(...rows.map(r=>r.p));
+  const min = Math.max(1, Math.ceil(maxP/2));
+  const minNote = min>1 ? `Players with ${min}+ matches` : '';
+  const biggest = matches.slice().sort((x,y)=> Math.abs(y.ga-y.gb)-Math.abs(x.ga-x.gb) || (y.ga+y.gb)-(x.ga+x.gb))[0];
+  // Highest-scoring match: prefer a different match from the biggest win when one has as many goals.
+  const byGoals = matches.slice().sort((x,y)=> (y.ga+y.gb)-(x.ga+x.gb) || Math.abs(x.ga-x.gb)-Math.abs(y.ga-y.gb));
+  const highest = byGoals.find(m=>m!==biggest && m.ga+m.gb===byGoals[0].ga+byGoals[0].gb) || byGoals[0];
+  const unbeaten = rows.filter(r=>r.p>=min && r.l===0).sort((a,b)=>b.p-a.p || b.w-a.w);
+  const dec1 = v => (Math.round(v*10)/10).toFixed(1);
+  const sgn = v => (v>0?'+':'') + v;
+  return `
+  <section id="statsExport" class="export-container st-wrap" aria-label="Tournament stats">
+    <div class="grid grid-4">
+      ${statTile('ball','tint-blue','Matches played', matches.length)}
+      ${statTile('goal','tint-green','Goals scored', goals)}
+      ${statTile('clock','tint-purple','Goals per match', dec1(goals/matches.length))}
+      ${statTile('check','tint-orange','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
+    </div>
+    <div class="st-grid">
+      ${statCard({icon:'goal', tint:'tint-green', title:'Most goals scored', rows, val:r=>r.gf, unit:'goals'})}
+      ${statCard({icon:'check', tint:'tint-blue', title:'Fewest goals conceded', hint:minNote, rows, val:r=>r.ga, desc:false, unit:'conceded', min})}
+      ${statCard({icon:'trophy', tint:'tint-gold', title:'Best goal difference', rows, val:r=>r.gd, fmt:sgn})}
+      ${statCard({icon:'alarm', tint:'tint-orange', title:'Most goals conceded', rows, val:r=>r.ga, unit:'conceded'})}
+      ${statCard({icon:'users', tint:'tint-purple', title:'Most wins', rows, val:r=>r.w, unit:'wins'})}
+      ${statCard({icon:'check', tint:'tint-green', title:'Most clean sheets', hint:'Matches without conceding', rows, val:r=>r.cs, unit:'clean sheets'})}
+      ${statCard({icon:'ball', tint:'tint-blue', title:'Goals per match', hint:minNote, rows, val:r=>r.gpg, fmt:dec1, unit:'per match', min})}
+      ${statCard({icon:'clock', tint:'tint-orange', title:'Most draws', rows, val:r=>r.d, unit:'draws'})}
+    </div>
+    <div class="st-grid st-grid-2">
+      <div class="st-card"><div class="st-head"><span class="stat-icon tint-gold">${ICON.trophy}</span><div><b>Match records</b></div></div>
+        ${matchLine(biggest, `Biggest win · ${Math.abs(biggest.ga-biggest.gb)} goal margin`)}
+        ${highest!==biggest ? matchLine(highest, `Highest-scoring match · ${highest.ga+highest.gb} goals`) : ''}
+      </div>
+      <div class="st-card"><div class="st-head"><span class="stat-icon tint-green">${ICON.check}</span><div><b>Still unbeaten</b><span>${minNote || 'No defeats so far'}</span></div></div>
+        ${unbeaten.length ? `<ol class="st-list">${unbeaten.slice(0,8).map(r=>`<li>${renderAvatar(statPlayer(r.id), 24)}<span class="st-nm">${esc(statPlayer(r.id).name)}</span><span class="st-wdl">${r.w}W ${r.d}D</span></li>`).join('')}</ol>` : '<div class="st-empty">Everyone has lost at least once.</div>'}
+      </div>
+    </div>
+    <div class="section-foot no-export" style="justify-content:flex-end"><button type="button" class="export-btn" onclick="exportAsJPEG('statsExport','${slug(t.name)}_stats')">${ICON_DL} Export stats</button></div>
+  </section>`;
+}
+
 function editFixtureScore(tid, fid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
@@ -2706,7 +2826,25 @@ function editFixtureScore(tid, fid){
       <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="saveFixtureScore('${tid}','${fid}')">Save</button>
     </div>`);
-  setTimeout(()=>document.getElementById('fs_score1')?.focus(), 50);
+  enterSaves(()=>saveFixtureScore(tid, fid));
+  setTimeout(()=>{ const a = document.getElementById('fs_score1'); a?.focus(); a?.select() }, 50);
+}
+/* Pressing Enter in a modal's inputs runs its Save action. */
+function enterSaves(fn){
+  const m = document.querySelector('#modal .modal'); if(!m) return;
+  m.addEventListener('keydown', e=>{
+    if(e.key!=='Enter' || e.isComposing || e.shiftKey) return;
+    if(!(e.target instanceof HTMLInputElement)) return;
+    e.preventDefault(); fn();
+  });
+}
+const ICON_CLEAR = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+async function clearFixtureResult(tid, fid){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  const t = STORE.tournaments.find(x=>x.id===tid), f = t?.fixtures?.find(x=>x.id===fid); if(!f) return;
+  const ok = await confirmDialog('Clear result', `Clear the ${f.score1}–${f.score2} result of ${playerName(f.team1)} vs ${playerName(f.team2)}? The match goes back to pending and the standings update.`, 'Clear result');
+  if(!ok) return;
+  saveFixtureScore(tid, fid, true);
 }
 
 function readScore(id){ const v = document.getElementById(id)?.value; if(v===undefined || v==='') return null; const n = parseInt(v,10); return Number.isFinite(n) && n>=0 ? n : NaN }
@@ -2877,6 +3015,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
       <button type="button" class="btn btn-primary" onclick="saveKnockoutMatch('${tid}',${roundIdx},'${matchId}')">Save result</button>
     </div>`);
   koPreview(tid, roundIdx, matchId);
+  enterSaves(()=>saveKnockoutMatch(tid, roundIdx, matchId));
 }
 
 function koReadInputs(fmt){

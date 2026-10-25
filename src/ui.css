@@ -469,3 +469,74 @@
     .msg-row{grid-template-columns:34px minmax(0,1fr)}
     .msg-acts{grid-column:1 / -1;justify-content:flex-start}
   }
+
+  /* Standings position: a small badge (qualifying places in blue). The left bar is a background,
+     not an inset shadow, because iPhone Safari fills the whole cell with an inset shadow on table cells. */
+  .group-table tr.qualify td:first-child, .qualify td:first-child{box-shadow:none !important;background:linear-gradient(var(--primary),var(--primary)) left center / 4px 100% no-repeat, #F2F6FF}
+  .group-table .pos{display:inline-block;min-width:24px;height:24px;line-height:24px;padding:0 4px;border-radius:7px;text-align:center;font-weight:800;font-size:12px;background:var(--surface-3);color:var(--text-2)}
+  .group-table tr.qualify .pos{background:var(--primary);color:#FFFFFF}
+
+  /* ---------- Fixture row actions ---------- */
+  .fx-acts{display:inline-flex;align-items:center;gap:4px;justify-content:flex-end}
+  .fx-clear{color:var(--danger-ink);padding:0 8px}
+  .fx-clear:hover{background:var(--danger-tint)}
+
+  /* ---------- Tournament card header ---------- */
+  .t-card-head{position:relative;overflow:hidden;height:124px;align-items:flex-end;background:linear-gradient(135deg,#0B1B3F 0%,#132E66 100%) !important;color:#FFFFFF}
+  .t-card-head::before{content:"";position:absolute;inset:0;background:radial-gradient(90% 120% at 100% 0%,var(--glow,rgba(61,139,255,.55)) 0%,transparent 60%);pointer-events:none}
+  .t-card-head.st-active{--glow:rgba(61,139,255,.6)}
+  .t-card-head.st-open{--glow:rgba(245,180,0,.45)}
+  .t-card-head.st-completed{--glow:rgba(245,180,0,.3)}
+  .t-card-head.st-draft{--glow:rgba(160,170,190,.35)}
+  .t-card-pitch{position:absolute;inset:0;width:100%;height:100%}
+  .t-card-head > *:not(.t-card-pitch){position:relative}
+  .t-card-head .t-logo{box-shadow:0 8px 20px -6px rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.18)}
+  .t-card-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;margin-left:auto}
+  .t-card-stage{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--on-navy-muted)}
+  .t-live{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);font-size:12px;font-weight:700;color:#FFFFFF}
+  .t-live i{width:7px;height:7px;border-radius:50%;background:var(--live-dot);box-shadow:0 0 0 3px rgba(124,240,178,.25);animation:livePulse 1.6s ease-in-out infinite}
+  @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .t-card-prog{position:absolute !important;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.12)}
+  .t-card-prog i{display:block;height:100%;background:linear-gradient(90deg,#3D8BFF,#7CF0B2)}
+
+  /* ---------- Stats tab ---------- */
+  .st-wrap{display:flex;flex-direction:column;gap:16px}
+  .st-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
+  .st-grid-2{grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))}
+  .st-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow-1);min-width:0}
+  .st-head{display:flex;align-items:center;gap:10px}
+  .st-head .stat-icon{width:36px;height:36px;border-radius:10px;flex:none}
+  .st-head .stat-icon svg{width:18px;height:18px}
+  .st-head b{display:block;font-size:15px;color:var(--ink)}
+  .st-head span{font-size:12px;color:var(--muted)}
+  .st-lead{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--divider)}
+  .st-lead-who{display:flex;align-items:center;gap:10px;min-width:0}
+  .st-lead-who > .player-avatar{flex:none;box-shadow:0 0 0 2px var(--surface)}
+  .st-lead-who > .player-avatar + .player-avatar{margin-left:-18px}
+  .st-lead-names{font-weight:700;color:var(--ink);font-size:14px;line-height:1.3;min-width:0;overflow-wrap:anywhere}
+  .st-lead-names small{display:block;font-size:11px;font-weight:600;color:var(--muted)}
+  .st-lead-val{font-family:var(--font-display);font-weight:800;font-size:34px;line-height:1;color:var(--ink);text-align:right;white-space:nowrap}
+  .st-lead-val small{display:block;font-family:var(--font-body);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+  .st-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+  .st-list li{display:flex;align-items:center;gap:10px;padding:7px 2px;border-top:1px solid var(--divider);font-size:13px}
+  .st-list li:first-child{border-top:0}
+  .st-rk{width:20px;text-align:center;font-weight:800;color:var(--muted);font-size:12px}
+  .st-nm{flex:1;min-width:0;font-weight:600;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .st-list b{font-weight:800;color:var(--ink)}
+  .st-wdl{font-size:12px;font-weight:700;color:var(--success-ink)}
+  .st-empty{font-size:13px;color:var(--muted);padding:6px 0}
+  .st-match{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;background:var(--surface-2);border:1px solid var(--divider)}
+  .st-match-label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .st-match-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:10px}
+  .st-match-row .who{font-size:14px;min-width:0}
+  .st-match-row .who.win{color:var(--primary-dark)}
+  .st-match-stage{font-size:12px;color:var(--muted);text-align:center}
+  @media(max-width:560px){.st-lead-val{font-size:28px}.st-match-row .who{font-size:13px;gap:6px}.st-match-row .player-avatar{display:none}}
+  /* Phone fixtures: Edit fills the row, Clear sits beside it */
+  @media(max-width:600px){
+    #main .fx-table td:nth-child(6) .fx-acts{display:flex;width:100%;gap:8px}
+    #main .fx-table td:nth-child(6) .fx-acts .btn{flex:1;white-space:nowrap}
+    #main .fx-table td:nth-child(6) .fx-acts .fx-clear{flex:0 0 auto;width:auto;padding:0 14px;color:var(--danger-ink)}
+  }
+  .fx-acts .btn{white-space:nowrap}
+  .t-actions .btn{white-space:nowrap}
