@@ -283,7 +283,7 @@ function routeTo(hash){
   if(!h || /access_token|type=|error=/.test(h)) { if(h) history.replaceState(null, '', location.pathname); return }
   const m = h.match(/^t=([A-Za-z0-9_\-.~:@+]{1,120})$/);
   if(m && STORE.tournaments.some(t=>t.id===m[1])) navigate('tournament-detail', m[1]);
-  else if(['halloffame','players','leaderboard','tournaments','admin','dashboard'].includes(h)) navigate(h);
+  else if(['halloffame','players','leaderboard','tournaments','admin','dashboard','h2h'].includes(h)) navigate(h);
   else if(h==='reset') navigate('admin');
   history.replaceState(null, '', location.pathname);
 }
@@ -508,7 +508,7 @@ async function renderFbSheets(pages, width, base, format, ready){
   if(typeof html2canvas !== 'function'){ toast('Export is unavailable right now. Check your connection and try again.', true); return }
   if(pdfReady && !(await pdfReady)){ toast('PDF export is unavailable right now. Check your connection and try again.', true); return }
   toast(pages.length>1 ? `Generating ${pages.length} Facebook images…` : 'Generating Facebook image…');
-  const designed = EXPORT_CTX.fb;
+  const designed = EXPORT_CTX.fb || pages.every(h=>String(h).includes('class="fbp"'));
   const built = pages.map(html=>buildSheet(html, designed ? FB.w : width));
   if(designed) built.forEach(b=>b.sheet.classList.add('fb'));
   const S = 2, FW = FB.w*S, FH = FB.h*S;
@@ -594,9 +594,9 @@ function fbStandings(t){
   const dl = t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
   const page = (g, rows, i, n) => fbSheet(t, t.name, `${isLeague?'League table':`Group ${esc(g.name)} standings`} · ${fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
       <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
-      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
+      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
       </tbody></table></div>
-      <div class="fb-legend">${fbPos('', true)} ${isLeague ? 'League leader' : `Top ${q} go through to the knockouts`} · GA = goals conceded</div>`, 1, 1);
+      <div class="fb-legend"><span class="fb-q">Q</span> ${isLeague ? 'League leader' : `Qualified · top ${q} go through to the knockouts`} · GA = goals conceded</div>`, 1, 1);
   // One page per group (a long league table continues on a second page).
   const pages = [];
   groups.forEach(g=>{
@@ -679,8 +679,8 @@ function fbParticipants(tid){
 function fbLeaderboard(){
   const all = rankPlayers(calculateAllStats());
   const page = (part, i, n) => fbSheet(null, 'Community Leaderboard', `All-time ranking by total points · ${fmtDate(new Date())}`,
-    `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>Win %</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
-      ${part.map(x=>`<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${Math.round(parseFloat(x.s.winPct))}%</td><td>${x.s.tourneyWins||'–'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>`).join('')}
+    `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
+      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td>${x.s.gf}</td><td>${x.s.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
     <div class="fb-legend small"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}</div>`, i+1, n);
   return renderSheets(fbPack(all, page, {even:true}), FB.w, 'milandhoo_leaderboard');
@@ -719,7 +719,7 @@ function fbRules(tid, key){
     const lines = ruleLines(stageData(t, sec.key).rules), set = settingsList(t, sec.key);
     const dl = t.rules?.roundDeadlines || {}, rounds = sec.key==='ko' ? koDeadlineRounds(t).filter(x=>dl[x]) : [];
     const rulesHTML = (list, start=1) => list.length ? `<div class="fb-sec"><h3>Rules</h3><ol class="fb-rules" style="counter-reset:fbr ${start-1}">${list.map(l=>`<li>${esc(l)}</li>`).join('')}</ol></div>` : '';
-    const setHTML = set.length ? `<div class="fb-sec"><h3>Match settings</h3><div class="fb-set">${set.map(x=>`<div><span>${esc(x.label)}</span><b class="${String(x.value).length>12?'long':''}">${esc(x.value)}</b></div>`).join('')}</div></div>` : '';
+    const setHTML = set.length ? `<div class="fb-sec"><h3>Match settings</h3><div class="fb-set">${set.map(x=>`<div><span>${esc(x.label)}</span><b>${esc(x.value)}</b></div>`).join('')}</div></div>` : '';
     const dlHTML = rounds.length ? `<div class="fb-sec"><h3>Round deadlines</h3><div class="fb-set dl">${rounds.map(x=>`<div><span>${esc(x)}</span><b>${fmtShort(dl[x])}</b></div>`).join('')}</div></div>` : '';
     const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>Deadline <b>${fmtDateTime(t.groupDeadline)}</b></span></div>` : '';
     const all = groupDl + rulesHTML(lines) + setHTML + dlHTML;
@@ -757,9 +757,9 @@ function fbStats(tid){
     `<div class="fb-rec"><div class="fb-rec-h">Still unbeaten${defs.minNote?` · ${defs.minNote.toLowerCase()}`:''}</div><div class="fb-unb">${unbeaten.length ? unbeaten.map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') : '<span>Nobody, everyone has lost at least once</span>'}</div></div>`
   ];
   const overview = fbPack(items, (set, i, n)=>fbSheet(t, t.name, `Tournament stats · Overview · ${matches.length} matches`, set.join(''), i+1, n));
-  const leaders = fbSheet(t, t.name, `Tournament stats · Leaders · ${matches.length} matches`, `<div class="fb-stgrid">${defs.list.map(d=>statCard(d, rows, {maxPos:3, maxNames:8})).join('')}</div>`, 1, 1);
+  const leaders = chunk(defs.list, 3).map(set=>fbSheet(t, t.name, `Tournament stats · Leaders · ${matches.length} matches`, `<div class="fb-stgrid one">${set.map(d=>statCard(d, rows, {maxPos:3, maxNames:6})).join('')}</div>`, 1, 1));
   EXPORT_CTX.zPerPage = true;
-  return renderSheets(fbRenumber([...overview, leaders]), FB.w, `${slug(t.name)}_stats`);
+  return renderSheets(fbRenumber([...overview, ...leaders]), FB.w, `${slug(t.name)}_stats`);
 }
 
 /* Standard player-fixtures export (a copy of the Player View card), kept as its own function so it has a Facebook layout too. */
@@ -978,11 +978,33 @@ function renderChrome(){
   renderBell();
 }
 
+/* Top-bar search: on the Players page it filters the cards; elsewhere it shows matching players and tournaments. */
 function onGlobalSearch(v){
-  playerQuery = v;
-  if(currentView!=='players'){ navigate('players'); document.getElementById('globalSearch')?.focus() }
-  else renderPlayers();
+  if(currentView==='players'){ playerQuery = v; closeSearchDrop(); renderPlayers(); return }
+  const q = String(v||'').trim().toLowerCase();
+  if(!q){ closeSearchDrop(); return }
+  const ts = visibleTournaments().filter(t=>String(t.name||'').toLowerCase().includes(q)).slice(0,5);
+  const ps = STORE.players.filter(p=>String(p.name||'').toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,6);
+  let d = document.getElementById('searchDrop');
+  if(!d){ d = document.createElement('div'); d.id = 'searchDrop'; d.className = 'search-drop'; d.setAttribute('role','listbox'); document.querySelector('.search-box')?.appendChild(d) }
+  d.innerHTML = (ts.length ? `<div class="sd-h">Tournaments</div>${ts.map(t=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="pickSearch('t','${t.id}')">${t.logo ? tournamentLogo(t, 30) : `<span class="sd-code" style="background:${tColor(t)}">${esc(tCode(t))}</span>`}<span class="sd-txt"><b>${esc(t.name)}</b><small>${esc(STATUS_LABEL[t.status]||t.status)} · ${formatLabel(t.format)}</small></span></button>`).join('')}` : '')
+    + (ps.length ? `<div class="sd-h">Players</div>${ps.map(p=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="pickSearch('p','${p.id}')">${renderAvatar(p, 30)}<span class="sd-txt"><b>${esc(p.name)}</b></span></button>`).join('')}` : '')
+    + (!ts.length && !ps.length ? `<div class="sd-empty">No players or tournaments match “${esc(v)}”</div>` : `<button type="button" class="sd-all" onmousedown="event.preventDefault()" onclick="pickSearch('all')">See all players matching “${esc(v)}”</button>`);
+  d.classList.add('show');
 }
+function closeSearchDrop(){ document.getElementById('searchDrop')?.classList.remove('show') }
+function pickSearch(kind, id){
+  const inp = document.getElementById('globalSearch');
+  closeSearchDrop();
+  if(kind==='t'){ if(inp) inp.value = ''; navigate('tournament-detail', id) }
+  else if(kind==='p'){ playerQuery = STORE.players.find(p=>p.id===id)?.name || ''; if(inp) inp.value = playerQuery; navigate('players') }
+  else { playerQuery = inp?.value || ''; navigate('players') }
+}
+function searchKey(e){
+  if(e.key==='Escape'){ closeSearchDrop(); e.target.blur() }
+  if(e.key==='Enter'){ const first = document.querySelector('#searchDrop.show .sd-item'); if(first){ e.preventDefault(); first.click() } }
+}
+document.addEventListener('click', e=>{ if(!e.target.closest('.search-box')) closeSearchDrop() });
 
 function rerender(){
   if(STORE.mode==='pending') return;
@@ -994,6 +1016,7 @@ function rerender(){
   else if(view==='tournament-detail') renderTournamentDetail(currentTournamentId);
   else if(view==='leaderboard') renderLeaderboard();
   else if(view==='admin') renderAdmin();
+  else if(view==='h2h') renderH2H();
   renderChrome();
 }
 
@@ -1606,18 +1629,18 @@ const CODE_COLORS = ['#1463FF','#B45309','#0B1B3F','#7C3AED','#0F7A4A','#BE185D'
 function tCode(t){ const words = String(t.name||'').split(/\s+/).filter(Boolean); const season = String(t.name||'').match(/season\s*(\d+)/i); if(season) return 'S'+season[1]; const c = words.filter(w=>/^[A-Za-z0-9]/.test(w)).slice(0,2).map(w=>w[0]).join('').toUpperCase(); return c || 'MT' }
 function tColor(t){ return CODE_COLORS[[...String(t.id)].reduce((h,c)=>(h*31+c.charCodeAt(0))%997,0) % CODE_COLORS.length] }
 const ICON = {
-  users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5"/></svg>',
-  trophy:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4zM17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg>',
-  check:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>',
-  clock:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
-  ball:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 5h-5L8 10z"/><path d="M12 3v4M21 10l-5 0M3 10h5M7 20l2.5-5M17 20l-2.5-5"/></svg>',
-  goal:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20V6h18v14M3 10h18M8 6v14M16 6v14"/></svg>',
-  calendar:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
-  alarm:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M5 3L2 6M19 3l3 3"/></svg>',
+  users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.5 14.2a5 5 0 0 1 3 5.3"/></svg>',
+  trophy:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4.5h9v4.5a4.5 4.5 0 0 1-9 0z"/><path d="M7.5 6.5H5a2.5 2.5 0 0 0 2.6 3.5M16.5 6.5H19a2.5 2.5 0 0 1-2.6 3.5M12 13.5v3.5M8.5 20h7M9.5 17h5"/></svg>',
+  check:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.4 2.4 4.6-4.8"/></svg>',
+  clock:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  ball:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m12 7.5 3.6 2.6-1.4 4.2H9.8l-1.4-4.2z"/><path d="M12 3.5v4M20.3 9.3l-4.7.8M3.7 9.3l4.7.8M7.2 19l2.6-4.7M16.8 19l-2.6-4.7"/></svg>',
+  goal:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 19.5V6.5l2.5-2h13l2.5 2v13"/><path d="M3 9h18M7.5 4.5v15M16.5 4.5v15M3 14h18"/></svg>',
+  calendar:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  alarm:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13l2.5 1.5M4.5 4 2.5 6M19.5 4l2 2"/></svg>',
   arrow:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
   plus:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
   phone:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>',
-  image:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="15" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M21 17l-5-5-8 8"/></svg>',
+  image:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14.5" rx="2.5"/><circle cx="9" cy="10.5" r="1.8"/><path d="m20.5 16-4.5-4.5-8.5 8"/></svg>',
   hofEmblem:'<svg width="48" height="48" viewBox="8 6 48 50" aria-hidden="true"><g fill="none" stroke="#FFF7DC" stroke-width="1.8" stroke-linecap="round"><path d="M25.5 52.0A21 21 0 0 1 23.5 12.8"/><path d="M38.5 52.0A21 21 0 0 0 40.5 12.8"/></g><g fill="#FFF7DC"><ellipse cx="42.7" cy="52.0" rx="5.6" ry="2.5" transform="rotate(-180 42.7 52.0)"/><ellipse cx="45.8" cy="41.5" rx="5.3" ry="2.3" transform="rotate(-96 45.8 41.5)"/><ellipse cx="55.1" cy="35.6" rx="4.9" ry="2.2" transform="rotate(-132 55.1 35.6)"/><ellipse cx="50.0" cy="26.9" rx="4.6" ry="2.1" transform="rotate(-48 50.0 26.9)"/><ellipse cx="52.2" cy="16.8" rx="4.3" ry="1.9" transform="rotate(-84 52.2 16.8)"/><ellipse cx="42.3" cy="15.6" rx="3.9" ry="1.8" transform="rotate(0 42.3 15.6)"/><ellipse cx="39.2" cy="9.7" rx="2.2" ry="4.2" transform="rotate(20 39.2 9.7)"/><ellipse cx="21.3" cy="52.0" rx="5.6" ry="2.5" transform="rotate(0 21.3 52.0)"/><ellipse cx="18.2" cy="41.5" rx="5.3" ry="2.3" transform="rotate(-84 18.2 41.5)"/><ellipse cx="8.9" cy="35.6" rx="4.9" ry="2.2" transform="rotate(-48 8.9 35.6)"/><ellipse cx="14.0" cy="26.9" rx="4.6" ry="2.1" transform="rotate(-132 14.0 26.9)"/><ellipse cx="11.8" cy="16.8" rx="4.3" ry="1.9" transform="rotate(-96 11.8 16.8)"/><ellipse cx="21.7" cy="15.6" rx="3.9" ry="1.8" transform="rotate(-180 21.7 15.6)"/><ellipse cx="24.8" cy="9.7" rx="2.2" ry="4.2" transform="rotate(-20 24.8 9.7)"/></g><path d="M32.0 19.5L34.7 26.8L42.5 27.1L36.4 31.9L38.5 39.4L32.0 35.1L25.5 39.4L27.6 31.9L21.5 27.1L29.3 26.8z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round"/><path d="M27 53.5l5-2.6 5 2.6" fill="none" stroke="#FFF7DC" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   cup:'<svg width="36" height="36" viewBox="0 0 64 64" aria-hidden="true"><path d="M17 12H9.5a1.5 1.5 0 0 0-1.5 1.5V18c0 7.2 5.4 12.6 12.4 13" fill="none" stroke="#E0A100" stroke-width="4" stroke-linecap="round"/><path d="M47 12h7.5a1.5 1.5 0 0 1 1.5 1.5V18c0 7.2-5.4 12.6-12.4 13" fill="none" stroke="#E0A100" stroke-width="4" stroke-linecap="round"/><path d="M16 7h32v15.5C48 32.2 40.8 40 32 40s-16-7.8-16-17.5V7z" fill="#F5B400"/><path d="M16 7h32v4H16z" fill="#FFCB2E"/><path d="M21.5 13v9c0 5.2 2.6 9.4 6.5 11.4" fill="none" stroke="#FFE68A" stroke-width="2.6" stroke-linecap="round"/><path d="M32 15.5l2.3 4.6 5.1.7-3.7 3.6.9 5.1-4.6-2.4-4.6 2.4.9-5.1-3.7-3.6 5.1-.7z" fill="#FFF6D6"/><path d="M28.5 40h7l1.5 7h-10z" fill="#D18F00"/><rect x="21" y="47" width="22" height="6" rx="1.5" fill="#B07C00"/><rect x="17" y="53" width="30" height="5" rx="2" fill="#0B1B3F"/></svg>'
 };
@@ -1626,8 +1649,9 @@ async function copyText(text){
   catch{ toast('Copy is blocked here. Select the number and copy it by hand.', true) }
 }
 
+const TINT_TO_SI = {'tint-blue':'blue','tint-purple':'purple','tint-green':'green','tint-gold':'gold','tint-orange':'orange'};
 function statTile(icon, tint, label, value, delta){
-  return `<div class="stat"><div class="stat-icon ${tint}">${ICON[icon]}</div><div class="stat-body"><span class="stat-label">${label}</span><span class="stat-value">${value}</span>${delta?`<span class="stat-delta">${delta}</span>`:''}</div></div>`;
+  return `<div class="stat"><div class="stat-icon si si-${TINT_TO_SI[tint]||'blue'}">${ICON[icon]}</div><div class="stat-body"><span class="stat-label">${label}</span><span class="stat-value">${value}</span>${delta?`<span class="stat-delta">${delta}</span>`:''}</div></div>`;
 }
 
 /* =========================
@@ -2758,7 +2782,7 @@ function statRank(rows, val, desc=true){
   return list;
 }
 /* Stat icons: one consistent line set (24px grid, 1.9 stroke), shown white on a coloured tile. */
-const SI = (d) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const SI = (d) => `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const STAT_ICON = {
   goals: SI('<path d="M3 20V6l4-2h10l4 2v14"/><path d="M3 9h18M7 4v16M17 4v16M3 14h18"/><circle cx="12" cy="17" r="2.6" fill="#FFFFFF" stroke="none"/>'),
   shield: SI('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m8.8 12 2.3 2.3 4.2-4.6"/>'),
@@ -2773,6 +2797,7 @@ const STAT_ICON = {
   avg: SI('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
   bolt: SI('<path d="M13 2 4.5 13.5H12L11 22l8.5-11.5H12z"/>'),
   fire: SI('<path d="M12 22c4 0 7-2.8 7-7 0-3.3-2.2-5.6-3.6-7.2-.4 1.8-1.4 3-2.6 3.6.3-3.4-1.3-6.5-4.3-8.4.4 3.2-1.3 5.1-2.7 6.8A8.7 8.7 0 0 0 5 15c0 4.2 3 7 7 7z"/><path d="M12 22c-1.7 0-3-1.3-3-3.1 0-1.6 1.2-2.6 2.2-3.6.3 1 .9 1.6 1.6 1.9.1-1 .6-1.8 1.2-2.4.7 1 1 2 1 3.1 0 2.4-1.3 4.1-3 4.1z"/>'),
+  h2hvs: SI('<circle cx="7" cy="8" r="2.8"/><circle cx="17" cy="8" r="2.8"/><path d="M2.5 19a4.5 4.5 0 0 1 9 0M12.5 19a4.5 4.5 0 0 1 9 0"/>'),
   unbeaten: SI('<path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.2 7.5 9.5 4.4-1.3 7.5-4.9 7.5-9.5V6z"/><path d="m12 8 1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="#FFFFFF" stroke="none"/>')
 };
 const statIco = (k, c) => `<span class="si si-${c}">${STAT_ICON[k]||''}</span>`;
@@ -2857,7 +2882,7 @@ function renderStatsTab(t){
       ${statNum('avg','purple','Goals per match', (Math.round(goals/matches.length*10)/10).toFixed(1))}
       ${statNum('draw','slate','Draws', draws, `${Math.round(draws/matches.length*100)}% of matches`)}
     </div>
-    <div class="st-grid">${defs.list.map(d=>statCard(d, rows)).join('')}</div>
+    <div class="st-grid st-grid-3">${defs.list.map(d=>statCard(d, rows, {maxPos:5, maxNames:6})).join('')}</div>
     <div class="st-grid st-grid-2">
       <div class="st-card"><div class="st-head">${statIco('bolt','gold')}<div><b>Match records</b></div></div>
         <div class="st-rec-group"><span class="st-match-label">Biggest win · ${maxMargin} goal margin${shareNote(biggestAll.length)}</span><div class="st-rec-list">${biggestAll.map(recRow).join('')}</div></div>
@@ -4009,7 +4034,7 @@ function renderLeaderboard(){
       </div>
       <div class="lbx-wrap">${lbTable(enriched, 0)}</div>
       ${lbLegend()}
-      <div class="table-hint">Turn your phone sideways to see draws, losses, goal difference and titles.</div>
+      <div class="table-hint">Turn your phone sideways to see draws, losses, goals for and against, goal difference and titles.</div>
     </section>`;
 }
 const ORDINAL = {1:'1st', 2:'2nd', 3:'3rd'};
@@ -4041,14 +4066,15 @@ function lbLegend(){
 function lbTable(rows, offset){
   return `
         <table class="lbx lb-table">
-          <thead><tr><th scope="col">#</th><th scope="col" class="l">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">Titles</th><th scope="col" class="pts">PTS</th></tr></thead>
+          <thead><tr><th scope="col">#</th><th scope="col" class="l">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GF</th><th scope="col">GA</th><th scope="col">GD</th><th scope="col">Win %</th><th scope="col">Titles</th><th scope="col" class="pts">PTS</th></tr></thead>
           <tbody>
-            ${rows.length===0 ? `<tr><td colspan="10" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
+            ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
               rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = x.rank<=3 && x.s.pts>0; return `
                 <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
                   <td>${rankMark(x)}</td>
                   <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span></span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
+                  <td>${x.s.gf}</td><td>${x.s.ga}</td>
                   <td class="muted">${gd>0?'+':''}${gd}</td>
                   <td class="pct">${x.s.winPct}%</td>
                   <td>${x.s.tourneyWins>0 ? `<span class="lbx-title">${x.s.tourneyWins}</span>` : '<span class="dec-0">0</span>'}</td>
@@ -4153,6 +4179,142 @@ async function sendTelegramFixtures(tid){
     const r = await tgCall({action:'send', tid});
     toast(`Sent to ${r.sent} player${r.sent===1?'':'s'} on Telegram${r.failed?` · ${r.failed} failed (they may have blocked the bot)`:''}`, !!r.failed);
   }catch(e){ toast('Sending failed: ' + e.message, true) }
+}
+
+/* =========================
+   HEAD TO HEAD
+   Every result between two players from live and completed tournaments:
+   group/league fixtures, each knockout leg or game, and tie-breaker matches.
+   ========================= */
+let H2H = {a:null, b:null};
+function h2hData(a, b){
+  const ts = STORE.tournaments.filter(t=>t.status==='active' || t.status==='completed')
+    .sort((x,y)=> String(y.completedAt||y.startedAt||y.createdAt||'').localeCompare(String(x.completedAt||x.startedAt||x.createdAt||'')));
+  const matches = [], ties = [];
+  ts.forEach(t=>{
+    tournamentMatches(t).forEach(m=>{
+      if(!((m.a===a && m.b===b) || (m.a===b && m.b===a))) return;
+      const ga = m.a===a ? m.ga : m.gb, gb = m.a===a ? m.gb : m.ga;
+      matches.push({t, stage:m.stage, ga, gb, home: m.a===a});
+    });
+    (t.knockoutBracket||[]).flat().forEach(m=>{
+      if(!m || m.isBye || !m.winner) return;
+      if(!((m.team1===a && m.team2===b) || (m.team1===b && m.team2===a))) return;
+      ties.push({t, round:m.round, winner:m.winner});
+    });
+  });
+  const res = {aw:0, d:0, bw:0, agf:0, bgf:0};
+  matches.forEach(m=>{ res.agf+=m.ga; res.bgf+=m.gb; if(m.ga>m.gb) res.aw++; else if(m.gb>m.ga) res.bw++; else res.d++ });
+  const best = side => { const list = matches.filter(m=> side==='a' ? m.ga>m.gb : m.gb>m.ga); if(!list.length) return null; return list.slice().sort((x,y)=> Math.abs(y.ga-y.gb)-Math.abs(x.ga-x.gb) || (y.ga+y.gb)-(x.ga+x.gb))[0] };
+  const stats = calculateAllStats(), ranked = rankPlayers(stats);
+  const rankOf = id => ranked.find(x=>x.p.id===id)?.rank || '–';
+  const both = ts.filter(t=>(t.registrations||[]).some(r=>r.playerId===a) && (t.registrations||[]).some(r=>r.playerId===b)).length;
+  return {matches, ties, res, bestA:best('a'), bestB:best('b'), sa:stats[a], sb:stats[b], rankA:rankOf(a), rankB:rankOf(b), both,
+    koA: ties.filter(x=>x.winner===a).length, koB: ties.filter(x=>x.winner===b).length};
+}
+function h2hDefaults(){
+  const ids = STORE.players.map(p=>p.id);
+  if(!ids.includes(H2H.a) || !ids.includes(H2H.b) || H2H.a===H2H.b){
+    const r = rankPlayers(calculateAllStats());
+    H2H.a = ids.includes(H2H.a) ? H2H.a : r[0]?.p.id || null;
+    H2H.b = (ids.includes(H2H.b) && H2H.b!==H2H.a) ? H2H.b : (r.find(x=>x.p.id!==H2H.a)?.p.id || null);
+  }
+}
+function setH2H(side, id){ H2H[side] = id; if(H2H.a===H2H.b){ const other = STORE.players.find(p=>p.id!==id); H2H[side==='a'?'b':'a'] = other?.id || null } renderH2H() }
+function swapH2H(){ [H2H.a, H2H.b] = [H2H.b, H2H.a]; renderH2H() }
+const H2H_SWAP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3.5 7.5 7 11M3.5 7.5h13M17 13l3.5 3.5L17 20M20.5 16.5h-13"/></svg>';
+function h2hBar(label, va, vb, fmt=v=>v, lowerIsBetter=false){
+  const x = +va || 0, y = +vb || 0, tot = x + y;
+  const pa = tot ? Math.round(x/tot*100) : 50;
+  const lead = x===y ? '' : ((x>y) !== lowerIsBetter ? 'a' : 'b');
+  return `<div class="h2h-row"><b class="${lead==='a'?'lead':''}">${fmt(va)}</b><div class="h2h-mid"><span>${label}</span><div class="h2h-bar"><i class="a" style="width:${pa}%"></i><i class="b" style="width:${100-pa}%"></i></div></div><b class="r ${lead==='b'?'lead':''}">${fmt(vb)}</b></div>`;
+}
+function renderH2H(){
+  setHeader('Community', 'Head to Head');
+  h2hDefaults();
+  const main = document.getElementById('main');
+  if(STORE.players.length<2){ main.innerHTML = `<div class="card empty"><div class="empty-title">Add at least two players</div><div class="text-sm">Head to head compares two players.</div></div>`; return }
+  const pa = STORE.players.find(p=>p.id===H2H.a), pb = STORE.players.find(p=>p.id===H2H.b);
+  const opts = sel => STORE.players.slice().sort((x,y)=>x.name.localeCompare(y.name)).map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${esc(p.name)}</option>`).join('');
+  const D = h2hData(H2H.a, H2H.b), r = D.res, n = D.matches.length;
+  const pct = v => v + '%';
+  const winPct = s => Math.round(parseFloat(s?.winPct||0));
+  main.innerHTML = `
+    <section class="card h2h-pick">
+      <label class="h2h-sel"><span>Player</span><select class="form-select" onchange="setH2H('a', this.value)" aria-label="First player">${opts(H2H.a)}</select></label>
+      <button type="button" class="btn btn-secondary btn-icon h2h-swap" onclick="swapH2H()" aria-label="Swap players" title="Swap players">${H2H_SWAP}</button>
+      <label class="h2h-sel"><span>Against</span><select class="form-select" onchange="setH2H('b', this.value)" aria-label="Second player">${opts(H2H.b)}</select></label>
+    </section>
+
+    <section class="h2h-hero">
+      <div class="h2h-side">${renderAvatar(pa, 84)}<b>${esc(pa.name)}</b><span>Leaderboard #${D.rankA}</span></div>
+      <div class="h2h-score">
+        <div class="h2h-big"><b>${r.aw}</b><i>–</i><b>${r.d}</b><i>–</i><b>${r.bw}</b></div>
+        <div class="h2h-lbl"><span>Wins</span><span>Draws</span><span>Wins</span></div>
+        <div class="h2h-sub">${n ? `${n} match${n>1?'es':''} against each other` : 'They have not played each other yet'}${D.ties.length ? ` · knockout ties ${D.koA}–${D.koB}` : ''}</div>
+      </div>
+      <div class="h2h-side">${renderAvatar(pb, 84)}<b>${esc(pb.name)}</b><span>Leaderboard #${D.rankB}</span></div>
+    </section>
+
+    <div class="grid grid-2 h2h-grid">
+      <section class="card h2h-card">
+        <div class="h2h-card-h">${statIco('h2hvs','blue')}<b>Against each other</b></div>
+        ${n ? `
+          ${h2hBar('Wins', r.aw, r.bw)}
+          ${h2hBar('Goals scored', r.agf, r.bgf)}
+          ${h2hBar('Goals per match', r.agf/n, r.bgf/n, v=>(Math.round(v*10)/10).toFixed(1))}
+          ${D.ties.length ? h2hBar('Knockout ties won', D.koA, D.koB) : ''}
+          <div class="h2h-best">
+            <div><span>Biggest win</span><b>${D.bestA ? `${D.bestA.ga}–${D.bestA.gb}` : '–'}</b><small>${D.bestA ? esc(D.bestA.t.name) : ''}</small></div>
+            <div class="r"><span>Biggest win</span><b>${D.bestB ? `${D.bestB.gb}–${D.bestB.ga}` : '–'}</b><small>${D.bestB ? esc(D.bestB.t.name) : ''}</small></div>
+          </div>` : `<div class="st-empty">No results between these two players yet in live or completed tournaments.</div>`}
+      </section>
+      <section class="card h2h-card">
+        <div class="h2h-card-h">${statIco('wins','gold')}<b>Career comparison</b></div>
+        ${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
+        ${h2hBar('Runner-up', D.sa.tourneyRunnerUp, D.sb.tourneyRunnerUp)}
+        ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}
+        ${h2hBar('Matches played', D.sa.matches, D.sb.matches)}
+        ${h2hBar('Win rate', winPct(D.sa), winPct(D.sb), pct)}
+        ${h2hBar('Goals scored', D.sa.gf, D.sb.gf)}
+        ${h2hBar('Goals conceded', D.sa.ga, D.sb.ga, v=>v, true)}
+      </section>
+    </div>
+
+    <section class="card h2h-card">
+      <div class="h2h-card-h" style="justify-content:space-between"><span class="flex gap-8" style="align-items:center">${statIco('matches','purple')}<b>Match results</b></span>
+        <button type="button" class="export-btn" onclick="exportH2H()">${ICON_DL} Export</button></div>
+      ${n ? `<div class="h2h-list">${D.matches.map(m=>`<div class="h2h-m">
+          <span class="h2h-res ${m.ga>m.gb?'win':m.ga<m.gb?'loss':'draw'}">${m.ga>m.gb?'W':m.ga<m.gb?'L':'D'}</span>
+          <span class="h2h-m-a ${m.ga>m.gb?'w':''}">${esc(pa.name)}</span>
+          <span class="result-pill">${m.ga} – ${m.gb}</span>
+          <span class="h2h-m-b ${m.gb>m.ga?'w':''}">${esc(pb.name)}</span>
+          <small>${esc(m.t.name)} · ${esc(m.stage)}</small>
+        </div>`).join('')}</div>` : `<div class="st-empty">Matches between ${esc(pa.name)} and ${esc(pb.name)} will appear here.</div>`}
+      <div class="text-xs text-muted">From live and completed tournaments. W/D/L is from ${esc(pa.name)}'s side. Played in ${D.both} tournament${D.both===1?'':'s'} together.</div>
+    </section>`;
+}
+function exportH2H(){
+  const pa = STORE.players.find(p=>p.id===H2H.a), pb = STORE.players.find(p=>p.id===H2H.b);
+  if(!pa || !pb) return;
+  const D = h2hData(H2H.a, H2H.b), r = D.res, n = D.matches.length;
+  const winPct = s => Math.round(parseFloat(s?.winPct||0));
+  const hero = `<div class="fb-h2h-hero"><div class="s">${renderAvatar(pa, 96)}<b>${esc(pa.name)}</b></div>
+      <div class="m"><div class="big"><b>${r.aw}</b><i>–</i><b>${r.d}</b><i>–</i><b>${r.bw}</b></div><div class="lbl"><span>Wins</span><span>Draws</span><span>Wins</span></div><div class="sub">${n} match${n===1?'':'es'}${D.ties.length?` · knockout ties ${D.koA}–${D.koB}`:''}</div></div>
+      <div class="s">${renderAvatar(pb, 96)}<b>${esc(pb.name)}</b></div></div>`;
+  const comp = `<div class="fb-card fb-h2h-comp">
+      ${n ? h2hBar('Goals scored vs each other', r.agf, r.bgf) : ''}
+      ${h2hBar('Titles', D.sa.tourneyWins, D.sb.tourneyWins)}
+      ${h2hBar('Ranking points', D.sa.pts, D.sb.pts)}
+      ${h2hBar('Win rate', winPct(D.sa), winPct(D.sb), v=>v+'%')}
+      ${h2hBar('Matches played', D.sa.matches, D.sb.matches)}
+    </div>`;
+  const rows = D.matches.map(m=>`<div class="fbf"><span class="a ${m.ga>m.gb?'w':''}">${esc(pa.name)}</span><span class="sc">${m.ga} – ${m.gb}</span><span class="b ${m.gb>m.ga?'w':''}">${esc(pb.name)}</span></div><div class="fb-h2h-st">${esc(m.t.name)} · ${esc(m.stage)}</div>`);
+  const title = `${pa.name} vs ${pb.name}`;
+  const first = fbSheet(null, title, 'Head to head · live and completed tournaments', hero + comp, 1, 1);
+  const more = n ? fbPack(D.matches.map((_,i)=>rows[i]), (set, i, k)=>fbSheet(null, title, 'Head to head · match results', `<div class="fb-card"><div class="fb-md">Match results</div>${set.join('')}</div>`, i+1, k)) : [];
+  EXPORT_CTX.zPerPage = true;
+  return renderSheets(fbRenumber([first, ...more]), FB.w, `h2h_${slug(pa.name)}_vs_${slug(pb.name)}`);
 }
 
 /* =========================
