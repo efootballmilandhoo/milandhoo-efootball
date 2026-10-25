@@ -1248,28 +1248,21 @@
   }
   .top-row .row-num b{font-family:var(--font-display);font-size:18px;color:var(--ink)}
 
-  /* ---------- Phone bottom bar: floating pill, icons only ---------- */
+  /* ---------- Phone bottom bar: full-width light bar, icons only (outline / filled when active) ---------- */
   @media(max-width:900px){
-    .bottom-nav{display:flex !important;align-items:center;justify-content:space-between;gap:4px;
-      left:max(12px, env(safe-area-inset-left, 0px)) !important;right:max(12px, env(safe-area-inset-right, 0px)) !important;
-      bottom:calc(10px + env(safe-area-inset-bottom, 0px)) !important;
-      height:64px;padding:6px !important;border-radius:999px;border:1px solid rgba(255,255,255,.08) !important;
-      background:rgba(11,27,63,.94) !important;box-shadow:0 12px 32px -10px rgba(11,27,63,.55),0 2px 6px rgba(11,27,63,.18)}
-    @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){ .bottom-nav{background:rgba(11,27,63,.86) !important;-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)} }
-    .bn-item, .bn-item[data-view="tournaments"]{flex:1 1 0 !important;height:52px;min-height:0 !important;padding:0 !important;display:flex;align-items:center;justify-content:center;border-radius:999px;color:rgba(255,255,255,.72);background:none;transition:background-color .2s ease,color .2s ease}
+    .bottom-nav{display:grid !important;grid-template-columns:repeat(6, minmax(0,1fr)) !important;align-items:center;
+      left:0 !important;right:0 !important;bottom:0 !important;height:auto;border-radius:0;
+      padding:8px max(8px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px)) max(8px, env(safe-area-inset-right, 0px)) !important;
+      background:rgba(255,255,255,.96) !important;border:0 !important;border-top:1px solid var(--border) !important;box-shadow:0 -6px 20px -14px rgba(11,27,63,.25)}
+    @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){ .bottom-nav{background:rgba(255,255,255,.86) !important;-webkit-backdrop-filter:saturate(1.8) blur(16px);backdrop-filter:saturate(1.8) blur(16px)} }
+    .bn-item, .bn-item[data-view="tournaments"]{flex:none !important;height:48px;min-height:0 !important;padding:0 !important;display:flex;align-items:center;justify-content:center;border-radius:14px;background:none !important;color:var(--muted) !important}
     .bn-item span{display:none !important}
-    .bn-item svg, .bn-item.active svg{width:26px !important;height:26px !important;padding:0 !important;background:none !important;border-radius:0 !important;box-sizing:border-box}
+    .bn-item svg, .bn-item.active svg{width:26px !important;height:26px !important;box-sizing:content-box !important;padding:6px 16px !important;border-radius:999px !important;background:none !important;transition:background-color .2s ease}
     .bn-item svg.f{display:none}
-    .bn-item.active{background:rgba(255,255,255,.14);color:#FFFFFF}
+    .bn-item.active, .bn-item.active svg{color:var(--primary) !important}
+    .bn-item.active svg.f{display:block;background:var(--primary-tint) !important}
     .bn-item.active svg.o{display:none}
-    .bn-item.active svg.f{display:block}
-    .bn-item:active{transform:scale(.94)}
-    .main{padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)) !important}
+    .bn-item:active svg{transform:scale(.92)}
+    .main{padding-bottom:calc(84px + env(safe-area-inset-bottom, 0px)) !important}
   }
-  @media(max-width:900px){
-    .bottom-nav, .bottom-nav{background:rgba(11,27,63,.97) !important}
-    @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){ .bottom-nav{background:rgba(11,27,63,.92) !important} }
-    .bn-item.active, .bn-item.active svg{color:#FFFFFF !important}
-    .bn-item.active{background:rgba(255,255,255,.16) !important}
-    .bn-item{color:rgba(214,224,245,.78) !important}
-  }
+  @media(max-width:360px){ .bn-item svg, .bn-item.active svg{padding:6px 11px !important} }
