@@ -1175,3 +1175,61 @@
   .fsr-more{font-size:calc(15px*var(--z))}
   .fsr .fb-unb span{font-size:calc(18px*var(--z))}
   .fsr .fb-unb i{font-size:calc(15px*var(--z))}
+
+  /* ---------- Phone layout fixes ---------- */
+  @media(max-width:900px){
+    .bottom-nav{display:flex !important;gap:0}
+    .bn-item{flex:1 1 0;min-width:0}
+    .bn-item[data-view="tournaments"]{flex:1.55 1 0}
+    .bn-item span{font-size:10.5px;letter-spacing:-.01em}
+  }
+  @media(max-width:700px){
+    /* Ranking table: Titles instead of Win % */
+    #main .lb-table th:nth-child(10), #main .lb-table td:nth-child(10){display:none}
+    #main .lb-table th:nth-child(11), #main .lb-table td:nth-child(11){display:table-cell}
+    /* Head to head: players side by side, score underneath */
+    .h2h-hero{grid-template-columns:1fr 1fr;grid-template-areas:"a b" "s s";row-gap:14px;padding:18px 14px}
+    .h2h-side.a{grid-area:a}.h2h-side.b{grid-area:b}.h2h-score{grid-area:s}
+    .h2h-side b{font-size:18px;overflow-wrap:normal;word-break:normal;hyphens:none;line-height:1.15}
+    .h2h-side span{font-size:12px;white-space:nowrap}
+    .h2h-side .player-avatar{width:60px !important;height:60px !important;font-size:18px}
+    .h2h-big b{font-size:44px}
+    .h2h-sub{font-size:12px}
+    .h2h-lbl{max-width:260px}
+    /* pickers stacked, swap button beside the second one */
+    .h2h-pick{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"a a" "b sw";align-items:end}
+    .h2h-pick > .h2h-sel:first-of-type{grid-area:a}
+    .h2h-pick > .h2h-sel:last-of-type{grid-area:b}
+    .h2h-pick > .h2h-swap{grid-area:sw}
+    .h2h-top{flex-direction:column;align-items:stretch}
+    .h2h-top .export-btn{align-self:flex-start}
+  }
+  @media(max-width:380px){
+    .h2h-side b{font-size:16px}
+    .h2h-big b{font-size:38px}
+    .bn-item span{font-size:9.5px}
+  }
+  @media(max-width:600px){
+    .t-actions{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+    .t-actions .btn{flex:1 1 auto;min-width:0}
+  }
+  /* Never split names mid-word on phones */
+  @media(max-width:700px){ #main b, #main .who, #main .row-name, #main .lb-pod-name, #main .nm{word-break:normal;overflow-wrap:anywhere} #main .h2h-side b{overflow-wrap:normal} }
+  @media(max-width:900px){
+    .mobile-header > :first-child{min-width:0}
+    .mobile-header .brand-name{font-size:clamp(15px, 4.6vw, 20px);white-space:nowrap}
+    .mobile-header .brand-sub{font-size:clamp(7.5px, 2.2vw, 9px);white-space:nowrap}
+  }
+  @media(max-width:520px){
+    .sf-links{grid-template-columns:1fr !important;display:grid}
+    .sf-links *{overflow-wrap:normal;word-break:normal}
+    .stat-value span[style*="font-size:22px"]{font-size:17px !important;line-height:1.15;display:inline-block;word-break:normal;overflow-wrap:normal}
+    .stat-value{overflow-wrap:normal;word-break:normal}
+  }
+  @media(max-width:900px){
+    .mobile-header .brand-name, .mobile-header .brand-name.long, .mobile-header .brand-name.xlong{font-size:clamp(14px, 4.4vw, 20px) !important;letter-spacing:.01em}
+    .mobile-header .mh-actions{gap:6px;flex:none}
+    .mobile-header .mh-actions .icon-btn, .mobile-header .mh-actions .user-chip.mini{width:40px;height:40px;flex:0 0 40px}
+  }
+  @media(max-width:360px){ .mobile-header .brand-sub{display:none} }
+  @media(max-width:340px){ .mobile-header .brand-name{font-size:13px !important} .mobile-header .logo-mark{width:32px !important;height:32px !important} .mobile-header .mh-actions .icon-btn, .mobile-header .mh-actions .user-chip.mini{width:36px;height:36px;flex-basis:36px} }

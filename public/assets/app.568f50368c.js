@@ -4612,13 +4612,13 @@ function renderH2H(){
     </section>
 
     <section class="h2h-hero">
-      <div class="h2h-side">${renderAvatar(pa, 84)}<b>${esc(pa.name)}</b><span>Leaderboard #${D.rankA}</span></div>
+      <div class="h2h-side a">${renderAvatar(pa, 84)}<b>${esc(pa.name)}</b><span>Rank #${D.rankA}</span></div>
       <div class="h2h-score">
         <div class="h2h-big"><b>${r.aw}</b><i>–</i><b>${r.d}</b><i>–</i><b>${r.bw}</b></div>
         <div class="h2h-lbl"><span>Wins</span><span>Draws</span><span>Wins</span></div>
         <div class="h2h-sub">${n ? `${n} match${n>1?'es':''} against each other` : 'They have not played each other yet'}${D.ties.length ? ` · knockout ties ${D.koA}–${D.koB}` : ''}</div>
       </div>
-      <div class="h2h-side">${renderAvatar(pb, 84)}<b>${esc(pb.name)}</b><span>Leaderboard #${D.rankB}</span></div>
+      <div class="h2h-side b">${renderAvatar(pb, 84)}<b>${esc(pb.name)}</b><span>Rank #${D.rankB}</span></div>
     </section>
 
     <section class="card h2h-card">
