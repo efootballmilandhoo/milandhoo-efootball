@@ -1297,3 +1297,38 @@
 .upd-a{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .upd-b{display:inline-flex;align-items:center;gap:4px}
 .upd-b .mv-sum{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+
+.export-scope{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;padding:4px;border-radius:12px;background:var(--surface-2,#EEF2F8)}
+.export-scope button{border:0;background:transparent;padding:10px 8px;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted);cursor:pointer;font-family:inherit}
+.export-scope button.on{background:var(--surface,#fff);color:var(--primary);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+
+/* Arrow drawn with borders, so exports (html2canvas) draw it too. */
+.mv .tri{display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent}
+.mv.up .tri{border-bottom:6px solid #0B7A43}
+.mv.down .tri{border-top:6px solid #B4232A}
+.fb .mv .tri{border-left-width:calc(6px*var(--z));border-right-width:calc(6px*var(--z))}
+.fb .mv.up .tri{border-bottom-width:calc(9px*var(--z))}
+.fb .mv.down .tri{border-top-width:calc(9px*var(--z))}
+.fb .mv{gap:calc(4px*var(--z))}
+
+/* Exports: html2canvas skips children of inline-flex boxes, so use inline-block there. */
+.fb .mv{display:inline-block;line-height:1.1}
+.fb .mv .tri{vertical-align:middle;margin:0 calc(4px*var(--z)) calc(3px*var(--z)) 0}
+.fb-legend.small{text-wrap:balance}
+/* Small phones: tournament filters share the full width instead of being cut off. */
+@media(max-width:520px){
+  .tabs-wrap > .segmented{width:100%}
+  .tabs-wrap > .segmented .seg{flex:1 1 auto;padding:0 8px}
+}
+@media(max-width:360px){
+  .tabs-wrap > .segmented{gap:2px;padding:3px}
+  .tabs-wrap > .segmented .seg{padding:0 5px;font-size:12px}
+}
+.stat-label{hyphens:manual}
+@container (max-width: 165px){
+  .stat-icon, .stat-icon.si{width:32px;height:32px;border-radius:9px}
+  .stat-icon svg{width:16px;height:16px}
+  .stat-label{font-size:11px}
+  .stat-value{font-size:24px}
+}
+@media(max-width:360px){ .stat{padding:12px;gap:8px} }

@@ -556,7 +556,7 @@ async function renderFbSheets(pages, width, base, format, ready){
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
@@ -677,14 +677,17 @@ function fbParticipants(tid){
 }
 
 function fbLeaderboard(){
-  const all = rankPlayers(calculateAllStats());
-  const moves = rankMoves(all); all.forEach(x=>{ x.move = moves[x.p.id] || 0 });
-  const page = (part, i, n) => fbSheet(null, 'Community Leaderboard', `All-time ranking by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
+  const ranked = rankPlayers(calculateAllStats());
+  const moves = rankMoves(ranked); ranked.forEach(x=>{ x.move = moves[x.p.id] || 0 });
+  const top10 = EXPORT_CTX.scope === 'top10';
+  // Top 10 keeps everyone tied on 10th place.
+  const all = top10 ? ranked.filter(x=>x.rank<=10) : ranked;
+  const page = (part, i, n) => fbSheet(null, top10 ? 'Top 10 Rankings' : 'Community Leaderboard', `${top10 ? 'Community leaderboard' : 'All-time ranking'} by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
     `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
       ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)} ${moveBadge(x.move)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td>${x.s.gf}</td><td>${x.s.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
-    <div class="fb-legend small"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
-  return renderSheets(fbPack(all, page, {even:true}), FB.w, 'milandhoo_leaderboard');
+    <div class="fb-legend small"><b>${ptsLegendHTML()}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
+  return renderSheets(fbPack(all, page, {even:true}), FB.w, top10 ? 'milandhoo_top10' : 'milandhoo_leaderboard');
 }
 
 function fbHof(){
@@ -812,6 +815,7 @@ setTimeout(()=>{
    are reflected straight away and nothing can be counted twice.
    ========================= */
 const PTS = {win:3, draw:1, loss:0, koBonus:2, place:{champion:20, runner_up:12, third:7, fourth:4}};
+function ptsLegendHTML(){ const [h, rest] = PTS_LEGEND.split(': '); return `${esc(h)}: ` + rest.split(' | ').map(x=>`<span style="white-space:nowrap">${esc(x)}</span>`).join(' | ') }
 const PTS_LEGEND = 'Ranking Points: Win +3 | Draw +1 | Loss 0 | Knockout Win +2 bonus | Champion +20 | Runner-up +12 | 3rd +7 | 4th +4';
 const PTS_RANKING = 'Ranking: Highest total points first.';
 /* With a cutoff (ISO time), results entered at or after it are left out: the table as it stood before. */
@@ -1242,10 +1246,14 @@ function chooseExportFormat(pages){
   return new Promise(resolve=>{
     let done = false;
     const finish = v=>{ if(done) return; done = true; window.__exportPick = null; closeModal(); resolve(v) };
-    window.__exportPick = finish;
+    const scopes = EXPORT_CTX.scopes; EXPORT_CTX.scopes = null;
+    let scope = scopes ? scopes[0].id : null;
+    window.__exportScope = (id, el)=>{ scope = id; el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===el)) };
+    window.__exportPick = v => finish(v ? {...v, scope} : v);
     openModal(`
       <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">✕</button></div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
+        ${scopes ? `<div class="export-scope" role="group" aria-label="What to export">${scopes.map((o,i)=>`<button type="button" class="${i?'':'on'}" onclick="__exportScope('${o.id}', this)">${esc(o.label)}</button>`).join('')}</div>` : ''}
         <div class="text-sm text-muted">Facebook post size, 1080 × 1350, with large text that's easy to read in the feed.</div>
         <div class="export-choice">
           <button type="button" class="export-option" onclick="__exportPick&&__exportPick({format:'png'})">${ICON.image}<b>Images (PNG)</b><span>One image per page. Post several together as a swipeable album.</span></button>
@@ -1266,12 +1274,12 @@ async function renderSheets(pages, width, base){
   else {
     const pick = await chooseExportFormat(pages.length);
     if(!pick) return;
-    format = pick.format; fb = true;
+    format = pick.format; fb = true; EXPORT_CTX.scope = pick.scope || null;
     // Facebook size: rebuild this export with its Facebook layout.
     if(fb && myRerun){
       const rerun = myRerun;
       EXPORT_CTX.fb = true; EXPORT_CTX.preset = {format, fb:true};
-      try{ return await rerun() } finally { EXPORT_CTX.fb = false; EXPORT_CTX.preset = null }
+      try{ return await rerun() } finally { EXPORT_CTX.fb = false; EXPORT_CTX.preset = null; EXPORT_CTX.scope = null }
     }
   }
   if(fb) return renderFbSheets(pages, width, base, format, ready);
@@ -1829,8 +1837,8 @@ function rankMoves(ranked){
 }
 function moveBadge(d){
   if(!d) return '';
-  return d>0 ? `<span class="mv up" title="Up ${d} place${d>1?'s':''}"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 7.5H1z" fill="currentColor"/></svg>${d}</span>`
-             : `<span class="mv down" title="Down ${-d} place${d<-1?'s':''}"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5 1 2.5h8z" fill="currentColor"/></svg>${-d}</span>`;
+  return d>0 ? `<span class="mv up" title="Up ${d} place${d>1?'s':''}"><i class="tri" aria-hidden="true"></i>${d}</span>`
+             : `<span class="mv down" title="Down ${-d} place${d<-1?'s':''}"><i class="tri" aria-hidden="true"></i>${-d}</span>`;
 }
 function rankPlayers(stats){
   // Order: total points, then win percentage, then total wins.
@@ -4099,7 +4107,7 @@ function renderLeaderboard(){
       ${statTile('users','tint-blue','Players', STORE.players.length)}
       ${statTile('ball','tint-purple','Matches played', totalMatches)}
       ${statTile('goal','tint-green','Goals scored', totalGoals)}
-      ${statTile('trophy','tint-gold','Completed tournaments', STORE.tournaments.filter(t=>t.status==='completed').length)}
+      ${statTile('trophy','tint-gold','Completed', STORE.tournaments.filter(t=>t.status==='completed').length)}
     </div>
     ${podium.length ? `<section class="lb-podium" aria-label="Top three positions">${podium.map(lbPodCard).join('')}</section>` : ''}
     <section id="leaderboardExport" class="card lb-card" aria-label="Community leaderboard">
@@ -4161,6 +4169,7 @@ function lbTable(rows, offset){
 }
 const LB_PER_PAGE = 12;
 function exportLeaderboardSheet(){
+  EXPORT_CTX.scopes = [{id:'all', label:'All players'}, {id:'top10', label:'Top 10'}];
   const enriched = rankPlayers(calculateAllStats());
   const parts = chunk(enriched, LB_PER_PAGE);
   const pages = parts.map((part, i)=> sheetHeader(null, 'Community Leaderboard', `All-time ranking by total points · ${fmtDate(new Date())}${parts.length>1?` · Page ${i+1} of ${parts.length}`:''}`)
