@@ -890,7 +890,7 @@ function fbStandings(t){
   const groups = (t.groupData || []).filter(g=>cur==='*' || g.name===cur);
   if(!groups.length){ toast('No standings to export yet', true); return }
   const dl = t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
-  const page = (g, rows, i, n) => fbSheet(t, t.name, `${isLeague?'League table':`Group ${esc(g.name)} standings`} · ${fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
+  const page = (g, rows, i, n) => fbSheet(t, t.name, `${isLeague?'League table':`Group ${esc(g.name)} standings`} · ${updatedAtOf(t) ? `updated ${fmtDateTime(updatedAtOf(t))}` : fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
       <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
       ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
       </tbody></table></div>
@@ -976,11 +976,12 @@ function fbParticipants(tid){
 
 function fbLeaderboard(){
   const all = rankPlayers(calculateAllStats());
-  const page = (part, i, n) => fbSheet(null, 'Community Leaderboard', `All-time ranking by total points · ${fmtDate(new Date())}`,
+  const moves = rankMoves(all); all.forEach(x=>{ x.move = moves[x.p.id] || 0 });
+  const page = (part, i, n) => fbSheet(null, 'Community Leaderboard', `All-time ranking by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
     `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
-      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td>${x.s.gf}</td><td>${x.s.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>` }).join('')}
+      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)} ${moveBadge(x.move)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td>${x.s.gf}</td><td>${x.s.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
-    <div class="fb-legend small"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}</div>`, i+1, n);
+    <div class="fb-legend small"><b>${esc(PTS_LEGEND)}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
   return renderSheets(fbPack(all, page, {even:true}), FB.w, 'milandhoo_leaderboard');
 }
 
@@ -1111,8 +1112,10 @@ setTimeout(()=>{
 const PTS = {win:3, draw:1, loss:0, koBonus:2, place:{champion:20, runner_up:12, third:7, fourth:4}};
 const PTS_LEGEND = 'Ranking Points: Win +3 | Draw +1 | Loss 0 | Knockout Win +2 bonus | Champion +20 | Runner-up +12 | 3rd +7 | 4th +4';
 const PTS_RANKING = 'Ranking: Highest total points first.';
-function calculateAllStats(){
+/* With a cutoff (ISO time), results entered at or after it are left out: the table as it stood before. */
+function calculateAllStats(cutoff){
   const players = STORE.players, tournaments = STORE.tournaments;
+  const after = x => !!(cutoff && x && String(x) >= cutoff);
   const stats = {};
   players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, koWins:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, tourneyFourth:0, pts:0, ptsMatch:0, ptsKo:0, ptsPlace:0, achievements:[], lastAt:'', addedAt:String(p.createdAt||'')} });
   // One placing per player per tournament; the best one counts (bonuses never stack).
@@ -1123,6 +1126,7 @@ function calculateAllStats(){
     const touch = pid => { const s = stats[pid]; if(s && tWhen > s.lastAt) s.lastAt = tWhen };
     (t.fixtures||[]).forEach(f=>{
       if(!hasScore(f.score1) || !hasScore(f.score2)) return;
+      if(after(f.scoredAt)) return;
       const a = stats[f.team1], b = stats[f.team2];
       touch(f.team1); touch(f.team2);
       if(a){ a.matches++; a.gf+=f.score1; a.ga+=f.score2; if(f.score1>f.score2){ a.wins++; a.ptsMatch+=PTS.win } else if(f.score1<f.score2) a.losses++; else { a.draws++; a.ptsMatch+=PTS.draw } }
@@ -1130,6 +1134,7 @@ function calculateAllStats(){
     });
     (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
       if(m.isBye || !m.team1 || !m.team2 || !m.winner) return;
+      if(after(m.scoredAt)) return;
       touch(m.team1); touch(m.team2);
       const r = koResult(t, m);
       [[m.team1,0],[m.team2,1]].forEach(([pid,side])=>{
@@ -1140,7 +1145,7 @@ function calculateAllStats(){
       });
     }));
     // Placing bonuses only once the tournament is completed (results finalised).
-    if(t.status==='completed'){
+    if(t.status==='completed' && !after(t.completedAt)){
       const key = 't:'+t.id;
       if(t.champion) addPlace(key, t.champion, 'champion');
       if(t.runnerUp) addPlace(key, t.runnerUp, 'runner_up');
@@ -2072,6 +2077,59 @@ function renderDashboard(){
     </div>`;
 }
 
+/* Times shown to viewers. */
+function lastResultOf(t){
+  let best = null;
+  (t.fixtures||[]).forEach(f=>{ if(f.scoredAt && hasScore(f.score1) && hasScore(f.score2) && (!best || f.scoredAt > best.at)) best = {at:f.scoredAt, a:f.team1, b:f.team2, s:`${f.score1}–${f.score2}`} });
+  (t.knockoutBracket||[]).flat().forEach(m=>{ if(m && m.scoredAt && m.winner && (!best || m.scoredAt > best.at)){ const r = koResult(t, m); best = {at:m.scoredAt, a:m.team1, b:m.team2, s: r.total ? `${r.total[0]}–${r.total[1]}` : ''} } });
+  return best;
+}
+function updatedAtOf(t){ const lr = lastResultOf(t); return [t.resultsAt, lr?.at].filter(Boolean).sort().pop() || '' }
+function whenText(iso){
+  if(!iso) return '';
+  const d = new Date(iso), now = new Date(), mins = Math.round((now-d)/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return `${mins} min ago`;
+  const sameDay = d.toDateString()===now.toDateString();
+  const y = new Date(now); y.setDate(now.getDate()-1);
+  const hm = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  if(sameDay) return `today at ${hm}`;
+  if(d.toDateString()===y.toDateString()) return `yesterday at ${hm}`;
+  return fmtDateTime(iso);
+}
+const ICON_CLOCK_SM = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>';
+function updatedLine(parts){ const p = parts.filter(Boolean); return p.length ? `<div class="upd-line"><span class="upd-a">${ICON_CLOCK_SM}${p[0]}</span>${p.slice(1).map(x=>`<span class="upd-b">${x}</span>`).join('')}</div>` : '' }
+/* Leaderboard movement: compares with the table before the latest batch of results
+   (everything entered within 3 hours of the newest result counts as one batch). */
+function latestBatchCutoff(){
+  let newest = '';
+  STORE.tournaments.forEach(t=>{ const u = updatedAtOf(t); if(u > newest) newest = u; if(t.status==='completed' && t.completedAt > newest) newest = t.completedAt });
+  if(!newest) return null;
+  const all = [];
+  STORE.tournaments.forEach(t=>{
+    (t.fixtures||[]).forEach(f=>{ if(f.scoredAt) all.push(f.scoredAt) });
+    (t.knockoutBracket||[]).flat().forEach(m=>{ if(m && m.scoredAt) all.push(m.scoredAt) });
+    if(t.status==='completed' && t.completedAt) all.push(t.completedAt);
+  });
+  all.sort();
+  // walk back from the newest result while gaps stay under 3 hours
+  let start = all.at(-1);
+  for(let i=all.length-2;i>=0;i--){ if(new Date(start) - new Date(all[i]) <= 3*3600e3) start = all[i]; else break }
+  return {cutoff:start, newest};
+}
+function rankMoves(ranked){
+  const b = latestBatchCutoff(); if(!b) return {};
+  const before = rankPlayers(calculateAllStats(b.cutoff));
+  const prev = {}; before.forEach(x=>{ prev[x.p.id] = x.rank });
+  const out = {}; ranked.forEach(x=>{ const p = prev[x.p.id]; if(p && p!==x.rank) out[x.p.id] = p - x.rank });
+  out.__since = b.cutoff; out.__newest = b.newest;
+  return out;
+}
+function moveBadge(d){
+  if(!d) return '';
+  return d>0 ? `<span class="mv up" title="Up ${d} place${d>1?'s':''}"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 1.5 9 7.5H1z" fill="currentColor"/></svg>${d}</span>`
+             : `<span class="mv down" title="Down ${-d} place${d<-1?'s':''}"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8.5 1 2.5h8z" fill="currentColor"/></svg>${-d}</span>`;
+}
 function rankPlayers(stats){
   // Order: total points, then win percentage, then total wins.
   // Position: players on equal points share it (1, 2, 2, 4 …).
@@ -2976,7 +3034,7 @@ function renderStandingsTab(t, admin, canEditScores){
   const content = groups.map(g=>`<div class="group-block">${groups.length>1 || !isLeague && t.groupData.length>1 ? `<div class="group-title">Group ${esc(g.name)}</div>`:''}${standingsTable(t, g, q)}</div>`).join('');
   return `
     <div class="tabs-wrap">
-      <span class="page-sub">${t.groupDeadline?`Deadline ${fmtDateTime(t.groupDeadline)}`:'3 pts win · 1 pt draw'}</span>
+      <span class="page-sub">${t.groupDeadline?`Deadline ${fmtDateTime(t.groupDeadline)}`:'3 pts win · 1 pt draw'}${updatedAtOf(t) ? `<br><span class="upd-inline">${ICON_CLOCK_SM} Standings updated ${whenText(updatedAtOf(t))}</span>` : ''}</span>
       ${isLeague ? '' : groupSwitcher(t, 'pickGroup')}
       <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} ${isLeague || t.groupData.length<2 ? 'Export standings' : cur && cur!=='*' ? `Export Group ${esc(cur)} standings` : 'Export standings · one page per group'}</button>
     </div>
@@ -3033,7 +3091,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
     <section id="fixturesExport" class="export-container" aria-label="Fixtures" style="display:flex;flex-direction:column;gap:14px">
       <div class="export-header"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">Fixtures &amp; results${t.groupDeadline?` · Deadline ${fmtDateTime(t.groupDeadline)}`:''}</div></div>
       <div class="flex-between no-export">
-        <span class="page-sub">${played} of ${fixtures.length} matches played</span>
+        <span class="page-sub">${played} of ${fixtures.length} matches played${(()=>{ const lr = lastResultOf(t); return lr ? `<br><span class="upd-inline">${ICON_CLOCK_SM} Last result ${whenText(lr.at)}: ${esc(playerName(lr.a))} ${lr.s} ${esc(playerName(lr.b))}</span>` : '' })()}</span>
         <label class="search-box" for="fx-search" style="width:240px;height:40px;border-radius:10px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4A5878" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
           <input id="fx-search" type="search" placeholder="Search player…" aria-label="Search fixtures by player" value="${esc(fixtureQuery)}" oninput="setFixtureQuery('${t.id}', this.value)" style="font-size:13px">
@@ -3281,6 +3339,7 @@ function saveFixtureScore(tid, fid, clear=false){
     if(f.score1!==s1 || f.score2!==s2 || !f.scoredAt) f.scoredAt = new Date().toISOString();
     f.score1 = s1; f.score2 = s2;
   }
+  t.resultsAt = new Date().toISOString();
   DB.set('tournaments', all);
   closeModal();
   rerender();
@@ -3294,8 +3353,10 @@ function processDeadline(tid){
   if(new Date(t0.groupDeadline) >= new Date()) return;
   const {all, t} = getT(tid);
   let n = 0;
-  t.fixtures.forEach(f=>{ if(!hasScore(f.score1) || !hasScore(f.score2)){ f.score1 = 0; f.score2 = 0; f.autoDraw = true; n++ } });
+  const now = new Date().toISOString();
+  t.fixtures.forEach(f=>{ if(!hasScore(f.score1) || !hasScore(f.score2)){ f.score1 = 0; f.score2 = 0; f.autoDraw = true; f.scoredAt = now; n++ } });
   t.deadlineProcessed = true;
+  if(n) t.resultsAt = now;
   DB.set('tournaments', all);
   if(n) toast(`Deadline passed · ${n} unplayed match${n>1?'es':''} recorded as 0-0`);
 }
@@ -3522,6 +3583,9 @@ function saveKnockoutMatch(tid, roundIdx, matchId, clear=false){
   m.pens = !clear && r.byPens ? {a:pens[0], b:pens[1]} : null;
   m.tb = !clear && r.needTb && tb && hasScore(tb[0]) && hasScore(tb[1]) ? {a:tb[0], b:tb[1]} : null;
   m.winner = r.winner===null || r.winner===undefined ? null : (r.winner===0 ? m.team1 : m.team2);
+  const stamp = new Date().toISOString();
+  if(clear) delete m.scoredAt; else m.scoredAt = stamp;
+  t.resultsAt = stamp;
   propagateBracket(t.knockoutBracket);
   DB.set('tournaments', all);
   closeModal();
@@ -3586,6 +3650,7 @@ function completeTournament(tid){
   t.champion = c; t.runnerUp = r; t.thirdPlace = th; t.fourthPlace = fo;
   t.status = 'completed';
   t.completedAt = new Date().toISOString();
+  t.resultsAt = t.completedAt;
   DB.set('tournaments', all);
   closeModal();
   currentTab = 'tab-overview';
@@ -4321,6 +4386,8 @@ function exportHofSheet(){
 function renderLeaderboard(){
   const stats = calculateAllStats();
   const enriched = rankPlayers(stats);
+  const moves = rankMoves(enriched); enriched.forEach(x=>{ x.move = moves[x.p.id] || 0 });
+  const nUp = enriched.filter(x=>x.move>0).length, nDown = enriched.filter(x=>x.move<0).length;
   const totalMatches = Math.round(enriched.reduce((s,x)=>s+x.s.matches,0)/2);
   const totalGoals = enriched.reduce((s,x)=>s+x.s.gf,0);
   const podium = [1,2,3].map(r=>enriched.filter(x=>x.rank===r && x.s.pts>0)).filter(g=>g.length);
@@ -4335,7 +4402,8 @@ function renderLeaderboard(){
     ${podium.length ? `<section class="lb-podium" aria-label="Top three positions">${podium.map(lbPodCard).join('')}</section>` : ''}
     <section id="leaderboardExport" class="card lb-card" aria-label="Community leaderboard">
       <div class="lb-card-head">
-        <div><h2 class="card-title">All-time ranking</h2><div class="flex gap-8" style="align-items:center;flex-wrap:wrap;margin-top:4px">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by total points · updates as results are saved</span></div></div>
+        <div><h2 class="card-title">All-time ranking</h2><div class="flex gap-8" style="align-items:center;flex-wrap:wrap;margin-top:4px">${STORE.mode==='shared' ? `<span class="admin-indicator live-indicator">Live</span>` : ''}<span class="page-sub">Ranked by total points · updates as results are saved</span></div>
+          ${updatedLine([moves.__newest ? `Last updated ${whenText(moves.__newest)}` : '', (nUp||nDown) ? `<span class="mv-sum">${moveBadge(1).replace('>1<','><')} ${nUp} up · ${moveBadge(-1).replace('>1<','><')} ${nDown} down since the latest results</span>` : ''])}</div>
         <button type="button" class="export-btn" onclick="exportAsJPEG('leaderboardExport','milandhoo_leaderboard')">${ICON_DL} Export leaderboard</button>
       </div>
       <div class="lbx-wrap">${lbTable(enriched, 0)}</div>
@@ -4350,14 +4418,14 @@ function lbPodCard(group){
   const head = `<div class="lb-pod-top"><span class="lb-pod-pos">${rankBadge(r, m)}${ORDINAL[r]}${n>1?' <i>· shared</i>':''}</span><span class="lb-pod-pts"><b>${lead.s.pts}</b><span>PTS</span></span></div>`;
   if(n===1) return `<div class="lb-pod p${r} ${m}">
     ${head}
-    <div class="lb-pod-who">${renderAvatar(lead.p, 52)}<div class="lb-pod-name">${esc(lead.p.name)}</div></div>
+    <div class="lb-pod-who">${renderAvatar(lead.p, 52)}<div class="lb-pod-name">${esc(lead.p.name)} ${moveBadge(lead.move)}</div></div>
     <div class="lb-pod-stats">${stat(lead.s.wins,'W')}${stat(lead.s.draws,'D')}${stat(lead.s.losses,'L')}${stat(Math.round(parseFloat(lead.s.winPct))+'%','Win')}${stat(lead.s.tourneyWins,'Titles')}</div>
   </div>`;
   // Shared position: everyone on these points, in table order.
   return `<div class="lb-pod p${r} ${m} tie">
     ${head}
     <div class="lb-pod-tied-note">${n} players share this position</div>
-    <ul class="lb-pod-list">${group.map(x=>`<li>${renderAvatar(x.p, 30)}<span class="who2"><span class="nmrow"><span class="nm">${esc(x.p.name)}</span>${x.s.tourneyWins ? `<i>${x.s.tourneyWins} title${x.s.tourneyWins>1?'s':''}</i>` : ''}</span><span class="mini">${x.s.wins}W · ${x.s.draws}D · ${x.s.losses}L · ${Math.round(parseFloat(x.s.winPct))}%</span></span></li>`).join('')}</ul>
+    <ul class="lb-pod-list">${group.map(x=>`<li>${renderAvatar(x.p, 30)}<span class="who2"><span class="nmrow"><span class="nm">${esc(x.p.name)}</span>${moveBadge(x.move)}${x.s.tourneyWins ? `<i>${x.s.tourneyWins} title${x.s.tourneyWins>1?'s':''}</i>` : ''}</span><span class="mini">${x.s.wins}W · ${x.s.draws}D · ${x.s.losses}L · ${Math.round(parseFloat(x.s.winPct))}%</span></span></li>`).join('')}</ul>
   </div>`;
 }
 function lbLegend(){
@@ -4377,7 +4445,7 @@ function lbTable(rows, offset){
             ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
               rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = x.rank<=3 && x.s.pts>0; return `
                 <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
-                  <td>${rankMark(x)}</td>
+                  <td><span class="rk-wrap">${rankMark(x)}${moveBadge(x.move)}</span></td>
                   <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span></span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
                   <td>${x.s.gf}</td><td>${x.s.ga}</td>
