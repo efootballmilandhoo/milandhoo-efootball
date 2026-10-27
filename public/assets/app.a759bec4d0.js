@@ -2006,7 +2006,7 @@ function renderDashboard(){
     else facts.push(formatLabel(f.format));
     if(fx.length) facts.push(`${played}/${fx.length} played`);
     if(f.groupDeadline && f.format!=='single_elimination') facts.push(`Ends ${fmtDate(f.groupDeadline)}`);
-    else facts.push(`Starts ${fmtDate(f.startDateTime||f.date)}`);
+    else facts.push(`${tDateInfo(f).label} ${fmtDate(tDateInfo(f).when)}`);
     ongoing = `
       <div class="ongoing">
         <div class="ongoing-art">
@@ -2337,12 +2337,18 @@ function renderTournaments(){
   filterTournaments(tourneyFilter);
 }
 
+/* Date label by status: "Starting on" before it starts, "Started on" while live, "Ended on" once completed. */
+function tDateInfo(t){
+  if(t.status==='completed') return {label:'Ended on', when: t.completedAt || t.startDateTime || t.date};
+  if(t.status==='active') return {label:'Started on', when: t.startDateTime || t.startedAt || t.date};
+  return {label:'Starting on', when: t.startDateTime || t.date};
+}
 function renderTournamentCards(list){
   if(list.length===0) return `<div class="card empty" style="grid-column:1/-1"><div class="empty-title">No tournaments here yet</div><div class="text-sm">${isAdmin()?'Create one with New Tournament.':'New tournaments will appear here.'}</div></div>`;
   return list.map(t=>{
     const n = (t.registrations||[]).length;
-    const champ = t.champion ? `<div class="champ-box">${ICON.cup.replace('width="36" height="36"','width="26" height="26"')}<div style="min-width:0"><small>CHAMPION</small><b>${esc(playerName(t.champion))}</b></div></div>`
-      : `<div class="champ-box" style="background:var(--surface-2)"><span class="stat-icon tint-blue" style="width:36px;height:36px;border-radius:10px">${ICON.calendar}</span><div style="min-width:0"><small style="color:var(--muted)">${t.status==='completed'?'COMPLETED':'STARTS'}</small><b style="font-size:18px">${fmtDateTime(t.startDateTime||t.date)}</b></div></div>`;
+    const champ = t.champion ? `<div class="champ-box">${ICON.cup.replace('width="36" height="36"','width="26" height="26"')}<div style="min-width:0"><small>CHAMPION</small><b>${esc(playerName(t.champion))}</b>${t.completedAt?`<span class="champ-ended">Ended on ${fmtDate(t.completedAt)}</span>`:''}</div></div>`
+      : `<div class="champ-box" style="background:var(--surface-2)"><span class="stat-icon tint-blue" style="width:36px;height:36px;border-radius:10px">${ICON.calendar}</span><div style="min-width:0"><small style="color:var(--muted)">${tDateInfo(t).label.toUpperCase()}</small><b style="font-size:18px">${fmtDateTime(tDateInfo(t).when)}</b></div></div>`;
     return `
     <button type="button" class="t-card" onclick="navigate('tournament-detail','${t.id}')">
       ${tCardHead(t)}
@@ -2605,7 +2611,7 @@ function renderTournamentDetail(id){
         ${tournamentLogo(t, 52)}
         ${statusBadge(t.status)}
         <span class="badge badge-format">${formatLabel(t.format)}</span>
-        <span class="page-sub">${fmtDateTime(t.startDateTime || t.date)} · ${esc(t.game||'eFootball')}</span>
+        <span class="page-sub">${tDateInfo(t).label} ${fmtDateTime(tDateInfo(t).when)} · ${esc(t.game||'eFootball')}</span>
       </div>
       ${admin ? `<div class="toolbar-actions t-actions">
         ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete tournament</button>`:''}

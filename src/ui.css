@@ -1486,3 +1486,7 @@
 .search-box .sx-clear:hover{background:var(--border);color:var(--ink)}
 .search-box.filled .sx-clear{display:grid}
 @media(pointer:coarse){ .search-box .sx-clear{width:28px;height:28px} }
+/* Readability: faded items stay readable */
+.dec-0{color:var(--muted);opacity:.7}
+.bracket-match.bye{opacity:.8}
+.champ-ended{display:block;margin-top:2px;font-size:12px;font-weight:600;color:var(--muted)}

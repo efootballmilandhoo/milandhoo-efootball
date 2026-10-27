@@ -65,8 +65,6 @@
 :root[data-theme="dark"] :is(.hero, .hof-hero, .ongoing-art, .t-card-banner) .btn-white{background:#FFFFFF;color:#0B1B3F;border-color:#FFFFFF}
 :root[data-theme="dark"] :is(.tab.active, .seg.active){background:var(--primary-tint);color:var(--primary-dark);box-shadow:none}
 :root[data-theme="dark"] .t-card-head .badge{background:rgba(10,17,32,.72);color:#FFFFFF}
-:root[data-theme="dark"] :is(.prize-card.silver .prize-medal, .hof-medal.silver, .decorated-counts i.silver, .hof-chip.silver, .dec-n.silver){background:#2A3346}
-:root[data-theme="dark"] :is(.prize-card.bronze .prize-medal, .hof-medal.bronze, .decorated-counts i.bronze, .hof-chip.bronze, .dec-n.bronze){background:#3A2818}
 :root[data-theme="dark"] .crop-stage{background:#0E1626}
 :root[data-theme="dark"] .group-table tr.qualify td{background:#14223F}
 :root[data-theme="dark"] :is(.group-table tr.qualify td:first-child, .qualify td:first-child){background:linear-gradient(var(--primary),var(--primary)) left center / 4px 100% no-repeat, #14223F}
@@ -106,3 +104,5 @@
 :root[data-theme="dark"] .x54-stats .st-card{border-color:#2A3A5C}
 :root[data-theme="dark"] .x54-stats .st-lead{background:#16213A}
 :root[data-theme="dark"] .xs-fbar{border-top-color:#2A3A5C}
+:root[data-theme="dark"] .q-chip.done{background:#178A52}
+:root[data-theme="dark"] .dec-0{opacity:.8}
