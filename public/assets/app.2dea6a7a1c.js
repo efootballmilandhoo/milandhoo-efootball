@@ -2657,6 +2657,17 @@ function renderTabPanel(t, tabId){
 }
 
 /* Description, group-stage deadline and prizes, shown at the top of the Overview tab. */
+/* Group-stage deadline rules (the same wording the Telegram bot sends). */
+function reportCutoffText(t){
+  const d = String(t.groupDeadline||''); if(!d) return '';
+  const day = d.slice(0,10), hm = d.slice(11,16);
+  return hm && hm > '21:00' ? `before 21:00 on ${fmtDate(day)}` : 'before the deadline';
+}
+function deadlineRulesHTML(t){
+  return `<li>Any match not played by the deadline is counted as <b>0–0</b>.</li>
+    <li>If your opponent doesn't play your match, inform an admin <b>${esc(reportCutoffText(t))}</b>. Reports after that won't be accepted.</li>
+    <li>A player who doesn't play gets a <b>1–0 loss</b>: the win goes to their opponent.</li>`;
+}
 function tournamentIntro(t){
   const hasStandings = t.format==='group_knockout' || t.format==='league';
   const isDeadlinePassed = t.groupDeadline && new Date(t.groupDeadline) < new Date();
@@ -2670,7 +2681,8 @@ function tournamentIntro(t){
         <div class="deadline-notice-icon">${isDeadlinePassed?ICON.alarm:ICON.calendar}</div>
         <div class="deadline-notice-content">
           <div class="deadline-notice-title">${isDeadlinePassed?'Group stage deadline passed':'Group stage deadline'}</div>
-          <div class="deadline-notice-text">${fmtDateTime(t.groupDeadline)} · ${isDeadlinePassed?'Unplayed matches are recorded as 0-0 draws':'Unplayed matches after this count as 0-0 draws'}</div>
+          <div class="deadline-notice-text">${fmtDateTime(t.groupDeadline)}${isDeadlinePassed?' · Unplayed matches are recorded as 0-0 draws':''}</div>
+          ${isDeadlinePassed ? '' : `<ul class="deadline-rules">${deadlineRulesHTML(t)}</ul>`}
         </div>
       </div>`:''}
     ${(t.prize?.champion || t.prize?.runnerUp || t.prize?.thirdPlace)?`
@@ -4566,6 +4578,10 @@ function renderMessagePlayers(){
       <div><p style="margin:0"><b>${linked} of ${rows.length}</b> players get their fixtures on Telegram automatically.</p><span>Everyone else: tap WhatsApp or SMS next to their name. Each message only has that player's own fixtures.</span></div>
       <button type="button" class="btn btn-primary" ${linked?'':'disabled'} onclick="sendTelegramFixtures('${t.id}')">${TG_SVG} Send to ${linked} on Telegram</button>
     </div>
+    ${groupDeadlineAhead(t) ? `<div class="tg-hero tg-dl">
+      <div><p style="margin:0"><b>Group deadline reminder</b></p><span>Sends each linked player who still has group matches to play their remaining fixtures, the deadline (${esc(fmtDateTime(t.groupDeadline))}) and the rules. It's also sent automatically at 18:00 the day before, 12:00 on deadline day and 2 hours before.</span></div>
+      <button type="button" class="btn btn-primary" onclick="sendDeadlineReminder('${t.id}')">${ICON.alarm} Send reminder now</button>
+    </div>` : ''}
     <div class="link-box"><input class="form-input" readonly value="${TG_BOT_LINK}" aria-label="Bot link" onclick="this.select()"><button type="button" class="btn btn-secondary" onclick="copyText('${TG_BOT_LINK}')">Copy bot link</button></div>
     <div class="msg-list">${rows.map(r=>{ const ph = STORE.phones[r.pid]; return `
       <div class="msg-row">
@@ -4582,6 +4598,19 @@ function renderMessagePlayers(){
 async function copyMessage(i){
   const x = TG_MSG.players[i]; if(!x?.text) return;
   try{ await navigator.clipboard.writeText(x.text); toast('Message copied') }catch{ toast('Copy is blocked here', true) }
+}
+function groupDeadlineAhead(t){
+  return !!(t && t.status==='active' && t.format!=='single_elimination' && t.groupDeadline && !t.deadlineProcessed && new Date(t.groupDeadline) > new Date()
+    && (t.fixtures||[]).some(f=>!(hasScore(f.score1) && hasScore(f.score2))));
+}
+async function sendDeadlineReminder(tid){
+  const ok = await confirmDialog('Send deadline reminder', 'Send every linked player who still has group matches to play a Telegram reminder with their remaining fixtures, the deadline and the rules?', 'Send');
+  if(!ok){ openMessagePlayersModal(tid); return }
+  toast('Sending…');
+  try{
+    const r = await tgCall({action:'deadline', tid});
+    toast(r.sent ? `Reminder sent to ${r.sent} player${r.sent===1?'':'s'} on Telegram${r.failed?` · ${r.failed} failed`:''}` : 'No linked players have group matches left to play', !!r.failed);
+  }catch(e){ toast('Sending failed: ' + e.message, true) }
 }
 async function sendTelegramFixtures(tid){
   const linked = TG_MSG.players.filter(x=>x.linked && x.text).length;

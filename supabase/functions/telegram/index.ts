@@ -4,7 +4,9 @@
 // Callers:
 // - Telegram webhook (header x-telegram-bot-api-secret-token): /start, contact sharing, /fixtures, /stop.
 // - Organisers from the app (signed-in session): {action:"texts"|"send", tid} and {action:"info"}.
-// - push-notify (header x-hook-secret): {action:"auto", tid} after a draw, {action:"remind", tid, stage, round?, when}.
+// - push-notify (header x-hook-secret): {action:"auto", tid} after a draw, {action:"remind", tid, kind, round?, clock}.
+//   Group-stage reminders (kind "eve" = 18:00 the day before, "day" = 12:00 on deadline day, "2h" = 2 hours before)
+//   list each player's unplayed matches and the deadline rules. Players can also send /deadline.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
@@ -58,6 +60,57 @@ function when(v: unknown): string {
   const d = new Date(ms);
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: TZ }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 }
+/* Local calendar helpers (Maldives time). */
+const localDay = (ms: number) => new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD
+const localAt = (day: string, hhmm: string) => Date.parse(`${day}T${hhmm}:00${LOCAL_OFFSET}`);
+const dayName = (ms: number) => new Date(ms).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: TZ });
+/* Players must report an opponent who won't play before 21:00 on deadline day (or by the deadline, if that is earlier). */
+function reportCutoff(dl: number): number { const c = localAt(localDay(dl), "21:00"); return Math.min(c, dl); }
+
+/* The group-stage deadline rules, written the same way in every reminder. */
+function deadlineRules(t: Obj, html = true, now = Date.now()): string[] {
+  const b = (s: string) => (html ? `<b>${esc(s)}</b>` : s);
+  const dl = deadlineMs(t.groupDeadline);
+  if (!Number.isFinite(dl)) return [];
+  const cut = reportCutoff(dl);
+  const cutText = cut < dl ? `before ${b("21:00 on " + dayName(dl))}` : `before the deadline (${b(when(t.groupDeadline))})`;
+  return [
+    html ? "📌 <b>Rules</b>" : "📌 Rules",
+    `• Any match not played by the deadline is counted as ${b("0–0")}.`,
+    now < cut
+      ? `• If your opponent doesn't play your match, inform an admin ${cutText}. Reports after that won't be accepted.`
+      : `• Reports of an opponent not playing closed at ${b(new Date(cut).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ }))} and are no longer accepted.`,
+    `• A player who doesn't play gets a ${b("1–0 loss")}: the win goes to their opponent.`,
+  ];
+}
+
+/* Group-stage deadline reminder for one player: their unplayed matches and the rules. */
+function deadlineText(t: Obj, pid: string, nm: Record<string, string>, kind: string, html = true): string | null {
+  if (t.status !== "active" || t.format === "single_elimination" || t.deadlineProcessed) return null;
+  const dl = deadlineMs(t.groupDeadline), now = Date.now();
+  if (!Number.isFinite(dl) || dl <= now) return null;
+  const isLeague = t.format === "league";
+  const left = (t.fixtures || []).filter((f: Obj) => (f.team1 === pid || f.team2 === pid) && (isLeague || f.group) && !(has(f.score1) && has(f.score2)))
+    .sort((a: Obj, c: Obj) => (a.matchday || 0) - (c.matchday || 0));
+  if (!left.length) return null;
+  const b = (s: string) => (html ? `<b>${esc(s)}</b>` : s);
+  const e = (s: unknown) => (html ? esc(s) : String(s ?? ""));
+  const stage = isLeague ? "League" : "Group stage";
+  const hrs = Math.round((dl - now) / 36e5);
+  const head = kind === "2h" ? `⏰ ${b("2 hours left")} · ${e(stage)} deadline`
+    : kind === "day" ? `⏰ ${b("Deadline today")} · ${e(stage)}`
+    : kind === "eve" ? `⏰ ${b("Deadline tomorrow")} · ${e(stage)}`
+    : `⏰ ${b(stage + " deadline")}${hrs <= 48 ? ` · ${hrs < 1 ? "under an hour" : hrs + " hour" + (hrs > 1 ? "s" : "")} left` : ""}`;
+  const lines = [head, `🏆 ${e(t.name || "Tournament")}`, `Deadline: ${b(when(t.groupDeadline))}`, ""];
+  lines.push(`${nm[pid] ? e(nm[pid]) + ", you" : "You"} have ${b(String(left.length))} match${left.length > 1 ? "es" : ""} left to play:`);
+  left.forEach((f: Obj, i: number) => {
+    const opp = f.team1 === pid ? f.team2 : f.team1;
+    lines.push(`${i + 1}. vs ${b(nm[opp] || "TBD")}${!isLeague && f.group ? `  (Group ${e(f.group)})` : ""}`);
+  });
+  lines.push("", ...deadlineRules(t, html, now), "", `Table and results: ${APP}/#t=${t.id}`);
+  return lines.join("\n");
+}
+
 const KO_FMT: Obj = { bo3: "best of 3 games", "2leg": "two legs, aggregate score", single: "one match" };
 
 /* ---- A player's fixtures as a message. html=false gives plain text for WhatsApp / SMS. ---- */
@@ -105,7 +158,9 @@ function fixturesText(t: Obj, pid: string, nm: Record<string, string>, html = tr
     const res = done ? (() => { const me = home ? f.score1 : f.score2, them = home ? f.score2 : f.score1; return `  ${me > them ? "✅" : me < them ? "❌" : "➖"} ${me}–${them}`; })() : "";
     lines.push(`${i + 1}. vs ${done ? e(P(opp)) : b(P(opp))}${res}`);
   });
-  lines.push("", left.length ? `${left.length} match${left.length > 1 ? "es" : ""} to play.${t.groupDeadline ? " Unplayed matches after the deadline count as 0-0 draws." : ""}` : "All your matches are played.");
+  lines.push("", left.length ? `${left.length} match${left.length > 1 ? "es" : ""} to play.` : "All your matches are played.");
+  if (left.length && t.groupDeadline && !t.deadlineProcessed && deadlineMs(t.groupDeadline) > Date.now()) lines.push("", ...deadlineRules(t, html));
+  lines.push("");
   lines.push(`Table and results: ${link}`);
   return lines.join("\n");
 }
@@ -122,7 +177,7 @@ async function linkByPhone(msg: Obj) {
   const nm = await names();
   await sb.from("telegram_links").delete().eq("chat_id", chat).neq("player_id", match.id);
   await sb.from("telegram_links").upsert({ player_id: match.id, chat_id: chat, tg_name: [msg.from?.first_name, msg.from?.username ? "@" + msg.from.username : ""].filter(Boolean).join(" "), linked_at: new Date().toISOString() });
-  await say(chat, `✅ Linked to <b>${esc(nm[match.id] || "your player profile")}</b>.\nYou'll get your groups, fixtures and deadline reminders here.\n\nSend /fixtures any time to see them again, or /stop to unlink.`, { reply_markup: { remove_keyboard: true } });
+  await say(chat, `✅ Linked to <b>${esc(nm[match.id] || "your player profile")}</b>.\nYou'll get your groups, fixtures and deadline reminders here.\n\nSend /fixtures any time to see them again, /deadline for the matches you still have to play before the group deadline, or /stop to unlink.`, { reply_markup: { remove_keyboard: true } });
   await sendCurrent(chat, match.id, nm);
 }
 function contactKeyboard() {
@@ -147,9 +202,16 @@ async function onUpdate(u: Obj) {
     return say(chat, "You're unlinked and won't get messages from this bot. Tap /start to link again.");
   }
   if (/^\/fixtures\b/.test(text) && link) return sendCurrent(chat, link.player_id);
+  if (/^\/deadline\b/.test(text) && link) {
+    const nm = await names();
+    const texts = (await activeTournaments()).map((t) => deadlineText(t, link.player_id, nm, "now")).filter(Boolean) as string[];
+    if (!texts.length) return say(chat, "✅ You have no group-stage matches left to play before a deadline right now.");
+    for (const x of texts) await say(chat, x);
+    return;
+  }
   if (link) {
     const nm = await names();
-    return say(chat, `You're linked as <b>${esc(nm[link.player_id] || "a player")}</b>.\n/fixtures – your current fixtures\n/stop – unlink this Telegram`);
+    return say(chat, `You're linked as <b>${esc(nm[link.player_id] || "a player")}</b>.\n/fixtures – your current fixtures\n/deadline – group deadline and the matches you still have to play\n/stop – unlink this Telegram`);
   }
   return say(chat, "👋 Welcome to <b>MG eFootball</b>.\n\nTap the button below to share your phone number. It's matched with the number the organisers have for you, so your groups, fixtures and deadline reminders come straight here.", contactKeyboard());
 }
@@ -204,7 +266,7 @@ Deno.serve(async (req) => {
 
     if (body.action === "setup" && internal) {
       const r = await tg("setWebhook", { url: `${URL_}/functions/v1/telegram`, secret_token: s.telegram_webhook_secret, allowed_updates: ["message"], drop_pending_updates: true });
-      await tg("setMyCommands", { commands: [{ command: "fixtures", description: "My current fixtures" }, { command: "stop", description: "Unlink this Telegram" }] });
+      await tg("setMyCommands", { commands: [{ command: "fixtures", description: "My current fixtures" }, { command: "deadline", description: "Group deadline and my matches left" }, { command: "stop", description: "Unlink this Telegram" }] });
       return json(r);
     }
     if (body.action === "info") {
@@ -220,9 +282,19 @@ Deno.serve(async (req) => {
       const links = await linksFor(pids);
       return json({ players: pids.map((pid: string) => ({ pid, linked: links.has(pid), text: fixturesText(t, pid, nm, false) })) });
     }
+    if (body.action === "deadline") {
+      const nm = await names();
+      if (body.preview) {
+        const pids = (t.registrations || []).map((r: Obj) => r.playerId);
+        const links = await linksFor(pids);
+        return json({ players: pids.map((pid: string) => ({ pid, linked: links.has(pid), text: deadlineText(t, pid, nm, "now", false) })) });
+      }
+      return json(await sendTournament(t, (pid) => deadlineText(t, pid, nm, "now")));
+    }
     if (body.action === "send" || body.action === "auto") return json(await sendTournament(t, undefined, Array.isArray(body.pids) ? body.pids : undefined));
     if (body.action === "remind" && internal) {
       // body.left: { [playerId]: matches still to play } for the stage whose deadline is near.
+      if (!body.round) { const nm = await names(); return json(await sendTournament(t, (pid) => deadlineText(t, pid, nm, body.kind || "2h"))); }
       const left: Obj = body.left || {};
       const label = body.round ? `${body.round}` : t.format === "league" ? "League" : "Group stage";
       return json(await sendTournament(t, (pid) => left[pid] ? `⏰ <b>2 hours left</b> · ${esc(t.name)}\n${esc(label)} deadline is <b>${esc(body.clock || "")}</b>.\nYou still have <b>${left[pid]}</b> match${left[pid] > 1 ? "es" : ""} to play.${body.round ? "" : " Unplayed matches count as 0-0 draws."}\n${APP}/#t=${t.id}` : null));
