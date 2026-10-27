@@ -2720,7 +2720,7 @@ function standingsTable(t, g, highlightN){
           ${rows.map((row,i)=>{
             const p = STORE.players.find(x=>x.id===row.playerId) || {name:'Unknown player'};
             const gd = row.gf-row.ga, q = i<highlightN;
-            return `<tr class="${q?'qualify':'out'} ${i===highlightN && i>0?'cut':''}">
+            return `<tr class="${q?'qualify':'out'} ${i===highlightN && i>0?'cut':''} tap-row" tabindex="0" role="button" aria-label="${esc(p.name)}: see matches" onclick="openPlayerMatches('${t.id}','${row.playerId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlayerMatches('${t.id}','${row.playerId}')}">
               <td><span class="pos">${i+1}</span></td>
               <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${esc(p.name)}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
               <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>
@@ -2752,7 +2752,7 @@ function renderStandingsTab(t, admin, canEditScores){
       <div class="export-header" style="margin-bottom:12px"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">${isLeague?'League table':'Group standings'} · ${fmtDate(new Date())}</div></div>
       ${content}
       <div class="section-foot" style="margin-top:14px">
-        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span>
+        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
 
       </div>
     </section>
@@ -3452,6 +3452,36 @@ function saveTournamentEdit(tid){
   closeModal();
   rerender();
   toast('Tournament updated');
+}
+
+/* A player's matches in this tournament, opened by tapping them in the standings. */
+function openPlayerMatches(tid, pid){
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  const p = STORE.players.find(x=>x.id===pid) || {name:'Unknown player'};
+  const list = getPlayerFixtures(t, pid).map((f,i)=>({...f, _i:i}))
+    .sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
+  const done = list.filter(f=>f.result);
+  const n = r => done.filter(f=>f.result===r).length;
+  let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
+  const W=n('win'), D=n('draw'), L=n('loss');
+  const sum = (v,l) => `<span><b>${v}</b>${l}</span>`;
+  const rows = list.map(f=>{
+    const opp = STORE.players.find(x=>x.id===f.opponent) || {name: f.opponent ? 'Unknown player' : 'To be decided'};
+    const cls = f.result==='win' ? 'w' : f.result==='loss' ? 'l' : f.result==='draw' ? 'd' : 'p';
+    const tag = {w:'W', l:'L', d:'D', p:''}[cls];
+    return `<li class="pm-row">
+      <span class="pm-res ${cls}">${tag || '–'}</span>
+      <span class="pm-mid"><span class="pm-opp">${renderAvatar(opp, 26)}<b>${esc(opp.name)}</b></span><span class="pm-stage">${esc(f.stage)}${f.detail ? ` · ${esc(f.detail)}` : ''}${f.at && f.result ? ` · ${esc(whenText(f.at))}` : ''}</span></span>
+      <span class="pm-score ${cls}">${f.score ? esc(f.score).replace(' - ','–') : 'vs'}</span>
+    </li>`;
+  }).join('');
+  openModal(`
+    <div class="modal-head"><div class="pm-head">${renderAvatar(p, 40)}<div style="min-width:0"><div class="modal-title">${esc(p.name)}</div><div class="text-sm text-muted">${esc(t.name)}</div></div></div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
+      <div class="pm-sum">${sum(done.length,'Played')}${sum(W,'W')}${sum(D,'D')}${sum(L,'L')}${sum(`${gf}–${ga}`,'Goals')}</div>
+      ${list.length ? `<ul class="pm-list">${rows}</ul>` : `<div class="empty"><div class="empty-title">No matches yet</div><div class="text-sm">Matches appear when the tournament starts.</div></div>`}
+      <button type="button" class="btn btn-white" onclick="closeModal(); selectedPlayerFilter='${pid}'; switchTab('tab-player')">Open in Player View ${ICON.arrow}</button>
+    </div>`);
 }
 
 /* =========================
