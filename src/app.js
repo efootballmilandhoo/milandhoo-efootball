@@ -529,7 +529,7 @@ async function renderFbSheets(pages, width, base, format, ready){
       if(designed && H > FB.h + 2) console.warn('fb export taller than 1350, scaled to fit:', base, i+1, H);
       const c = await sheetCanvas(sh, W, H, S);
       const out = document.createElement('canvas'); out.width = FW; out.height = FH;
-      const g = out.getContext('2d'); g.fillStyle = '#EEF2F8'; g.fillRect(0,0,FW,FH);
+      const g = out.getContext('2d'); g.fillStyle = exportBg(); g.fillRect(0,0,FW,FH);
       const k = Math.min(FW/c.width, FH/c.height);
       const dw = c.width*k, dh = c.height*k;
       g.imageSmoothingQuality = 'high';
@@ -1195,8 +1195,10 @@ async function sheetReady(sheet){
   if(document.fonts && document.fonts.ready) await document.fonts.ready;
 }
 const EXPORT_SCALE = 2;
+/* Exports follow the app's theme: dark exports in dark mode, light exports in light mode. */
+const exportBg = ()=> document.documentElement.dataset.theme==='dark' ? '#0A1120' : '#EEF2F8';
 function sheetCanvas(sheet, W, H, scale){
-  return html2canvas(sheet, { backgroundColor:'#EEF2F8', scale, useCORS:true, logging:false, width:W, height:H, windowWidth:Math.max(W+40, 1280), windowHeight:H+40 });
+  return html2canvas(sheet, { backgroundColor:exportBg(), scale, useCORS:true, logging:false, width:W, height:H, windowWidth:Math.max(W+40, 1280), windowHeight:H+40 });
 }
 async function captureSheet(sheet, filename, W, H, scale){
   const canvas = await sheetCanvas(sheet, W, H, scale);
@@ -2793,7 +2795,14 @@ function fixtureRows(t, admin, canEdit){
   // Played matches first (latest result on top), then pending matches in schedule order.
   const list = (t.fixtures||[]).map((f,i)=>({f,i})).filter(({f})=>(cur==='*' || f.group===cur) && (!q || playerName(f.team1).toLowerCase().includes(q) || playerName(f.team2).toLowerCase().includes(q)))
     .sort((a,b)=> (done(b.f)-done(a.f)) || (done(a.f) ? String(b.f.scoredAt||'').localeCompare(String(a.f.scoredAt||'')) : 0) || a.i-b.i).map(x=>x.f);
-  if(!list.length) return `<tr><td colspan="${admin&&canEdit?7:6}" class="t-center text-muted" style="padding:32px">No fixtures match.</td></tr>`;
+  if(!list.length){
+    // Searching inside one group: offer the other groups when the player is there.
+    const elsewhere = q && cur!=='*' ? (t.fixtures||[]).filter(f=>f.group!==cur && (playerName(f.team1).toLowerCase().includes(q) || playerName(f.team2).toLowerCase().includes(q))) : [];
+    const groups = [...new Set(elsewhere.map(f=>f.group))];
+    return `<tr><td colspan="${admin&&canEdit?7:6}" class="t-center text-muted" style="padding:32px">${elsewhere.length
+      ? `No matches for “${esc(fixtureQuery.trim())}” in Group ${esc(cur)}.<br><button type="button" class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="pickGroup('${t.id}','${groups.length===1?esc(groups[0]):'*'}')">Show in ${groups.length===1?`Group ${esc(groups[0])}`:'all groups'} (${elsewhere.length})</button>`
+      : 'No fixtures match.'}</td></tr>`;
+  }
   return list.map(f=>{
     const done = hasScore(f.score1) && hasScore(f.score2);
     const p1 = STORE.players.find(p=>p.id===f.team1)||{name:'Unknown player'}, p2 = STORE.players.find(p=>p.id===f.team2)||{name:'Unknown player'};
@@ -4866,4 +4875,21 @@ function setThemeMode(m){
 }
 THEME_MQ?.addEventListener?.('change', ()=>{ if(themeMode()==='auto') applyTheme() });
 applyTheme();
+/* Search boxes: a clear (×) button appears while something is typed; one tap empties the box. */
+function searchClearSync(input){
+  const box = input.closest('.search-box'); if(!box) return;
+  let btn = box.querySelector('.sx-clear');
+  if(!btn){
+    btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'sx-clear'; btn.setAttribute('aria-label', 'Clear search');
+    btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+    btn.addEventListener('mousedown', e=>e.preventDefault());
+    btn.addEventListener('click', e=>{ e.preventDefault(); e.stopPropagation(); const i = box.querySelector('input'); i.value = ''; i.dispatchEvent(new Event('input', {bubbles:true})); i.focus(); });
+    box.appendChild(btn);
+  }
+  box.classList.toggle('filled', !!input.value);
+}
+document.addEventListener('input', e=>{ if(e.target.matches?.('.search-box input')) searchClearSync(e.target) }, true);
+new MutationObserver(()=>document.querySelectorAll('.search-box input').forEach(i=>{ if(i.value || i.closest('.search-box').classList.contains('filled')) searchClearSync(i) }))
+  .observe(document.getElementById('main') || document.body, {childList:true, subtree:true});
 setInterval(()=>{ if(isAdmin()) STORE.tournaments.filter(t=>t.status==='active').forEach(t=>processDeadline(t.id)) }, 30000);

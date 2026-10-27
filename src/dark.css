@@ -1,6 +1,6 @@
 
 /* =========================================================
-   DARK THEME (html[data-theme="dark"]). Exports (.xs-host) always stay light.
+   DARK THEME (html[data-theme="dark"]). Exports follow the theme too.
    ========================================================= */
 :root[data-theme="dark"]{
   --bg:#0A1120;
@@ -48,52 +48,6 @@
   --shadow-2:0 12px 32px rgba(0,0,0,.5);
   color-scheme:dark;
 }
-:root[data-theme="dark"] .xs-host{
-  --bg:#EEF2F8;
-  --surface:#FFFFFF;
-  --surface-2:#F5F8FE;
-  --surface-3:#EEF2F8;
-  --border:#DDE4F0;
-  --border-2:#C9D6EE;
-  --divider:#EEF2F8;
-  --ink:#0B1B3F;
-  --text:#0B1B3F;
-  --text-2:#33415F;
-  --muted:#4A5878;
-  --primary:#1463FF;
-  --primary-dark:#0B4BD1;
-  --primary-bright:#3D8BFF;
-  --primary-tint:#E3EDFF;
-  --navy:#0B1B3F;
-  --navy-2:#122A5C;
-  --navy-line:#3D5A99;
-  --on-navy:#FFFFFF;
-  --on-navy-muted:#B9C6E4;
-  --on-navy-soft:#D4DDF0;
-  --success:#0F7A4A;
-  --success-ink:#0B6B40;
-  --success-tint:#DDF6E8;
-  --live-dot:#7CF0B2;
-  --gold:#F5B400;
-  --gold-line:#B07C00;
-  --gold-pale:#FFF6D6;
-  --gold-soft:#FFF8E1;
-  --gold-tint:#FFF1C2;
-  --gold-ink:#6B4800;
-  --orange-tint:#FFE8D6;
-  --orange-ink:#C2410C;
-  --purple-tint:#EDE4FF;
-  --purple-ink:#6D28D9;
-  --danger:#E5484D;
-  --danger-ink:#B4232A;
-  --danger-tint:#FDECEC;
-  --bracket-line:#9FB6E3;
-  --overlay:rgba(11,27,63,0.45);
-  --bronze:#9A5B1F;
-  --shadow-1:0 1px 2px rgba(11,27,63,.04), 0 3px 10px rgba(11,27,63,.04);
-  --shadow-2:0 12px 32px rgba(11,27,63,.12);
-  color-scheme:light;color:#0B1B3F;
-}
 :root[data-theme="dark"] .btn-primary:hover{background:#2F6BE6}
 /* Smooth switch between themes (only while changing it) */
 .theme-anim body > :not(.xs-host), .theme-anim body > :not(.xs-host) *{transition:background-color .3s ease, border-color .3s ease, color .3s ease !important}
@@ -106,24 +60,23 @@
 :root[data-theme="dark"] .theme-switch button.on{background:var(--primary-tint)}
 .theme-note{display:block;padding:6px 10px 0;font-size:11.5px;color:var(--muted);line-height:1.35}
 
-/* ---- Dark overrides for colours written directly in the light styles.
-   "D" = html[data-theme=dark] body > :not(.xs-host): never reaches an export sheet. ---- */
-:root[data-theme="dark"] body > :not(.xs-host) .btn-white{background:var(--surface-2);color:var(--ink);border-color:var(--border-2)}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.hero, .hof-hero, .ongoing-art, .t-card-banner) .btn-white{background:#FFFFFF;color:#0B1B3F;border-color:#FFFFFF}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.tab.active, .seg.active){background:var(--primary-tint);color:var(--primary-dark);box-shadow:none}
-:root[data-theme="dark"] body > :not(.xs-host) .t-card-head .badge{background:rgba(10,17,32,.72);color:#FFFFFF}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.prize-card.silver .prize-medal, .hof-medal.silver, .decorated-counts i.silver, .hof-chip.silver, .dec-n.silver){background:#2A3346}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.prize-card.bronze .prize-medal, .hof-medal.bronze, .decorated-counts i.bronze, .hof-chip.bronze, .dec-n.bronze){background:#3A2818}
-:root[data-theme="dark"] body > :not(.xs-host) .crop-stage{background:#0E1626}
-:root[data-theme="dark"] body > :not(.xs-host) .group-table tr.qualify td{background:#14223F}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.group-table tr.qualify td:first-child, .qualify td:first-child){background:linear-gradient(var(--primary),var(--primary)) left center / 4px 100% no-repeat, #14223F}
-:root[data-theme="dark"] body > :not(.xs-host) .group-table tr.tap-row:active td{background:#1C3060}
-:root[data-theme="dark"] body > :not(.xs-host) .lbx tr.top td{background:#131F38}
-:root[data-theme="dark"] body > :not(.xs-host) .tg-hero{background:#0F2638;border-color:#1D4260}
-:root[data-theme="dark"] body > :not(.xs-host) .tg-chip.on{background:#123247;color:#7CCBF5}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.h2h-res.loss, .pm-res.l, .mv.down){background:#3A1719;color:#FF8A8E}
-:root[data-theme="dark"] body > :not(.xs-host) .h2h-res.draw{background:#2A3346}
-:root[data-theme="dark"] body > :not(.xs-host) :is(.pm-res.w, .mv.up){background:#123526;color:#6EE0A6}
+/* ---- Dark overrides for colours written directly in the light styles. ---- */
+:root[data-theme="dark"] .btn-white{background:var(--surface-2);color:var(--ink);border-color:var(--border-2)}
+:root[data-theme="dark"] :is(.hero, .hof-hero, .ongoing-art, .t-card-banner) .btn-white{background:#FFFFFF;color:#0B1B3F;border-color:#FFFFFF}
+:root[data-theme="dark"] :is(.tab.active, .seg.active){background:var(--primary-tint);color:var(--primary-dark);box-shadow:none}
+:root[data-theme="dark"] .t-card-head .badge{background:rgba(10,17,32,.72);color:#FFFFFF}
+:root[data-theme="dark"] :is(.prize-card.silver .prize-medal, .hof-medal.silver, .decorated-counts i.silver, .hof-chip.silver, .dec-n.silver){background:#2A3346}
+:root[data-theme="dark"] :is(.prize-card.bronze .prize-medal, .hof-medal.bronze, .decorated-counts i.bronze, .hof-chip.bronze, .dec-n.bronze){background:#3A2818}
+:root[data-theme="dark"] .crop-stage{background:#0E1626}
+:root[data-theme="dark"] .group-table tr.qualify td{background:#14223F}
+:root[data-theme="dark"] :is(.group-table tr.qualify td:first-child, .qualify td:first-child){background:linear-gradient(var(--primary),var(--primary)) left center / 4px 100% no-repeat, #14223F}
+:root[data-theme="dark"] .group-table tr.tap-row:active td{background:#1C3060}
+:root[data-theme="dark"] .lbx tr.top td{background:#131F38}
+:root[data-theme="dark"] .tg-hero{background:#0F2638;border-color:#1D4260}
+:root[data-theme="dark"] .tg-chip.on{background:#123247;color:#7CCBF5}
+:root[data-theme="dark"] :is(.h2h-res.loss, .pm-res.l, .mv.down){background:#3A1719;color:#FF8A8E}
+:root[data-theme="dark"] .h2h-res.draw{background:#2A3346}
+:root[data-theme="dark"] :is(.pm-res.w, .mv.up){background:#123526;color:#6EE0A6}
 :root[data-theme="dark"] .export-scope button.on{background:var(--primary-tint)}
 :root[data-theme="dark"] .sk{background:linear-gradient(90deg, var(--surface-3) 0%, #24324F 45%, var(--surface-3) 90%);background-size:200% 100%}
 @media(max-width:900px){
@@ -131,8 +84,25 @@
   :root[data-theme="dark"] .bottom-nav{background:rgba(14,22,38,.96) !important;box-shadow:0 -6px 20px -10px rgba(0,0,0,.6) !important}
   @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){ :root[data-theme="dark"] .bottom-nav{background:rgba(14,22,38,.86) !important} }
 }
-:root[data-theme="dark"] body > :not(.xs-host) .recent-row{border-color:var(--border)}
-:root[data-theme="dark"] body > :not(.xs-host) .recent-row:hover{border-color:var(--border-2)}
+:root[data-theme="dark"] .recent-row{border-color:var(--border)}
+:root[data-theme="dark"] .recent-row:hover{border-color:var(--border-2)}
 /* Avatars in dark navy colours keep a faint ring so they don't vanish into the background */
-:root[data-theme="dark"] body > :not(.xs-host) .player-avatar{box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+:root[data-theme="dark"] .player-avatar{box-shadow:0 0 0 1px rgba(255,255,255,.14)}
 :root[data-theme="dark"] .tabs-sticky{background:rgba(10,17,32,.88)}
+
+/* ---- Exports in dark mode (Facebook-size sheets, stats, head-to-head) ---- */
+:root[data-theme="dark"] .xs.fb{--muted:#A3B1CE;--text-2:#C6D0E6;--divider:#22304D;--line:#2A3A5C}
+:root[data-theme="dark"] .x54{--muted:#A3B1CE;--text-2:#C6D0E6;--divider:#22304D}
+:root[data-theme="dark"] :is(.fb-card, .fbk, .fb-person, .fb-pfc, .fb-rec, .fsn, .fsr, .fsc){background:var(--surface);border-color:#2A3A5C}
+:root[data-theme="dark"] :is(.fbt tr.q td, .fbt tr.top td){background:#16264A}
+:root[data-theme="dark"] .fbt .dim{color:#4E5F82}
+:root[data-theme="dark"] .fbk-row.w{background:#1A2D55}
+:root[data-theme="dark"] .fb-champ{background:linear-gradient(180deg,#3A2F0E,#1B2742);border-color:#8A6A12}
+:root[data-theme="dark"] .fb-champ small{color:#FFD465}
+:root[data-theme="dark"] .fb-res.win{background:#123526;color:#6EE0A6}
+:root[data-theme="dark"] .fb-res.loss{background:#3A1719;color:#FF8A8E}
+:root[data-theme="dark"] .fb-res.draw{background:#2A3346;color:#C3CCDD}
+:root[data-theme="dark"] .fb-unb i{color:#6EE0A6}
+:root[data-theme="dark"] .x54-stats .st-card{border-color:#2A3A5C}
+:root[data-theme="dark"] .x54-stats .st-lead{background:#16213A}
+:root[data-theme="dark"] .xs-fbar{border-top-color:#2A3A5C}
