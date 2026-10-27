@@ -4800,4 +4800,12 @@ function migrateTournament(t){
 
 /* Init */
 boot();
+/* Shorter search hint on narrow phones, so it isn't cut off. */
+(function(){
+  const set = ()=>{ const el = document.getElementById('globalSearch'); if(!el) return;
+    el.placeholder = window.innerWidth < 400 ? 'Search players, tournaments' : 'Search players or tournaments…';
+    if(window.innerWidth < 340) el.placeholder = 'Search…' };
+  set(); window.addEventListener('resize', set, {passive:true});
+})();
+
 setInterval(()=>{ if(isAdmin()) STORE.tournaments.filter(t=>t.status==='active').forEach(t=>processDeadline(t.id)) }, 30000);

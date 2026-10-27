@@ -1371,3 +1371,106 @@
 /* Score boxes: one fixed size, centred, so every row lines up. */
 .pm-score{box-sizing:border-box;width:68px;text-align:center;padding:5px 0;font-size:15px;letter-spacing:-.01em}
 @media(max-width:360px){ .pm-score{width:60px;font-size:14px} }
+
+/* ===== Full names everywhere (no "…" truncation) =====
+   Names and labels wrap onto a second line instead of being cut off, on every phone size.
+   Scoped to the app (#main, #modal); exports keep their own fitted layout. */
+:is(#main, #modal) :is(.row-name, .row-stack b, .row-stack span, .recent-main b, .recent-main span, .champ-mini b,
+  .pill-text, .rg-name, .hof-li-meta .badge, .lb-pod-list .nm, .lbx .who > span:last-child, .xrec-row b, .sd-txt b,
+  .fsc-nm, .pm-opp b, .group-table .who > span:not(.player-avatar):not(.q-chip), .ongoing-art b){
+  white-space:normal !important; overflow:visible !important; text-overflow:clip !important;
+  overflow-wrap:break-word; -webkit-line-clamp:unset !important; display:revert; max-width:none !important; line-height:1.25
+}
+:is(#main, #modal) .ongoing-art b{display:block}
+:is(#main, #modal) .hof-li-meta .badge{display:inline-block;text-align:left}
+#main .group-table .who, #main .lbx .who{min-width:0}
+/* Ranking table on phones: drop the avatar so the name has room; rank + arrow stack. */
+@media(max-width:520px){
+  #main .lbx .who .player-avatar{display:none}
+  #main .lbx .who{gap:0}
+  #main .lbx td.l{width:100%;max-width:none;white-space:normal}
+  #main .lbx td:not(.l):not(:first-child), #main .lbx th:not(.l):not(:first-child){width:1%;padding-left:4px;padding-right:4px}
+  #main .lbx th{font-size:10px;letter-spacing:.04em}
+  #main .lbx .who > span:last-child{overflow-wrap:anywhere}
+  #main .lbx .rk-wrap{grid-template-columns:auto;grid-auto-flow:row;justify-items:center;gap:3px}
+  #main .lbx td:first-child{width:44px;padding-left:2px;padding-right:2px}
+  #main .lbx .mv{font-size:10px;padding:1px 3px}
+}
+@media(max-width:360px){
+  #main .lbx td, #main .lbx th{padding-left:3px;padding-right:3px}
+  #main .lbx-pts{min-width:32px;font-size:15px;padding:3px 6px}
+  #main .lbx-title{min-width:20px;padding:2px 5px}
+  #main .lbx td.l{font-size:13px}
+}
+@media(max-width:300px){
+  #main .lbx th:nth-child(3), #main .lbx td:nth-child(3){display:none}
+  #main .lbx td:first-child{width:38px}
+}
+
+/* Tables: words break only at spaces, so a name column never collapses to one letter wide. */
+#main td, #modal td{word-break:normal}
+#main :is(.group-table, .lbx, .fx-table, .reg-table) td{overflow-wrap:normal}
+#main .group-table td:not(:nth-child(2)), #main .group-table th:not(:nth-child(2)){white-space:nowrap}
+#main .group-table td:nth-child(2){width:100%}
+#main .group-table .who > span:not(.player-avatar):not(.q-chip){overflow-wrap:break-word}
+@media(max-width:400px){
+  #main .group-table td, #main .group-table th{padding-left:3px;padding-right:3px}
+  #main .group-table .who{gap:6px}
+  #main .group-table td:first-child{width:28px}
+}
+@media(max-width:340px){
+  #main .group-table .who .player-avatar{display:none}
+  #main .group-table td, #main .group-table th{font-size:12.5px}
+}
+/* Home: Top Players on small phones */
+@media(max-width:360px){
+  .top-row{grid-template-columns:24px minmax(0,1fr) 44px 40px !important;column-gap:8px}
+  .top-row > :nth-child(2){display:none}
+  .top-row .row-num, .row-head .row-num{text-align:center}
+  .row-grid.row-head{letter-spacing:.03em;font-size:10px}
+}
+/* Very narrow phones (Galaxy Fold folded): keep labels whole */
+@media(max-width:300px){
+  .hero-title{font-size:30px !important;overflow-wrap:normal}
+  .stat-label{font-size:11px;word-break:normal;overflow-wrap:normal;hyphens:none}
+  .stat-icon, .stat-icon.si{display:none !important}
+  .stat{padding:12px}
+}
+@media(max-width:340px){
+  .hof-row{grid-template-columns:26px minmax(0,1fr) auto !important;column-gap:8px}
+  .hof-row > :nth-child(2){display:none}
+}
+@media(max-width:300px){
+  #main .group-table .who > span:not(.player-avatar):not(.q-chip){overflow-wrap:normal;font-size:12px}
+  #main .group-table td, #main .group-table th{padding-left:2px;padding-right:2px;font-size:12px}
+  #main .group-table .q-chip{margin-left:0}
+}
+/* Galaxy Fold (folded) and other very narrow phones */
+@media(max-width:340px){
+  .hof-li, .hof-list.is-admin .hof-li{grid-template-columns:30px minmax(0,1fr) auto;column-gap:10px;padding:12px 12px}
+  .hof-li-av{display:none}
+  .hof-li-meta{grid-column:2;grid-row:2;align-items:flex-start;text-align:left;flex-direction:row;flex-wrap:wrap}
+  .hof-li-actions{grid-column:3;grid-row:1 / span 2}
+  .hof-li-main > b, .hof-li-t{overflow-wrap:break-word}
+  .player-card .player-name{word-break:normal;overflow-wrap:break-word;font-size:20px}
+  .tabs-wrap > .segmented .seg{padding:0 4px;font-size:11px}
+  .mobile-header .brand-name{font-size:15px}
+}
+@media(max-width:300px){
+  .mobile-header .brand-sub{display:none}
+  .player-card .player-avatar{width:38px !important;height:38px !important}
+}
+@media(max-width:340px){
+  .mh-actions{gap:4px}
+  .mh-actions .bell-btn{width:36px;height:36px;flex-basis:36px}
+  .user-chip.mini{height:36px}
+  .mh-actions .menu-btn{width:34px;height:36px}
+  .mobile-header .brand-logo{gap:8px}
+  .mobile-header .brand-logo img, .mobile-header .brand-logo .logo-mark{width:34px;height:34px}
+}
+@media(max-width:300px){
+  .mobile-header .brand-logo > :first-child:not(div){display:none}
+  .mobile-header .brand-name{overflow:visible;text-overflow:clip}
+  .bn-item span{font-size:8.5px !important;letter-spacing:-.01em}
+  .bn-item{padding-left:0;padding-right:0}
+}
