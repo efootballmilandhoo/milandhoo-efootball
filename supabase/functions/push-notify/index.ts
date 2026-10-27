@@ -2,7 +2,7 @@
 // 1. Tournament changes: called by the docs_notify database trigger (pg_net).
 // 2. Deadline reminders: called every 5 minutes by pg_cron with {"kind":"reminders"}.
 //    Sends one reminder 2 hours before the group-stage deadline and before each knockout round deadline.
-//    Group stage also gets Telegram-only reminders at 18:00 the day before and 12:00 on deadline day.
+//    The group stage also gets one Telegram reminder at 18:00 on deadline day (players' remaining matches + rules).
 // Both callers send the shared secret in the x-hook-secret header.
 import webpush from "npm:web-push@3.6.7";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
@@ -173,7 +173,6 @@ async function dueReminders(): Promise<Obj[]> {
     if (t.format !== "single_elimination" && soon(gd) && !t.deadlineProcessed) {
       const left = (t.fixtures || []).filter((f: Obj) => (isLeague || f.group) && !(has(f.score1) && has(f.score2))).length;
       if (left) out.push({
-        tg: { action: "remind", tid: row.id, kind: "2h", clock: clock(gd), left: (() => { const m: Obj = {}; (t.fixtures || []).forEach((f: Obj) => { if ((isLeague || f.group) && !(has(f.score1) && has(f.score2))) { m[f.team1] = (m[f.team1] || 0) + 1; m[f.team2] = (m[f.team2] || 0) + 1; } }); return m; })() },
         key: `g:${row.id}:${t.groupDeadline}`,
         title: `⏰ 2 hours left: ${tn}`,
         body: `${isLeague ? "League" : "Group stage"} deadline is ${clock(gd)}. ${left} match${left > 1 ? "es" : ""} still to play; unplayed matches count as 0-0 draws.`,
@@ -181,17 +180,12 @@ async function dueReminders(): Promise<Obj[]> {
       });
     }
 
-    // Telegram-only group reminders: 18:00 the day before the deadline and 12:00 on deadline day.
-    // Each fires once, within 30 minutes of its time, and only while it is more than 2 hours before the deadline.
+    // Telegram group reminder: once, at 18:00 on deadline day (or 3 hours before a deadline earlier than 21:00),
+    // sent within 30 minutes of that time to players who still have group matches to play.
     if (t.format !== "single_elimination" && Number.isFinite(gd) && gd > now && !t.deadlineProcessed) {
       const anyLeft = (t.fixtures || []).some((f: Obj) => (isLeague || f.group) && !(has(f.score1) && has(f.score2)));
-      const day = localDay(gd);
-      const prev = localDay(gd - 24 * 36e5);
-      const slots: [string, number][] = [["eve", localAt(prev, "18:00")], ["day", localAt(day, "12:00")]];
-      for (const [kind, at] of slots) {
-        if (!anyLeft || !(now >= at && now - at < 30 * 60e3 && at < gd - REMIND_MS)) continue;
-        out.push({ tg: { action: "remind", tid: row.id, kind }, key: `g${kind}:${row.id}:${t.groupDeadline}`, telegramOnly: true });
-      }
+      const at = Math.min(localAt(localDay(gd), "18:00"), gd - 3 * 36e5);
+      if (anyLeft && now >= at && now - at < 30 * 60e3) out.push({ tg: { action: "remind", tid: row.id }, key: `g18:${row.id}:${t.groupDeadline}`, telegramOnly: true });
     }
 
     const dls: Obj = t.rules?.roundDeadlines || {};
@@ -217,7 +211,7 @@ async function dueReminders(): Promise<Obj[]> {
   const done = new Set((sent || []).map((r: Obj) => r.key));
   const due = out.filter((r) => !done.has(r.key));
   if (due.length) await sb.from("deadline_reminders").insert(due.map((r) => ({ key: r.key })));
-  if (due.length) EdgeRuntime.waitUntil((async () => { for (const r of due) await telegram(r.tg); })());
+  if (due.length) EdgeRuntime.waitUntil((async () => { for (const r of due) if (r.tg) await telegram(r.tg); })());
   return due.filter((r) => !r.telegramOnly).map(({ key: _k, tg: _t, ...ev }) => ev);
 }
 

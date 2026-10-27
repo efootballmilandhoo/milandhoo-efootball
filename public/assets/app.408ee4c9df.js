@@ -4579,7 +4579,7 @@ function renderMessagePlayers(){
       <button type="button" class="btn btn-primary" ${linked?'':'disabled'} onclick="sendTelegramFixtures('${t.id}')">${TG_SVG} Send to ${linked} on Telegram</button>
     </div>
     ${groupDeadlineAhead(t) ? `<div class="tg-hero tg-dl">
-      <div><p style="margin:0"><b>Group deadline reminder</b></p><span>Sends each linked player who still has group matches to play their remaining fixtures, the deadline (${esc(fmtDateTime(t.groupDeadline))}) and the rules. It's also sent automatically at 18:00 the day before, 12:00 on deadline day and 2 hours before.</span></div>
+      <div><p style="margin:0"><b>Group deadline reminder</b></p><span>Sends each linked player who still has group matches to play their remaining fixtures, the deadline (${esc(fmtDateTime(t.groupDeadline))}) and the rules. It's also sent automatically at 18:00 on deadline day.</span></div>
       <button type="button" class="btn btn-primary" onclick="sendDeadlineReminder('${t.id}')">${ICON.alarm} Send reminder now</button>
     </div>` : ''}
     <div class="link-box"><input class="form-input" readonly value="${TG_BOT_LINK}" aria-label="Bot link" onclick="this.select()"><button type="button" class="btn btn-secondary" onclick="copyText('${TG_BOT_LINK}')">Copy bot link</button></div>
