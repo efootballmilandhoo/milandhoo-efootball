@@ -154,7 +154,6 @@ function fixturesText(t: Obj, pid: string, nm: Record<string, string>, html = tr
     lines.push(`${i + 1}. vs ${done ? e(P(opp)) : b(P(opp))}${res}`);
   });
   lines.push("", left.length ? `${left.length} match${left.length > 1 ? "es" : ""} to play.` : "All your matches are played.");
-  if (left.length && t.groupDeadline && !t.deadlineProcessed && deadlineMs(t.groupDeadline) > Date.now()) lines.push("", ...deadlineRules(t, html));
   lines.push("");
   lines.push(`Table and results: ${link}`);
   return lines.join("\n");

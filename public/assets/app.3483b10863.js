@@ -2997,8 +2997,8 @@ function groupSwitcher(t, onPick){
   if(!t.groupData || t.groupData.length<2) return '';
   const cur = currentGroup(t);
   return `<div class="segmented" role="group" aria-label="Choose group">
-    ${t.groupData.map(g=>`<button type="button" class="seg ${g.name===cur?'active':''}" aria-pressed="${g.name===cur}" onclick="${onPick}('${t.id}','${esc(g.name)}')">Group ${esc(g.name)}</button>`).join('')}
     <button type="button" class="seg ${cur==='*'?'active':''}" aria-pressed="${cur==='*'}" onclick="${onPick}('${t.id}','*')">All</button>
+    ${t.groupData.map(g=>`<button type="button" class="seg ${g.name===cur?'active':''}" aria-pressed="${g.name===cur}" onclick="${onPick}('${t.id}','${esc(g.name)}')">Group ${esc(g.name)}</button>`).join('')}
   </div>`;
 }
 function currentGroup(t){
