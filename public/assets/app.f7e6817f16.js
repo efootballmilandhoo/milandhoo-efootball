@@ -3769,8 +3769,8 @@ function openPlayerMatches(tid, pid){
     const tag = {w:'W', l:'L', d:'D', p:''}[cls];
     return `<li class="pm-row">
       <span class="pm-res ${cls}">${tag || '–'}</span>
-      <span class="pm-mid"><span class="pm-opp">${renderAvatar(opp, 26)}<b>${esc(opp.name)}</b></span><span class="pm-stage">${esc(f.stage)}${f.detail ? ` · ${esc(f.detail)}` : ''}${f.at && f.result ? ` · ${esc(whenText(f.at))}` : ''}</span></span>
-      <span class="pm-score ${cls}">${f.score ? esc(f.score).replace(' - ','–') : 'vs'}</span>
+      <span class="pm-mid"><span class="pm-opp">${renderAvatar(opp, 26)}<b>${esc(opp.name)}</b></span><span class="pm-stage">${esc(f.stage)}${/ agg$/.test(f.score||'') ? ' · aggregate' : / games$/.test(f.score||'') ? ' · games won' : ''}${f.detail ? ` · ${esc(f.detail)}` : ''}${f.at && f.result ? ` · ${esc(whenText(f.at))}` : ''}</span></span>
+      <span class="pm-score ${cls}">${f.score ? esc(f.score.replace(/ (agg|games)$/,'')).replace(' - ','–') : 'vs'}</span>
     </li>`;
   }).join('');
   openModal(`

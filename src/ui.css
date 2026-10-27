@@ -1367,3 +1367,7 @@
 .pm-score{font-weight:800;font-size:15px;padding:4px 10px;border-radius:8px;background:var(--surface-3);color:var(--ink);white-space:nowrap;font-variant-numeric:tabular-nums}
 .pm-score.w{background:#0B7A43;color:#fff} .pm-score.l{background:#B4232A;color:#fff} .pm-score.p{background:transparent;color:var(--muted);border:1px dashed var(--border);font-weight:700}
 @media(max-width:400px){ .pm-sum b{font-size:16px} .pm-sum span{font-size:10px;padding:8px 2px} }
+
+/* Score boxes: one fixed size, centred, so every row lines up. */
+.pm-score{box-sizing:border-box;width:68px;text-align:center;padding:5px 0;font-size:15px;letter-spacing:-.01em}
+@media(max-width:360px){ .pm-score{width:60px;font-size:14px} }
