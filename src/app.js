@@ -591,12 +591,18 @@ function fbStandings(t){
   const cur = isLeague ? '*' : (currentGroup(t) || '*');
   const groups = (t.groupData || []).filter(g=>cur==='*' || g.name===cur);
   if(!groups.length){ toast('No standings to export yet', true); return }
-  const dl = t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
-  const page = (g, rows, i, n) => fbSheet(t, t.name, `${isLeague?'League table':`Group ${esc(g.name)} standings`} · ${updatedAtOf(t) ? `updated ${fmtDateTime(updatedAtOf(t))}` : fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
+  // The group stage is final once its deadline has passed, every match is played, or the knockouts are drawn.
+  const groupFx = (t.fixtures||[]).filter(f=>isLeague || f.group);
+  const final = !!(t.status==='completed' || t.deadlineProcessed || t.knockoutDrawn
+    || (t.groupDeadline && new Date(t.groupDeadline) <= new Date())
+    || (groupFx.length && groupFx.every(f=>hasScore(f.score1) && hasScore(f.score2))));
+  const dl = t.groupDeadline && !final ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
+  const what = g => final ? (isLeague ? 'Final league table' : `Final group standings · Group ${esc(g.name)}`) : (isLeague ? 'League table' : `Group ${esc(g.name)} standings`);
+  const page = (g, rows, i, n) => fbSheet(t, t.name, `${what(g)} · ${updatedAtOf(t) ? `updated ${fmtDateTime(updatedAtOf(t))}` : fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
       <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
-      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
+      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq && final?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
       </tbody></table></div>
-      <div class="fb-legend"><span class="fb-q">Q</span> ${isLeague ? 'League leader' : `Qualified · top ${q} go through to the knockouts`} · GA = goals conceded</div>`, 1, 1);
+      <div class="fb-legend">${final ? `<span class="fb-q">Q</span> ${isLeague ? 'League champion' : `Qualified · top ${q} went through to the knockouts`}` : (isLeague ? 'Highlighted: top of the table so far' : `Highlighted: top ${q} in qualifying places so far`)} · GA = goals conceded</div>`, 1, 1);
   // One page per group (a long league table continues on a second page).
   const pages = [];
   groups.forEach(g=>{
@@ -4837,4 +4843,27 @@ boot();
   set(); window.addEventListener('resize', set, {passive:true});
 })();
 
+/* =========================
+   THEME: Light, Dark, or Auto (follows the phone). Saved on this device.
+   The page <head> applies it before first paint; this keeps it in sync afterwards.
+   ========================= */
+const THEME_MQ = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+function themeMode(){ try{ return localStorage.getItem('mg-theme') || 'auto' }catch{ return 'auto' } }
+function applyTheme(){
+  const m = themeMode(), dark = m==='dark' || (m==='auto' && !!THEME_MQ?.matches);
+  const root = document.documentElement;
+  root.dataset.theme = dark ? 'dark' : 'light';
+  root.dataset.themeMode = m;
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if(meta) meta.setAttribute('content', dark ? '#0A1120' : '#0B1B3F');
+  document.querySelectorAll('[data-theme-opt]').forEach(b=>{ const on = b.dataset.themeOpt===m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on) });
+}
+function setThemeMode(m){
+  try{ localStorage.setItem('mg-theme', m) }catch{}
+  document.documentElement.classList.add('theme-anim');
+  applyTheme();
+  setTimeout(()=>document.documentElement.classList.remove('theme-anim'), 400);
+}
+THEME_MQ?.addEventListener?.('change', ()=>{ if(themeMode()==='auto') applyTheme() });
+applyTheme();
 setInterval(()=>{ if(isAdmin()) STORE.tournaments.filter(t=>t.status==='active').forEach(t=>processDeadline(t.id)) }, 30000);

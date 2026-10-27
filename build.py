@@ -64,7 +64,7 @@ def build():
     app = app.replace('\n/* Init */\nboot();\n', '\n')
     assert '\nboot();\n' not in app
     js = '\n'.join([src('sbdb.js'), app, src('perf.js'), src('notify.js'), '/* Init */\nboot();\n'])
-    css = minify_css(src('theme.css') + src('web.css') + src('ui.css'))
+    css = minify_css(src('theme.css') + src('web.css') + src('ui.css') + src('dark.css'))
 
     os.makedirs(ASSETS, exist_ok=True)
     for f in os.listdir(ASSETS):
@@ -96,6 +96,7 @@ def build():
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>(function(){{try{{var m=localStorage.getItem('mg-theme')||'auto';var d=m==='dark'||(m==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.dataset.themeMode=m}}catch(e){{document.documentElement.dataset.theme='light'}}}})();</script>
 <link rel="stylesheet" href="/assets/{css_name}">
 <link rel="preload" as="style" crossorigin="anonymous" href="{FONTS}" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="{FONTS}"></noscript>
