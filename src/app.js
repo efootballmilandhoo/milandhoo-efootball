@@ -6,6 +6,13 @@ const clone = x => JSON.parse(JSON.stringify(x));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const slug = s => (String(s || 'export').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'') || 'export');
 const hasScore = v => v !== null && v !== undefined && v !== '' && !Number.isNaN(v);
+/* A real result: both scores in and not an automatic 0-0 recorded at the deadline (those give no points). */
+const realResult = f => !!f && hasScore(f.score1) && hasScore(f.score2) && !f.autoDraw;
+/* Group-stage deadline (saved in Maldives time, UTC+5). Scores can be edited up to 30 minutes after it, then they lock. */
+function deadlineMsOf(v){ if(!v) return NaN; const s = String(v); return Date.parse(/([zZ]|[+-]\d\d:?\d\d)$/.test(s) ? s : (s.length===16 ? s+':00' : s) + '+05:00') }
+const GROUP_EDIT_GRACE = 30*60*1000;
+function groupLocked(t){ const d = deadlineMsOf(t?.groupDeadline); return !!(t && t.format!=='single_elimination' && Number.isFinite(d) && Date.now() > d + GROUP_EDIT_GRACE) }
+function groupLockAt(t){ const d = deadlineMsOf(t?.groupDeadline); return Number.isFinite(d) ? new Date(d + GROUP_EDIT_GRACE) : null }
 function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
 function localDT(d){ const z=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${z(d.getMonth()+1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}` }
 /* Date + time picker pair: a calendar for the date, a clock for the time. Read with readDT(id). */
@@ -86,7 +93,8 @@ function queueWrite(path, fn){
   STORE.chains[path] = (STORE.chains[path] || LIVE_READY).then(run).then(()=>scheduleOffload()).catch(e=>{
     console.error(e);
     const code = e && e.code;
-    if(code==='invalid_argument') toast('Save refused: only signed-in organisers can change community data. Sign in again from the Admin Panel.', true);
+    if(/GROUP_LOCKED/.test(String(e && (e.message || e)))) toast('Group stage results are locked 30 minutes after the deadline. That change was not saved.', true);
+    else if(code==='invalid_argument') toast('Save refused: only signed-in organisers can change community data. Sign in again from the Admin Panel.', true);
     else if(code==='quota_exceeded') toast('Storage is full. Delete old tournaments or player photos, then try again.', true);
     else toast('A change could not be saved. Check your connection and try again.', true);
   });
@@ -354,7 +362,7 @@ function computeStandings(t, g){
   const rows = {};
   g.players.forEach(p=>{ rows[p.playerId] = {playerId:p.playerId, played:0, wins:0, draws:0, losses:0, gf:0, ga:0, points:0} });
   (t.fixtures||[]).forEach(f=>{
-    if(f.group!==g.name || !hasScore(f.score1) || !hasScore(f.score2)) return;
+    if(f.group!==g.name || !realResult(f)) return;
     const a = rows[f.team1], b = rows[f.team2];
     if(!a || !b) return;
     a.played++; b.played++;
@@ -615,24 +623,27 @@ function fbStandings(t){
 
 function fbFixtureRow(f){
   const done = fbDone(f), w1 = done && f.score1>f.score2, w2 = done && f.score2>f.score1;
-  return `<div class="fbf"><span class="a ${w1?'w':''}">${esc(playerName(f.team1))}</span><span class="sc ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span><span class="b ${w2?'w':''}">${esc(playerName(f.team2))}</span></div>`;
+  const np = done && f.autoDraw && EXPORT_CTX.scope !== 'pending';
+  return `<div class="fbf"><span class="a ${w1?'w':''}">${esc(playerName(f.team1))}</span><span class="sc ${!done || EXPORT_CTX.scope==='pending' ? 'pending' : ''} ${np?'np':''}">${np ? 'NP' : done && EXPORT_CTX.scope!=='pending' ? `${f.score1} – ${f.score2}` : 'vs'}</span><span class="b ${w2?'w':''}">${esc(playerName(f.team2))}</span></div>`;
 }
 function fbFixtures(t){
-  const fx = t.fixtures || [], isLeague = t.format==='league';
+  // "Not played" export: only matches without a real result (still to play, or recorded 0-0 at the deadline).
+  const pendingOnly = EXPORT_CTX.scope === 'pending';
+  const fx = (t.fixtures || []).filter(f=>!pendingOnly || !realResult(f)), isLeague = t.format==='league';
   const cur = isLeague ? '*' : (currentGroup(t) || '*');
-  const blocks = isLeague ? [{name:null, rows:fx}] : (t.groupData||[]).filter(g=>cur==='*' || g.name===cur).map(g=>({name:g.name, rows:fx.filter(f=>f.group===g.name)}));
-  if(!fx.length){ toast('No fixtures to export yet', true); return }
+  const blocks = (isLeague ? [{name:null, rows:fx}] : (t.groupData||[]).filter(g=>cur==='*' || g.name===cur).map(g=>({name:g.name, rows:fx.filter(f=>f.group===g.name)}))).filter(b=>b.rows.length);
+  if(!blocks.length){ toast(pendingOnly ? 'Every match has been played' : 'No fixtures to export yet', true); return }
   const pages = [];
   blocks.forEach(b=>{
     const items = [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y).map(md=>({md, rows:b.rows.filter(f=>f.matchday===md)}));
     const page = (set, i, n) => {
       const mds = set.map(x=>x.md), label = mds.length>1 ? `Matchdays ${mds[0]}–${mds.at(-1)}` : `Matchday ${mds[0]}`;
-      return fbSheet(t, t.name, `${b.name ? `Group ${esc(b.name)} · ` : ''}${label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`,
-        `<div class="fb-card">${set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>`, i+1, n);
+      return fbSheet(t, t.name, `${b.name ? `Group ${esc(b.name)} · ` : ''}${pendingOnly ? `Not played · ${b.rows.length} match${b.rows.length>1?'es':''}` : label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`,
+        `<div class="fb-card">${set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>${!pendingOnly && set.some(x=>x.rows.some(f=>f.autoDraw)) ? '<div class="fb-legend small">NP = not played by the deadline · recorded 0–0, no points for either player</div>' : ''}`, i+1, n);
     };
     pages.push(...fbPack(items, page, {even:true}));
   });
-  return renderSheets(fbRenumber(pages), FB.w, `${slug(t.name)}_fixtures`);
+  return renderSheets(fbRenumber(pages), FB.w, `${slug(t.name)}_${pendingOnly ? 'not_played' : 'fixtures'}`);
 }
 /* Page numbers across an export made of several packed groups. */
 function fbRenumber(pages){ const n = pages.length; return pages.map((h, i)=>h.replace(/(<span class="xs-fbar-date">Exported [^<]*?)( · Page \d+ of \d+)?(<\/span>)/, (m, a, b, c)=>a + (n>1 ? ` · Page ${i+1} of ${n}` : '') + c)) }
@@ -837,7 +848,7 @@ function calculateAllStats(cutoff){
     const tWhen = String(t.completedAt || t.startedAt || t.createdAt || '');
     const touch = pid => { const s = stats[pid]; if(s && tWhen > s.lastAt) s.lastAt = tWhen };
     (t.fixtures||[]).forEach(f=>{
-      if(!hasScore(f.score1) || !hasScore(f.score2)) return;
+      if(!realResult(f)) return;
       if(after(f.scoredAt)) return;
       const a = stats[f.team1], b = stats[f.team2];
       touch(f.team1); touch(f.team2);
@@ -1359,6 +1370,7 @@ function fixtureLine(t, f){
 const MATCHDAYS_PER_PAGE = 3;
 /* Fixtures export: every group on its own pages (or just the selected group), 3 matchdays per page. */
 function exportFixturesSheet(t){
+  EXPORT_CTX.scopes = [{id:'all', label:'All fixtures'}, {id:'pending', label:'Not played'}];
   const fx = t.fixtures || [];
   const done = f=>hasScore(f.score1)&&hasScore(f.score2);
   const dl = t.groupDeadline ? ` · Deadline ${fmtDateTime(t.groupDeadline)}` : '';
@@ -1688,7 +1700,7 @@ function statTile(icon, tint, label, value, delta){
 function renderDashboard(){
   const tourneys = visibleTournaments();
   const stats = calculateAllStats();
-  const totalMatches = STORE.tournaments.reduce((s,t)=> s + (t.fixtures||[]).filter(f=>hasScore(f.score1)&&hasScore(f.score2)).length + (t.knockoutBracket||[]).flat().filter(m=>!m.isBye && m.team1 && m.team2 && (matchTotals(t,m) || m.winner)).length, 0);
+  const totalMatches = STORE.tournaments.reduce((s,t)=> s + (t.fixtures||[]).filter(realResult).length + (t.knockoutBracket||[]).flat().filter(m=>!m.isBye && m.team1 && m.team2 && (matchTotals(t,m) || m.winner)).length, 0);
   const live = tourneys.filter(t=>t.status==='active');
   const completed = tourneys.filter(t=>t.status==='completed');
   const f = featuredTournament();
@@ -1799,7 +1811,7 @@ function renderDashboard(){
 /* Times shown to viewers. */
 function lastResultOf(t){
   let best = null;
-  (t.fixtures||[]).forEach(f=>{ if(f.scoredAt && hasScore(f.score1) && hasScore(f.score2) && (!best || f.scoredAt > best.at)) best = {at:f.scoredAt, a:f.team1, b:f.team2, s:`${f.score1}–${f.score2}`} });
+  (t.fixtures||[]).forEach(f=>{ if(f.scoredAt && realResult(f) && (!best || f.scoredAt > best.at)) best = {at:f.scoredAt, a:f.team1, b:f.team2, s:`${f.score1}–${f.score2}`} });
   (t.knockoutBracket||[]).flat().forEach(m=>{ if(m && m.scoredAt && m.winner && (!best || m.scoredAt > best.at)){ const r = koResult(t, m); best = {at:m.scoredAt, a:m.team1, b:m.team2, s: r.total ? `${r.total[0]}–${r.total[1]}` : ''} } });
   return best;
 }
@@ -2393,7 +2405,7 @@ function reportCutoffText(t){
   return hm && hm > '21:00' ? `before 21:00 on ${fmtDate(day)}` : 'before the deadline';
 }
 function deadlineRulesHTML(t){
-  return `<li>Any match not played by the deadline is counted as <b>0–0</b>.</li>
+  return `<li>Any match not played by the deadline is counted as <b>0–0 with no points</b> for either player.</li>
     <li>If your opponent doesn't play your match, inform an admin <b>${esc(reportCutoffText(t))}</b>. Reports after that won't be accepted.</li>
     <li>A player who doesn't play gets a <b>1–0 loss</b>: the win goes to their opponent.</li>`;
 }
@@ -2813,6 +2825,7 @@ function setFixtureQuery(tid, v){
 }
 
 function fixtureRows(t, admin, canEdit){
+  const locked = groupLocked(t);
   const cur = t.format==='league' ? '*' : currentGroup(t);
   const q = fixtureQuery.trim().toLowerCase();
   const done = f => hasScore(f.score1) && hasScore(f.score2);
@@ -2835,12 +2848,21 @@ function fixtureRows(t, admin, canEdit){
       <td class="t-right"><span class="who right" style="${done&&f.score1>f.score2?'color:var(--primary-dark)':''}">${esc(p1.name)}${renderAvatar(p1,30)}</span></td>
       <td class="t-center"><span class="result-pill ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span></td>
       <td><span class="who" style="${done&&f.score2>f.score1?'color:var(--primary-dark)':''}">${renderAvatar(p2,30)}${esc(p2.name)}</span></td>
-      <td class="t-right">${done ? `<span class="badge badge-completed">${f.autoDraw?'Auto 0-0':'Completed'}</span>` : `<span class="badge badge-pending">Pending</span>`}</td>
-      ${admin && canEdit ? `<td class="t-right no-export"><span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span></td>`:''}
+      <td class="t-right">${done ? `${f.autoDraw ? '<span class="badge badge-np" title="Not played by the deadline: recorded 0-0, no points">Not played · 0 pts</span>' : '<span class="badge badge-completed">Completed</span>'}` : `<span class="badge badge-pending">Pending</span>`}</td>
+      ${admin && canEdit ? `<td class="t-right no-export">${locked && (t.format==='league' || f.group) ? '<span class="fx-lock" title="Group results are locked">🔒 Locked</span>' : `<span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span>`}</td>`:''}
     </tr>`;
   }).join('');
 }
 
+/* Fixtures tab: after the deadline, say until when scores can still be edited, then that they are locked. */
+function groupLockNotice(t){
+  if(t.format==='single_elimination' || !t.groupDeadline || t.status==='draft' || t.status==='open') return '';
+  const d = deadlineMsOf(t.groupDeadline); if(!Number.isFinite(d) || Date.now() < d) return '';
+  const at = groupLockAt(t), stage = t.format==='league' ? 'League' : 'Group stage';
+  return groupLocked(t)
+    ? `<div class="lock-note locked">🔒 <span><b>${stage} results are final.</b> They were locked 30 minutes after the deadline and can't be changed. Matches not played were recorded as 0–0 with no points.</span></div>`
+    : `<div class="lock-note">⏳ <span><b>Deadline passed.</b> Unplayed matches were recorded as 0–0 with no points. Organisers can still correct scores until <b>${fmtDateTime(at)}</b>, then results lock.</span></div>`;
+}
 function renderAllFixturesTab(t, admin, canEditScores){
   const fixtures = t.fixtures || [];
   if(fixtures.length===0) return `<div class="card empty"><div class="empty-title">No fixtures yet</div><div class="text-sm">Fixtures are created when the tournament starts.</div></div>`;
@@ -2848,6 +2870,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
   const canEdit = t.status==='active';
   return `
     ${t.format==='league' ? '' : `<div class="tabs-wrap"><span class="page-sub">Pick a group or view all fixtures</span>${groupSwitcher(t, 'pickGroup')}</div>`}
+    ${groupLockNotice(t)}
     ${admin && !canEditScores ? `<div class="locked-notice">Start the tournament to enter scores.</div>`:''}
     <section id="fixturesExport" class="export-container" aria-label="Fixtures" style="display:flex;flex-direction:column;gap:14px">
       <div class="export-header"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">Fixtures &amp; results${t.groupDeadline?` · Deadline ${fmtDateTime(t.groupDeadline)}`:''}</div></div>
@@ -2875,7 +2898,7 @@ function renderAllFixturesTab(t, admin, canEditScores){
    ========================= */
 function tournamentMatches(t){
   const out = [];
-  (t.fixtures||[]).forEach(f=>{ if(hasScore(f.score1) && hasScore(f.score2)) out.push({a:f.team1, b:f.team2, ga:+f.score1, gb:+f.score2, stage: t.format==='league' ? `Matchday ${f.matchday}` : `Group ${f.group} · MD ${f.matchday}`}) });
+  (t.fixtures||[]).forEach(f=>{ if(realResult(f)) out.push({a:f.team1, b:f.team2, ga:+f.score1, gb:+f.score2, stage: t.format==='league' ? `Matchday ${f.matchday}` : `Group ${f.group} · MD ${f.matchday}`}) });
   (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
     if(!m || m.isBye || !m.team1 || !m.team2) return;
     const labels = koLegLabels(t.knockoutFormat);
@@ -3050,6 +3073,7 @@ function exportStatsSheet(tid){
 function editFixtureScore(tid, fid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
+  if(groupLocked(t)){ toast('Group stage results are locked (30 minutes after the deadline)', true); return }
   const f = (t.fixtures||[]).find(x=>x.id===fid);
   if(!f) return;
   const p1 = STORE.players.find(x=>x.id===f.team1)||{name:'Unknown player'}, p2 = STORE.players.find(x=>x.id===f.team2)||{name:'Unknown player'};
@@ -3092,7 +3116,9 @@ function readScore(id){ const v = document.getElementById(id)?.value; if(v===und
 
 function saveFixtureScore(tid, fid, clear=false){
   const {all, t} = getT(tid);
+  if(groupLocked(t)){ closeModal(); toast('Group stage results are locked (30 minutes after the deadline)', true); rerender(); return }
   const f = t.fixtures.find(x=>x.id===fid);
+  delete f.autoDraw;   // an organiser's score replaces an automatic 0-0
   if(clear){ f.score1 = null; f.score2 = null; delete f.scoredAt }
   else {
     const s1 = readScore('fs_score1'), s2 = readScore('fs_score2');
@@ -3115,11 +3141,11 @@ function processDeadline(tid){
   const {all, t} = getT(tid);
   let n = 0;
   const now = new Date().toISOString();
-  t.fixtures.forEach(f=>{ if(!hasScore(f.score1) || !hasScore(f.score2)){ f.score1 = 0; f.score2 = 0; f.autoDraw = true; f.scoredAt = now; n++ } });
+  t.fixtures.forEach(f=>{ if((t.format==='league' || f.group) && (!hasScore(f.score1) || !hasScore(f.score2))){ f.score1 = 0; f.score2 = 0; f.autoDraw = true; f.scoredAt = now; n++ } });
   t.deadlineProcessed = true;
   if(n) t.resultsAt = now;
   DB.set('tournaments', all);
-  if(n) toast(`Deadline passed · ${n} unplayed match${n>1?'es':''} recorded as 0-0`);
+  if(n) toast(`Deadline passed · ${n} unplayed match${n>1?'es':''} recorded as 0-0 (no points)`);
 }
 
 /* =========================
@@ -3511,15 +3537,15 @@ function openPlayerMatches(tid, pid){
   const p = STORE.players.find(x=>x.id===pid) || {name:'Unknown player'};
   const list = getPlayerFixtures(t, pid).map((f,i)=>({...f, _i:i}))
     .sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
-  const done = list.filter(f=>f.result);
+  const done = list.filter(f=>f.result && f.result!=='np');
   const n = r => done.filter(f=>f.result===r).length;
   let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
   const W=n('win'), D=n('draw'), L=n('loss');
   const sum = (v,l) => `<span><b>${v}</b>${l}</span>`;
   const rows = list.map(f=>{
     const opp = STORE.players.find(x=>x.id===f.opponent) || {name: f.opponent ? 'Unknown player' : 'To be decided'};
-    const cls = f.result==='win' ? 'w' : f.result==='loss' ? 'l' : f.result==='draw' ? 'd' : 'p';
-    const tag = {w:'W', l:'L', d:'D', p:''}[cls];
+    const cls = f.result==='win' ? 'w' : f.result==='loss' ? 'l' : f.result==='draw' ? 'd' : f.result==='np' ? 'np' : 'p';
+    const tag = {w:'W', l:'L', d:'D', np:'–', p:''}[cls];
     return `<li class="pm-row">
       <span class="pm-res ${cls}">${tag || '–'}</span>
       <span class="pm-mid"><span class="pm-opp">${renderAvatar(opp, 26)}<b>${esc(opp.name)}</b></span><span class="pm-stage">${esc(f.stage)}${/ agg$/.test(f.score||'') ? ' · aggregate' : / games$/.test(f.score||'') ? ' · games won' : ''}${f.detail ? ` · ${esc(f.detail)}` : ''}${f.at && f.result ? ` · ${esc(whenText(f.at))}` : ''}</span></span>
@@ -3548,7 +3574,8 @@ function getPlayerFixtures(t, pid){
   const list = [];
   (t.fixtures||[]).forEach(f=>{
     if(f.team1!==pid && f.team2!==pid) return;
-    const me1 = f.team1===pid, played = hasScore(f.score1) && hasScore(f.score2);
+    const me1 = f.team1===pid, played = realResult(f);
+    if(f.autoDraw && hasScore(f.score1)){ list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score:'0 - 0', goals:null, result:'np', detail:'Not played · no points', at: f.scoredAt||''}); return }
     const my = me1?f.score1:f.score2, opp = me1?f.score2:f.score1;
     list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score: played?`${my} - ${opp}`:null, goals: played?[my,opp]:null, result: !played?null: my>opp?'win':my<opp?'loss':'draw', at: f.scoredAt||''});
   });
@@ -3573,10 +3600,10 @@ function renderPlayerViewTab(t){
   // Played matches first (latest result on top), then pending ones in schedule order.
   const fixtures = getPlayerFixtures(t, selectedId).map((f,i)=>({...f, _i:i}))
     .sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
-  const done = fixtures.filter(f=>f.result);
+  const done = fixtures.filter(f=>f.result && f.result!=='np');
   let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
   const wins = done.filter(f=>f.result==='win').length;
-  const resBadge = r => r==='win' ? '<span class="badge badge-completed">Win</span>' : r==='loss' ? '<span class="badge" style="background:var(--danger-tint);color:var(--danger-ink)">Loss</span>' : r==='draw' ? '<span class="badge badge-draft">Draw</span>' : '<span class="badge badge-pending">Pending</span>';
+  const resBadge = r => r==='np' ? '<span class="badge badge-np">Not played · 0 pts</span>' : r==='win' ? '<span class="badge badge-completed">Win</span>' : r==='loss' ? '<span class="badge" style="background:var(--danger-tint);color:var(--danger-ink)">Loss</span>' : r==='draw' ? '<span class="badge badge-draft">Draw</span>' : '<span class="badge badge-pending">Pending</span>';
   return `
     <section class="card" style="display:flex;flex-wrap:wrap;align-items:center;gap:16px">
       ${renderAvatar(p, 64)}
@@ -3592,7 +3619,7 @@ function renderPlayerViewTab(t){
       </div>
     </section>
     <div class="grid grid-4">
-      ${statTile('ball','tint-blue','Played', done.length, `${fixtures.length-done.length} to play`)}
+      ${statTile('ball','tint-blue','Played', done.length, `${fixtures.filter(f=>!f.result).length} to play`)}
       ${statTile('trophy','tint-gold','Wins', wins)}
       ${statTile('goal','tint-green','Goals', gf, `${ga} conceded`)}
       ${statTile('check','tint-purple','Win rate', (done.length?((wins/done.length)*100).toFixed(1):'0.0')+'%')}

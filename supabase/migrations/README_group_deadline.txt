@@ -1,0 +1,1 @@
+-- see migration group_deadline_autodraw_and_lock applied via Supabase (process_group_deadlines, lock_group_scores, cron group-deadlines)

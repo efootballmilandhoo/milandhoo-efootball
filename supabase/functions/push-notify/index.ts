@@ -51,7 +51,7 @@ function groupTable(t: Obj, g: Obj) {
   const rows: Record<string, Obj> = {};
   (g.players || []).forEach((p: Obj) => { rows[p.playerId] = { id: p.playerId, pts: 0, gf: 0, ga: 0, w: 0 }; });
   (t.fixtures || []).forEach((f: Obj) => {
-    if (f.group !== g.name || !has(f.score1) || !has(f.score2)) return;
+    if (f.group !== g.name || !has(f.score1) || !has(f.score2) || f.autoDraw) return; // automatic 0-0s give no points
     const a = rows[f.team1], b = rows[f.team2]; if (!a || !b) return;
     const s1 = Number(f.score1), s2 = Number(f.score2);
     a.gf += s1; a.ga += s2; b.gf += s2; b.ga += s1;
@@ -175,7 +175,7 @@ async function dueReminders(): Promise<Obj[]> {
       if (left) out.push({
         key: `g:${row.id}:${t.groupDeadline}`,
         title: `⏰ 2 hours left: ${tn}`,
-        body: `${isLeague ? "League" : "Group stage"} deadline is ${clock(gd)}. ${left} match${left > 1 ? "es" : ""} still to play; unplayed matches count as 0-0 draws.`,
+        body: `${isLeague ? "League" : "Group stage"} deadline is ${clock(gd)}. ${left} match${left > 1 ? "es" : ""} still to play; unplayed matches count as 0-0 with no points.`,
         url, tag: `dl-${row.id}-group`,
       });
     }

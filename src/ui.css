@@ -1510,3 +1510,12 @@
 }
 .player-card .player-name{word-break:normal;overflow-wrap:break-word}
 .player-card .phone-line{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0}
+
+/* Group deadline: not played + lock */
+.badge-np{background:var(--surface-3);color:var(--muted);border:1px dashed var(--border-2)}
+.pm-res.np, .pm-score.np{background:var(--surface-3);color:var(--muted);border:1px dashed var(--border-2)}
+.fx-lock{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+.lock-note{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--gold-soft);border:1px solid var(--gold-tint);color:var(--text-2);font-size:13px;line-height:1.45}
+.lock-note b{color:var(--ink)}
+.lock-note.locked{background:var(--surface-2);border-color:var(--border)}
+.fbf .sc.np{background:transparent;border:2px dashed var(--border-2);color:var(--muted);letter-spacing:.08em}

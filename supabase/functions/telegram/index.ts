@@ -76,7 +76,7 @@ function deadlineRules(t: Obj, html = true, now = Date.now()): string[] {
   const cutText = cut < dl ? `before 21:00 on ${dayName(dl)}` : `before the deadline (${when(t.groupDeadline)})`;
   return [
     html ? "📌 <b>Rules</b>" : "📌 Rules",
-    `• Any match not played by the deadline is counted as ${b("0–0")}.`,
+    `• Any match not played by the deadline is counted as ${b("0–0 with no points")} for either player.`,
     now < cut
       ? `• If your opponent doesn't play your match, ${b("inform an admin " + cutText)}. ${b("Reports after that won't be accepted.")}`
       : `• ${b("Reports of an opponent not playing are closed")} since ${b(new Date(cut).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ }))}.`,
@@ -150,7 +150,7 @@ function fixturesText(t: Obj, pid: string, nm: Record<string, string>, html = tr
   fx.sort((a: Obj, c: Obj) => (a.matchday || 0) - (c.matchday || 0)).forEach((f: Obj, i: number) => {
     const home = f.team1 === pid, opp = home ? f.team2 : f.team1;
     const done = has(f.score1) && has(f.score2);
-    const res = done ? (() => { const me = home ? f.score1 : f.score2, them = home ? f.score2 : f.score1; return `  ${me > them ? "✅" : me < them ? "❌" : "➖"} ${me}–${them}`; })() : "";
+    const res = done ? (f.autoDraw ? "  ⛔ not played (0–0, no points)" : (() => { const me = home ? f.score1 : f.score2, them = home ? f.score2 : f.score1; return `  ${me > them ? "✅" : me < them ? "❌" : "➖"} ${me}–${them}`; })()) : "";
     lines.push(`${i + 1}. vs ${done ? e(P(opp)) : b(P(opp))}${res}`);
   });
   lines.push("", left.length ? `${left.length} match${left.length > 1 ? "es" : ""} to play.` : "All your matches are played.");
