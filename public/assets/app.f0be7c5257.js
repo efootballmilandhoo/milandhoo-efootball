@@ -2240,7 +2240,9 @@ function renderPlayerCards(players, stats){
 
 function filterPlayers(){
   const q = playerQuery.trim().toLowerCase();
-  const players = STORE.players.filter(p=>p.name.toLowerCase().includes(q));
+  // A–Z by name, ignoring the shared "MG " prefix and letter case.
+  const sortKey = n => String(n||'').replace(/^mg\s+/i,'').toLowerCase();
+  const players = STORE.players.filter(p=>p.name.toLowerCase().includes(q)).sort((a,b)=>sortKey(a.name).localeCompare(sortKey(b.name)));
   const grid = document.getElementById('playersGrid');
   if(!grid) return;
   grid.innerHTML = renderPlayerCards(players, calculateAllStats());
