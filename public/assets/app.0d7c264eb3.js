@@ -1127,7 +1127,7 @@ function calculateAllStats(cutoff){
   const players = STORE.players, tournaments = STORE.tournaments;
   const after = x => !!(cutoff && x && String(x) >= cutoff);
   const stats = {};
-  players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, koWins:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, tourneyFourth:0, pts:0, ptsMatch:0, ptsKo:0, ptsPlace:0, achievements:[], lastAt:'', addedAt:String(p.createdAt||'')} });
+  players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, koWins:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, tourneyFourth:0, pts:0, ptsMatch:0, ptsKo:0, ptsPlace:0, achievements:[], titles:[], lastAt:'', addedAt:String(p.createdAt||'')} });
   // One placing per player per tournament; the best one counts (bonuses never stack).
   const place = {};
   const addPlace = (key, pid, kind) => { if(!stats[pid]) return; const k = key+'|'+pid; if(!place[k] || PTS.place[kind] > PTS.place[place[k].kind]) place[k] = {pid, kind} };
@@ -1179,6 +1179,7 @@ function calculateAllStats(cutoff){
     const key = k.slice(0, k.lastIndexOf('|'));
     const tn = key.startsWith('t:') ? (tournaments.find(t=>'t:'+t.id===key)?.name || '') : ((STORE.hof||[]).find(h=>h.playerId===x.pid && 'h:'+String(h.tournament||'').trim().toLowerCase()===key)?.tournament || '');
     s.achievements.push(`${PLACE_LABEL[x.kind]} · ${tn}`);
+    if(x.kind==='champion' && tn) s.titles.push(tn);
   });
   Object.values(stats).forEach(s=>{ s.winPct = s.matches ? ((s.wins/s.matches)*100).toFixed(1) : '0.0'; s.pts = s.ptsMatch + s.ptsKo + s.ptsPlace });
   return stats;
@@ -2194,6 +2195,16 @@ function telegramLink(phone){
   return `<a class="tg-link" href="https://t.me/+${n}" target="_blank" rel="noopener noreferrer" title="Open Telegram chat" aria-label="Open Telegram chat with ${esc(phone)}">${esc(phone)}<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 4.1 2.9 11.3c-1.3.5-1.2 2.3.1 2.6l4.6 1.4 1.8 5.6c.3 1 1.6 1.3 2.3.5l2.6-2.6 4.6 3.4c.9.6 2.1.1 2.3-.9l3.1-15.1c.3-1.4-1.1-2.6-2.8-2.1zM17 8.3l-7.6 6.9-.3 3.2-1.4-4.4L17 8.3z"/></svg></a>`;
 }
 
+/* Every player card has the same titles box: each title won, or "No titles yet". */
+function playerTitlesBox(s){
+  const other = [s.tourneyRunnerUp ? `${s.tourneyRunnerUp}× Runner-up` : '', s.tourneyThird ? `${s.tourneyThird}× Third` : ''].filter(Boolean).join(' · ');
+  if(!s.tourneyWins) return `<div class="pc-titles none">${ICON.cup.replace('width="36" height="36"','width="20" height="20"')}<div><b>No titles yet</b>${other ? `<span class="pc-other">${other}</span>` : ''}</div></div>`;
+  return `<div class="pc-titles">${ICON.cup.replace('width="36" height="36"','width="22" height="22"')}<div style="min-width:0;flex:1">
+      <b>${s.tourneyWins} title${s.tourneyWins===1?'':'s'}</b>
+      <ul>${s.titles.map(tn=>`<li>${esc(tn)}</li>`).join('')}</ul>
+      ${other ? `<span class="pc-other">${other}</span>` : ''}
+    </div></div>`;
+}
 function renderPlayerCards(players, stats){
   if(players.length===0) return `<div class="empty" style="grid-column:1/-1"><div class="empty-title">${playerQuery?'No matching players':'No players yet'}</div><div class="text-sm">${playerQuery?'Try a different name.':isAdmin()?'Add your first player to get started.':'Players will appear here once registered.'}</div></div>`;
   return players.map(p=>{
@@ -2217,7 +2228,7 @@ function renderPlayerCards(players, stats){
           </button>
         </div>`:''}
       </div>
-      ${s.tourneyWins>0 || s.achievements.length ? `<div class="champ-box" style="padding:10px 12px">${ICON.cup.replace('width="36" height="36"','width="24" height="24"')}<div style="min-width:0"><small>${s.tourneyWins} TITLE${s.tourneyWins===1?'':'S'}</small><span class="text-xs" style="color:var(--gold-ink)">${esc(s.achievements.slice(-1)[0]||'')}</span></div></div>` : ''}
+      ${playerTitlesBox(s)}
       <div class="player-stats">
         <div><div class="player-stat-val">${s.matches}</div><div class="player-stat-lbl">Played</div></div>
         <div><div class="player-stat-val">${s.wins}</div><div class="player-stat-lbl">Wins</div></div>

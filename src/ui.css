@@ -1490,3 +1490,23 @@
 .dec-0{color:var(--muted);opacity:.7}
 .bracket-match.bye{opacity:.8}
 .champ-ended{display:block;margin-top:2px;font-size:12px;font-weight:600;color:var(--muted)}
+
+/* Player cards: same structure for everyone; stats always at the bottom */
+.player-card{height:100%}
+.player-card .player-stats{margin-top:auto}
+.pc-titles{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--gold-soft);border:1px solid var(--gold-tint)}
+.pc-titles > svg{flex:none;margin-top:1px}
+.pc-titles b{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--gold-ink)}
+.pc-titles ul{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:3px}
+.pc-titles li{position:relative;padding-left:12px;font-size:13px;font-weight:600;line-height:1.35;color:var(--ink);overflow-wrap:break-word}
+.pc-titles li::before{content:"";position:absolute;left:0;top:.5em;width:5px;height:5px;border-radius:50%;background:var(--gold)}
+.pc-other{display:block;margin-top:4px;font-size:12px;font-weight:600;color:var(--muted)}
+.pc-titles.none{background:var(--surface-2);border-color:var(--border);align-items:center}
+.pc-titles.none > svg{opacity:.45;filter:grayscale(1)}
+.pc-titles.none b{color:var(--muted)}
+@media(min-width:901px){
+  .player-card .player-name{font-size:19px}
+  .player-card .phone-line{white-space:nowrap}
+}
+.player-card .player-name{word-break:normal;overflow-wrap:break-word}
+.player-card .phone-line{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-width:0}
