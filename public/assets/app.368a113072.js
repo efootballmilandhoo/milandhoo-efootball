@@ -936,8 +936,12 @@ function fbFixtures(t){
     const items = [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y).map(md=>({md, rows:b.rows.filter(f=>f.matchday===md)}));
     const page = (set, i, n) => {
       const mds = set.map(x=>x.md), label = mds.length>1 ? `Matchdays ${mds[0]}–${mds.at(-1)}` : `Matchday ${mds[0]}`;
-      return fbSheet(t, t.name, `${b.name ? `Group ${esc(b.name)} · ` : ''}${pendingOnly ? `Not played · ${b.rows.length} match${b.rows.length>1?'es':''}` : label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`,
-        `<div class="fb-card">${set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>${!pendingOnly && set.some(x=>x.rows.some(f=>f.autoDraw)) ? '<div class="fb-legend small">NP = not played by the deadline · recorded 0–0, no points for either player</div>' : ''}`, i+1, n);
+      return fbSheet(t, t.name, `${b.name ? `Group ${esc(b.name)} · ` : ''}${pendingOnly ? `Pending matches` : label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`,
+        `${pendingOnly ? `<div class="fb-pend">
+            <span class="fb-pend-tag">${ICON.alarm} Pending matches</span>
+            <div class="fb-pend-group">${b.name ? `Group ${esc(b.name)}` : 'League'}</div>
+            <div class="fb-pend-sub"><b>${b.rows.length}</b> match${b.rows.length>1?'es':''} still to play${t.groupDeadline ? ` · Deadline <b>${fmtShort(t.groupDeadline)}</b>` : ''}</div>
+          </div>` : ''}<div class="fb-card">${set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>${!pendingOnly && set.some(x=>x.rows.some(f=>f.autoDraw)) ? '<div class="fb-legend small">NP = not played by the deadline · recorded 0–0, no points for either player</div>' : ''}`, i+1, n);
     };
     pages.push(...fbPack(items, page, {even:true}));
   });

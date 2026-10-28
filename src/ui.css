@@ -1519,3 +1519,15 @@
 .lock-note b{color:var(--ink)}
 .lock-note.locked{background:var(--surface-2);border-color:var(--border)}
 .fbf .sc.np{background:transparent;border:2px dashed var(--border-2);color:var(--muted);letter-spacing:.08em}
+
+/* "Pending matches" export: big, unmistakable heading per group */
+.fb-pend{display:flex;flex-direction:column;align-items:center;gap:calc(8px*var(--z));text-align:center;margin-bottom:calc(18px*var(--z));padding:calc(22px*var(--z)) calc(20px*var(--z));border-radius:22px;background:linear-gradient(180deg,#FFF4E5,#FFE7C7);border:2px solid #F7B267}
+.fb-pend-tag{display:inline-flex;align-items:center;gap:calc(8px*var(--z));padding:calc(6px*var(--z)) calc(16px*var(--z));border-radius:999px;background:#C2410C;color:#FFFFFF;font-weight:800;font-size:calc(18px*var(--z));letter-spacing:.1em;text-transform:uppercase}
+.fb-pend-tag svg{width:calc(20px*var(--z));height:calc(20px*var(--z))}
+.fb-pend-group{font-family:var(--font-display);font-weight:800;font-size:calc(64px*var(--z));line-height:1;color:#7A2E0B;letter-spacing:.01em}
+.fb-pend-sub{font-size:calc(20px*var(--z));color:#7A4A2A}
+.fb-pend-sub b{color:#5A2208}
+:root[data-theme="dark"] .fb-pend{background:linear-gradient(180deg,#3A2314,#2A1A10);border-color:#8A4A1E}
+:root[data-theme="dark"] .fb-pend-group{color:#FFB37A}
+:root[data-theme="dark"] .fb-pend-sub{color:#E8C3A6}
+:root[data-theme="dark"] .fb-pend-sub b{color:#FFFFFF}
