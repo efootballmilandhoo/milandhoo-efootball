@@ -106,6 +106,68 @@ function deadlineText(t: Obj, pid: string, nm: Record<string, string>, kind: str
   return lines.join("\n");
 }
 
+/* ---- Knockout briefing: rules + match settings for qualifiers, a thank-you for everyone else ---- */
+const MATCH_LABELS: [string, string, (v: string) => string][] = [
+  ["time", "Match time", (v) => `${v} minutes`],
+  ["extra", "Extra time", (v) => v],
+  ["pens", "Penalties", (v) => v],
+  ["subs", "Substitutions", (v) => v],
+  ["windows", "Sub pauses", (v) => v],
+  ["condition", "Player condition", (v) => v],
+  ["injuries", "Injuries", (v) => v],
+  ["tiebreak", "When level on aggregate", (v) => (v === "PENS" ? "Straight to penalties" : "Tie-breaker match")],
+];
+function settingsLines(m: Obj | undefined, html: boolean): string[] {
+  const b = (s: string) => (html ? `<b>${esc(s)}</b>` : s);
+  if (!m) return [];
+  return MATCH_LABELS.filter(([k]) => has(m[k])).map(([k, l, f]) => `• ${l}: ${b(f(String(m[k])))}`);
+}
+function ruleLines(txt: unknown): string[] {
+  return String(txt || "").split(/\n+/).map((x) => x.trim()).filter(Boolean).map((x) => `• ${esc(x)}`);
+}
+function koFirstRound(t: Obj): Obj[] { return ((t.knockoutBracket || [])[0] || []).filter((m: Obj) => m && !m.isBye); }
+function koQualifiers(t: Obj): Set<string> {
+  const s = new Set<string>();
+  ((t.knockoutBracket || [])[0] || []).forEach((m: Obj) => { if (m?.team1) s.add(m.team1); if (m?.team2) s.add(m.team2); });
+  return s;
+}
+function koBriefText(t: Obj, pid: string, nm: Record<string, string>, html = true): string | null {
+  const b = (s: string) => (html ? `<b>${esc(s)}</b>` : s);
+  const r = t.rules || {};
+  const first = koFirstRound(t);
+  const tie = first.find((m: Obj) => m.team1 === pid || m.team2 === pid);
+  const round = first[0]?.round || "Knockout stage";
+  const lines = [`🏆 ${b(t.name || "Tournament")}`, `🎉 ${b("Congratulations, " + (nm[pid] || "you're through") + "!")} You're in the ${b(round)}.`, ""];
+  if (tie) {
+    const opp = tie.team1 === pid ? tie.team2 : tie.team1;
+    lines.push(`Your opponent: ${b(nm[opp] || "TBD")}`);
+    const dl = r.roundDeadlines?.[round];
+    if (dl) lines.push(`⏰ ${esc(round)} deadline: ${b(when(dl))}`);
+    lines.push("");
+  }
+  const ko = ruleLines(r.koRules), kos = settingsLines(r.koMatch, html);
+  if (ko.length) lines.push(html ? "📋 <b>Knockout stage rules</b>" : "📋 Knockout stage rules", ...ko, "");
+  if (kos.length) lines.push(html ? "⚙️ <b>Knockout match settings</b>" : "⚙️ Knockout match settings", ...kos, "");
+  const tb = ruleLines(r.tbRules), tbs = settingsLines(r.tbMatch, html);
+  if (tb.length) lines.push(html ? "⚖️ <b>Tie-breaker rules</b>" : "⚖️ Tie-breaker rules", ...tb, "");
+  if (tbs.length) lines.push(html ? "⚙️ <b>Tie-breaker match settings</b>" : "⚙️ Tie-breaker match settings", ...tbs, "");
+  lines.push(`Good luck! Bracket and results: ${APP}/#t=${t.id}`);
+  return lines.join("\n");
+}
+function thanksText(t: Obj, pid: string, nm: Record<string, string>, html = true): string {
+  const b = (s: string) => (html ? `<b>${esc(s)}</b>` : s);
+  const round = koFirstRound(t)[0]?.round || "knockout stage";
+  return [
+    `🙏 ${b("Thank you for taking part, " + (nm[pid] || "player") + "!")}`,
+    "",
+    `You didn't make it to the ${esc(round)} of ${b(t.name || "the tournament")} this time, but thank you for playing and being part of it.`,
+    "",
+    "We hope to see you in the next tournament as well. More great news and opportunities are coming!",
+    "",
+    b("— From Team MG"),
+  ].join("\n");
+}
+
 const KO_FMT: Obj = { bo3: "best of 3 games", "2leg": "two legs, aggregate score", single: "one match" };
 
 /* ---- A player's fixtures as a message. html=false gives plain text for WhatsApp / SMS. ---- */
@@ -284,6 +346,19 @@ Deno.serve(async (req) => {
         return json({ players: pids.map((pid: string) => ({ pid, linked: links.has(pid), text: deadlineText(t, pid, nm, "now", false) })) });
       }
       return json(await sendTournament(t, (pid) => deadlineText(t, pid, nm, "now")));
+    }
+    if (body.action === "ko_brief") {
+      if (!t.knockoutDrawn || !koFirstRound(t).length) return json({ error: "The knockout draw hasn't been made yet" }, 400);
+      const nm = await names();
+      const q = koQualifiers(t);
+      const textFor = (pid: string, html = true) => (q.has(pid) ? koBriefText(t, pid, nm, html) : thanksText(t, pid, nm, html));
+      if (body.preview) {
+        const pids = (t.registrations || []).map((r: Obj) => r.playerId);
+        const links = await linksFor(pids);
+        return json({ players: pids.map((pid: string) => ({ pid, qualified: q.has(pid), linked: links.has(pid), text: textFor(pid, false) })) });
+      }
+      const onlyPids = body.group === "qualified" ? [...q] : body.group === "out" ? (t.registrations || []).map((r: Obj) => r.playerId).filter((p: string) => !q.has(p)) : undefined;
+      return json(await sendTournament(t, (pid) => textFor(pid), onlyPids));
     }
     if (body.action === "send" || body.action === "auto") return json(await sendTournament(t, undefined, Array.isArray(body.pids) ? body.pids : undefined));
     if (body.action === "remind" && internal) {
