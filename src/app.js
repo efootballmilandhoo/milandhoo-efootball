@@ -635,7 +635,10 @@ function fbFixtures(t){
   if(!blocks.length){ toast(pendingOnly ? 'Every match has been played' : 'No fixtures to export yet', true); return }
   const pages = [];
   blocks.forEach(b=>{
-    const items = [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y).map(md=>({md, rows:b.rows.filter(f=>f.matchday===md)}));
+    // Pending export: one identical row per match (matchday inside the centre badge), so every row lines up.
+    const items = pendingOnly
+      ? [...b.rows].sort((x,y)=>(x.matchday||0)-(y.matchday||0)).map(f=>({md:f.matchday, rows:[f]}))
+      : [...new Set(b.rows.map(f=>f.matchday))].sort((x,y)=>x-y).map(md=>({md, rows:b.rows.filter(f=>f.matchday===md)}));
     const page = (set, i, n) => {
       const mds = set.map(x=>x.md), label = mds.length>1 ? `Matchdays ${mds[0]}–${mds.at(-1)}` : `Matchday ${mds[0]}`;
       return fbSheet(t, t.name, `${b.name ? `Group ${esc(b.name)} · ` : ''}${pendingOnly ? `Pending matches` : label}${t.groupDeadline?` · Deadline ${fmtShort(t.groupDeadline)}`:''}`,
@@ -643,7 +646,9 @@ function fbFixtures(t){
             <span class="fb-pend-tag">${ICON.alarm} Pending matches</span>
             <div class="fb-pend-group">${b.name ? `Group ${esc(b.name)}` : 'League'}</div>
             <div class="fb-pend-sub"><b>${b.rows.length}</b> match${b.rows.length>1?'es':''} still to play${t.groupDeadline ? ` · Deadline <b>${fmtShort(t.groupDeadline)}</b>` : ''}</div>
-          </div>` : ''}<div class="fb-card">${set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>${!pendingOnly && set.some(x=>x.rows.some(f=>f.autoDraw)) ? '<div class="fb-legend small">NP = not played by the deadline · recorded 0–0, no points for either player</div>' : ''}`, i+1, n);
+          </div>` : ''}<div class="fb-card ${pendingOnly?'fb-pend-list':''}">${pendingOnly
+            ? set.map(x=>x.rows.map(f=>`<div class="fbf fbp-row"><span class="a">${esc(playerName(f.team1))}</span><span class="fbp-mid"><small>MD ${x.md}</small><b>VS</b></span><span class="b">${esc(playerName(f.team2))}</span></div>`).join('')).join('')
+            : set.map(x=>`<div class="fb-md">Matchday ${x.md}</div>${x.rows.map(fbFixtureRow).join('')}`).join('')}</div>${!pendingOnly && set.some(x=>x.rows.some(f=>f.autoDraw)) ? '<div class="fb-legend small">NP = not played by the deadline · recorded 0–0, no points for either player</div>' : ''}`, i+1, n);
     };
     pages.push(...fbPack(items, page, {even:true}));
   });

@@ -1531,3 +1531,10 @@
 :root[data-theme="dark"] .fb-pend-group{color:#FFB37A}
 :root[data-theme="dark"] .fb-pend-sub{color:#E8C3A6}
 :root[data-theme="dark"] .fb-pend-sub b{color:#FFFFFF}
+
+/* Pending export rows: identical height, centred badge with the matchday */
+.fb-pend-list{padding-top:calc(6px*var(--z));padding-bottom:calc(6px*var(--z))}
+.fbp-row{min-height:calc(76px*var(--z))}
+.fbp-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(2px*var(--z));height:calc(56px*var(--z));border-radius:12px;background:var(--surface-3);line-height:1}
+.fbp-mid small{font-size:calc(14px*var(--z));font-weight:800;letter-spacing:.08em;color:var(--primary-dark)}
+.fbp-mid b{font-family:var(--font-display);font-size:calc(22px*var(--z));font-weight:800;color:var(--muted);letter-spacing:.06em}
