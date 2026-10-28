@@ -658,11 +658,13 @@ function buildFixtures(t){
 
 function computeStandings(t, g){
   const rows = {};
-  g.players.forEach(p=>{ rows[p.playerId] = {playerId:p.playerId, played:0, wins:0, draws:0, losses:0, gf:0, ga:0, points:0} });
+  g.players.forEach(p=>{ rows[p.playerId] = {playerId:p.playerId, played:0, wins:0, draws:0, losses:0, nr:0, gf:0, ga:0, points:0} });
   (t.fixtures||[]).forEach(f=>{
-    if(f.group!==g.name || !realResult(f)) return;
+    if(f.group!==g.name || !hasScore(f.score1) || !hasScore(f.score2)) return;
     const a = rows[f.team1], b = rows[f.team2];
     if(!a || !b) return;
+    // Not played by the deadline: counts as played, shown under NR (no result), no goals and no points.
+    if(f.autoDraw){ a.played++; b.played++; a.nr++; b.nr++; return }
     a.played++; b.played++;
     a.gf += f.score1; a.ga += f.score2; b.gf += f.score2; b.ga += f.score1;
     if(f.score1 > f.score2){ a.wins++; a.points+=3; b.losses++ }
@@ -903,12 +905,13 @@ function fbStandings(t){
     || (t.groupDeadline && new Date(t.groupDeadline) <= new Date())
     || (groupFx.length && groupFx.every(f=>hasScore(f.score1) && hasScore(f.score2))));
   const dl = t.groupDeadline && !final ? `<div class="fb-note">${ICON.calendar}<span>${isLeague?'League':'Group stage'} deadline <b>${fmtDateTime(t.groupDeadline)}</b> · unplayed matches count as 0-0</span></div>` : '';
+  const hasNR = (t.fixtures||[]).some(f=>f.autoDraw);
   const what = g => final ? (isLeague ? 'Final league table' : `Final group standings · Group ${esc(g.name)}`) : (isLeague ? 'League table' : `Group ${esc(g.name)} standings`);
   const page = (g, rows, i, n) => fbSheet(t, t.name, `${what(g)} · ${updatedAtOf(t) ? `updated ${fmtDateTime(updatedAtOf(t))}` : fmtDate(new Date())}${fbPageLabel(i, n)}`, `${dl}<div class="fb-card"><div class="fb-card-title">${isLeague ? 'League table' : `Group ${esc(g.name)}`}</div>
-      <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
-      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq && final?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td><td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
+      <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th>${hasNR?'<th>NR</th>':''}<th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
+      ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq && final?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td>${hasNR?`<td class="muted">${r.nr||'<span class="dim">0</span>'}</td>`:''}<td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
       </tbody></table></div>
-      <div class="fb-legend">${final ? `<span class="fb-q">Q</span> ${isLeague ? 'League champion' : `Qualified · top ${q} went through to the knockouts`}` : (isLeague ? 'Highlighted: top of the table so far' : `Highlighted: top ${q} in qualifying places so far`)} · GA = goals conceded</div>`, 1, 1);
+      <div class="fb-legend inline">${final ? `<span class="fb-q">Q</span> ${isLeague ? 'League champion' : `Qualified · top ${q} went through to the knockouts`}` : (isLeague ? 'Highlighted: top of the table so far' : `Highlighted: top ${q} in qualifying places so far`)} · GA = goals conceded${hasNR ? ' · NR = no result (not played, 0 pts)' : ''}</div>`, 1, 1);
   // One page per group (a long league table continues on a second page).
   const pages = [];
   groups.forEach(g=>{
@@ -3071,14 +3074,15 @@ function pickGroup(tid, name){
 
 function standingsTable(t, g, highlightN){
   const rows = computeStandings(t, g);
+  const hasNR = (t.fixtures||[]).some(f=>f.autoDraw);
   const groupFx = (t.fixtures||[]).filter(f=>f.group===g.name);
   const finished = groupFx.length>0 && groupFx.every(f=>hasScore(f.score1)&&hasScore(f.score2));
   const isLeague = t.format==='league';
   const chip = isLeague ? (finished ? 'Champion' : 'Leader') : (finished ? 'Qualified' : 'Q');
   return `
     <div class="table-wrap">
-      <table class="group-table">
-        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th><th scope="col">GF</th><th scope="col">GA</th><th scope="col">GD</th><th scope="col">Pts</th></tr></thead>
+      <table class="group-table" style="--n:${hasNR?9:8}">
+        <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th>${hasNR?'<th scope="col" class="nr" title="No result: not played by the deadline (0-0, no points)">NR</th>':''}<th scope="col" class="c-gf">GF</th><th scope="col" class="c-ga">GA</th><th scope="col">GD</th><th scope="col">Pts</th></tr></thead>
         <tbody>
           ${rows.map((row,i)=>{
             const p = STORE.players.find(x=>x.id===row.playerId) || {name:'Unknown player'};
@@ -3086,8 +3090,8 @@ function standingsTable(t, g, highlightN){
             return `<tr class="${q?'qualify':'out'} ${i===highlightN && i>0?'cut':''} tap-row" tabindex="0" role="button" aria-label="${esc(p.name)}: see matches" onclick="openPlayerMatches('${t.id}','${row.playerId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlayerMatches('${t.id}','${row.playerId}')}">
               <td><span class="pos">${i+1}</span></td>
               <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${esc(p.name)}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
-              <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>
-              <td>${row.gf}</td><td>${row.ga}</td><td style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
+              <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>${hasNR?`<td class="nr">${row.nr||'<span class="dim">0</span>'}</td>`:''}
+              <td class="c-gf">${row.gf}</td><td class="c-ga">${row.ga}</td><td style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
               <td>${row.points}</td>
             </tr>`;
           }).join('')}
@@ -3115,7 +3119,7 @@ function renderStandingsTab(t, admin, canEditScores){
       <div class="export-header" style="margin-bottom:12px"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">${isLeague?'League table':'Group standings'} · ${fmtDate(new Date())}</div></div>
       ${content}
       <div class="section-foot" style="margin-top:14px">
-        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
+        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.${(t.fixtures||[]).some(f=>f.autoDraw) ? ' <b>NR</b> = no result: not played by the deadline, recorded 0–0 with no points.' : ''}</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
 
       </div>
     </section>

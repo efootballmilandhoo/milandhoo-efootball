@@ -166,8 +166,6 @@
     #main .group-table td:last-child{font-size:15px}
     #main .group-table td:not(:nth-child(2)), #main .group-table th{white-space:nowrap}
     #main .group-table .q-chip{font-size:0;min-width:8px;width:8px;height:8px;padding:0;flex-shrink:0}
-    #main .group-table:not(.lb-table) th:nth-child(7), #main .group-table:not(.lb-table) td:nth-child(7),
-    #main .group-table:not(.lb-table) th:nth-child(8), #main .group-table:not(.lb-table) td:nth-child(8){display:none}
     #main .lb-table th:nth-child(5), #main .lb-table td:nth-child(5),
     #main .lb-table th:nth-child(6), #main .lb-table td:nth-child(6),
     #main .lb-table th:nth-child(7), #main .lb-table td:nth-child(7),
@@ -1538,3 +1536,43 @@
 .fbp-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:calc(2px*var(--z));height:calc(56px*var(--z));border-radius:12px;background:var(--surface-3);line-height:1}
 .fbp-mid small{font-size:calc(14px*var(--z));font-weight:800;letter-spacing:.08em;color:var(--primary-dark)}
 .fbp-mid b{font-family:var(--font-display);font-size:calc(22px*var(--z));font-weight:800;color:var(--muted);letter-spacing:.06em}
+
+/* NR = no result (not played by the deadline) */
+.group-table .nr{color:var(--muted)}
+.group-table th.nr{cursor:help}
+
+/* Phones: every standings stat visible. Each row is two lines: position + name on top,
+   all the numbers (P W D L NR GF GA GD Pts) underneath in fixed, aligned columns. */
+@media(max-width:600px){
+  #main .table-wrap:has(> .group-table){overflow:visible}
+  #main .group-table, #main .group-table thead, #main .group-table tbody{display:block;width:100%}
+  #main .group-table tr{display:grid;grid-template-columns:30px repeat(var(--n,8), minmax(0,1fr));align-items:center;column-gap:0}
+  #main .group-table th, #main .group-table td{display:block;width:auto !important;max-width:none !important;padding:0 !important;border:0 !important;text-align:center;white-space:nowrap;font-size:13px}
+  #main .group-table thead tr{padding:0 0 6px;border-bottom:1px solid var(--border)}
+  #main .group-table thead th:nth-child(2){display:none}
+  #main .group-table thead th{font-size:11px;letter-spacing:.02em}
+  #main .group-table tbody tr{grid-template-rows:auto auto;row-gap:5px;padding:9px 0;border-top:1px solid var(--divider)}
+  #main .group-table tbody tr:first-child{border-top:0}
+  #main .group-table tbody td:nth-child(1){grid-column:1;grid-row:1 / span 2;align-self:center}
+  #main .group-table tbody td:nth-child(2){grid-column:2 / -1;grid-row:1;text-align:left;white-space:normal}
+  #main .group-table tbody td:nth-child(n+3){grid-row:2;font-variant-numeric:tabular-nums}
+  #main .group-table tbody td:last-child{font-size:15px;font-weight:800}
+  #main .group-table .who{gap:8px}
+  #main .group-table .who .player-avatar{display:inline-flex !important;width:24px !important;height:24px !important;font-size:9px}
+  #main .group-table .who > span:not(.player-avatar):not(.q-chip){font-size:14px;font-weight:700;overflow:visible;white-space:normal;text-overflow:clip}
+  #main .group-table .q-chip{font-size:10px;min-width:0;width:auto;height:18px;padding:0 6px}
+  /* row states move from cells to the whole row */
+  #main .group-table tr.qualify{background:#F2F6FF;box-shadow:inset 4px 0 0 var(--primary)}
+  #main .group-table tr.qualify td, #main .group-table tr.qualify td:first-child{background:none !important;box-shadow:none !important}
+  #main .group-table tr.cut{border-top:2px dashed var(--primary-bright)}
+  #main .group-table tr.tap-row:hover td, #main .group-table tr.tap-row:active td{background:none}
+  #main .group-table tr.tap-row:active{background:var(--primary-tint)}
+  :root[data-theme="dark"] #main .group-table tr.qualify{background:#14223F}
+}
+@media(max-width:340px){
+  #main .group-table tr{grid-template-columns:26px repeat(var(--n,8), minmax(0,1fr))}
+  #main .group-table th, #main .group-table td{font-size:12px}
+  #main .group-table thead th{font-size:10px;letter-spacing:0}
+}
+.fb-legend.inline{display:block;text-align:center;line-height:1.6;text-wrap:balance}
+.fb-legend.inline .fb-q{display:inline-flex;vertical-align:middle;margin-right:6px}
