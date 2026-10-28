@@ -1548,3 +1548,12 @@
 .fb-legend.inline{display:block;text-align:center;line-height:1.6;text-wrap:balance}
 .fb-legend.inline .fb-q{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin:0 8px 0 0;padding:0;line-height:1;width:calc(32px*var(--z));min-width:0;height:calc(32px*var(--z))}
 .fb-q{text-align:center;padding-left:0;padding-right:0}
+/* Ongoing tournament art: grows with its content so the name is never cut off */
+.ongoing-art{height:auto !important;min-height:210px}
+.ongoing-art b{overflow:visible !important;-webkit-line-clamp:unset !important;display:block !important}
+/* Phones: the art sits above the details, which already show the name; keep just the logo there */
+@media(max-width:700px){
+  .ongoing-art{min-height:0;padding:18px 14px !important;justify-content:center !important}
+  .ongoing-art > b, .ongoing-art > span:not(.ongoing-logo):not(.ongoing-trophy){display:none !important}
+  .ongoing-trophy, .ongoing-logo{margin-bottom:0 !important}
+}
