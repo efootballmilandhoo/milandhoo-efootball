@@ -8,6 +8,7 @@
 //   The group-stage reminder (sent automatically at 18:00 on deadline day) lists each player's unplayed matches
 //   and the deadline rules. Players can also send /deadline; organisers can send it from the app.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { certificatePdf } from "./cert.ts";
 
 const URL_ = Deno.env.get("SUPABASE_URL")!;
 const sb = createClient(URL_, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
@@ -359,6 +360,54 @@ Deno.serve(async (req) => {
       }
       const onlyPids = body.group === "qualified" ? [...q] : body.group === "out" ? (t.registrations || []).map((r: Obj) => r.playerId).filter((p: string) => !q.has(p)) : undefined;
       return json(await sendTournament(t, (pid) => textFor(pid), onlyPids));
+    }
+    if (body.action === "certs") {
+      // Certificates of participation for everyone who did not reach the knockout stage.
+      if (!t.knockoutDrawn || !koFirstRound(t).length) return json({ error: "The knockout draw hasn't been made yet" }, 400);
+      const nm = await names();
+      const q = koQualifiers(t);
+      const out = (t.registrations || []).map((r: Obj) => r.playerId).filter((p: string) => !q.has(p));
+      const short = (v: unknown) => { const ms = deadlineMs(v); return Number.isFinite(ms) ? new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: TZ }) : ""; };
+      const start = short(t.startDateTime || t.date), end = short(t.groupDeadline);
+      const nGroups = (t.groupData || []).length;
+      const make = (pid: string) => certificatePdf({
+        player: nm[pid] || "Player",
+        tournament: t.name || "Tournament",
+        dates: [start, end].filter(Boolean).join(" – ") + (t.game ? ` · ${t.game}` : ""),
+        detail: `Group stage${nGroups ? ` · ${nGroups} groups` : ""} · ${(t.registrations || []).length} players`,
+        issued: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: TZ }),
+        logoUrl: typeof t.logo === "string" && t.logo.startsWith("http") ? t.logo : undefined,
+        appIconUrl: `${URL_}/functions/v1/app-icon?s=192`,
+      });
+      const fileName = (pid: string) => `Certificate_${String(nm[pid] || "Player").replace(/[^A-Za-z0-9]+/g, "_")}.pdf`;
+      const b64 = (u: Uint8Array) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+      if (body.preview) {
+        const pids: string[] = body.pid ? [body.pid] : out;
+        const files = [];
+        for (const pid of pids) files.push({ pid, name: fileName(pid), pdf: b64(await make(pid)) });
+        return json({ files });
+      }
+      // Sending is one player per call (PDF building is CPU-heavy); cert_log keeps it to one certificate each.
+      const targets: string[] = body.pid ? out.filter((p: string) => p === body.pid) : out;
+      const { data: done } = await sb.from("cert_log").select("pid").eq("tid", t.id);
+      const already = new Set((done || []).map((r: Obj) => r.pid));
+      const links = await linksFor(targets);
+      if (body.list) return json({ pending: targets.filter((p) => links.has(p) && !already.has(p)), sent: [...already], notLinked: targets.filter((p) => !links.has(p)) });
+      let sent = 0, failed = 0, skipped = 0;
+      for (const pid of targets) {
+        const chat = links.get(pid); if (!chat) continue;
+        if (already.has(pid)) { skipped++; continue; }
+        const fd = new FormData();
+        fd.append("chat_id", String(chat));
+        fd.append("caption", `🎖️ <b>Certificate of Participation</b>\n${esc(t.name)}\n\nThank you for taking part, ${esc(nm[pid] || "player")}! We hope to see you in the next tournament.\n<b>— From Team MG</b>`);
+        fd.append("parse_mode", "HTML");
+        fd.append("document", new Blob([await make(pid)], { type: "application/pdf" }), fileName(pid));
+        const r = await fetch(`https://api.telegram.org/bot${s.telegram_token}/sendDocument`, { method: "POST", body: fd }).then((x) => x.json()).catch(() => ({ ok: false }));
+        if (r?.ok) { sent++; await sb.from("cert_log").upsert({ tid: t.id, pid, sent_at: new Date().toISOString() }); }
+        else { failed++; console.error("cert send failed", pid, JSON.stringify(r)); }
+        await new Promise((res) => setTimeout(res, 60));
+      }
+      return json({ sent, failed, skipped, linked: links.size, total: targets.length });
     }
     if (body.action === "send" || body.action === "auto") return json(await sendTournament(t, undefined, Array.isArray(body.pids) ? body.pids : undefined));
     if (body.action === "remind" && internal) {
