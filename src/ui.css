@@ -1541,38 +1541,44 @@
 .group-table .nr{color:var(--muted)}
 .group-table th.nr{cursor:help}
 
-/* Phones: every standings stat visible. Each row is two lines: position + name on top,
-   all the numbers (P W D L NR GF GA GD Pts) underneath in fixed, aligned columns. */
+/* Phones: every standings stat visible, in a clean two-line row.
+   Left: position. Top line: name. Second line: P W D L (NR) GF GA GD in aligned columns. Right: points, large. */
 @media(max-width:600px){
   #main .table-wrap:has(> .group-table){overflow:visible}
   #main .group-table, #main .group-table thead, #main .group-table tbody{display:block;width:100%}
-  #main .group-table tr{display:grid;grid-template-columns:30px repeat(var(--n,8), minmax(0,1fr));align-items:center;column-gap:0}
-  #main .group-table th, #main .group-table td{display:block;width:auto !important;max-width:none !important;padding:0 !important;border:0 !important;text-align:center;white-space:nowrap;font-size:13px}
-  #main .group-table thead tr{padding:0 0 6px;border-bottom:1px solid var(--border)}
+  #main .group-table tr{display:grid;grid-template-columns:30px repeat(var(--s,7), minmax(0,1fr)) 42px;align-items:center;column-gap:0;padding:0 4px 0 6px}
+  #main .group-table th, #main .group-table td{display:block;width:auto !important;max-width:none !important;padding:0 !important;border:0 !important;background:none !important;box-shadow:none !important;text-align:center;white-space:nowrap}
+  #main .group-table thead tr{padding-bottom:8px;border-bottom:1px solid var(--border)}
+  #main .group-table thead th{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
   #main .group-table thead th:nth-child(2){display:none}
-  #main .group-table thead th{font-size:11px;letter-spacing:.02em}
-  #main .group-table tbody tr{grid-template-rows:auto auto;row-gap:5px;padding:9px 0;border-top:1px solid var(--divider)}
+  #main .group-table thead th:last-child{color:var(--primary-dark)}
+  #main .group-table tbody tr{grid-template-rows:auto auto;row-gap:6px;padding-top:11px;padding-bottom:11px;border-top:1px solid var(--divider)}
   #main .group-table tbody tr:first-child{border-top:0}
-  #main .group-table tbody td:nth-child(1){grid-column:1;grid-row:1 / span 2;align-self:center}
-  #main .group-table tbody td:nth-child(2){grid-column:2 / -1;grid-row:1;text-align:left;white-space:normal}
-  #main .group-table tbody td:nth-child(n+3){grid-row:2;font-variant-numeric:tabular-nums}
-  #main .group-table tbody td:last-child{font-size:15px;font-weight:800}
-  #main .group-table .who{gap:8px}
-  #main .group-table .who .player-avatar{display:inline-flex !important;width:24px !important;height:24px !important;font-size:9px}
-  #main .group-table .who > span:not(.player-avatar):not(.q-chip){font-size:14px;font-weight:700;overflow:visible;white-space:normal;text-overflow:clip}
-  #main .group-table .q-chip{font-size:10px;min-width:0;width:auto;height:18px;padding:0 6px}
-  /* row states move from cells to the whole row */
-  #main .group-table tr.qualify{background:#F2F6FF;box-shadow:inset 4px 0 0 var(--primary)}
-  #main .group-table tr.qualify td, #main .group-table tr.qualify td:first-child{background:none !important;box-shadow:none !important}
+  #main .group-table tbody td:nth-child(1){grid-column:1;grid-row:1 / span 2;justify-self:start}
+  #main .group-table tbody td:nth-child(2){grid-column:2 / -2;grid-row:1;text-align:left;white-space:normal;padding-left:3px !important}
+  #main .group-table tbody td:last-child{grid-column:-2 / -1;grid-row:1 / span 2;font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--ink)}
+  #main .group-table tbody td:nth-child(n+3):not(:last-child){grid-row:2;font-size:13px;font-weight:600;color:var(--text-2);font-variant-numeric:tabular-nums}
+  #main .group-table tbody td.nr{color:var(--muted)}
+  #main .group-table tbody td.c-gd.pos-gd{color:var(--success-ink) !important}
+  #main .group-table tbody td.c-gd.neg-gd{color:var(--danger-ink) !important}
+  #main .group-table .pos{min-width:24px;height:24px;line-height:24px;font-size:12px}
+  #main .group-table .who{gap:6px;align-items:center}
+  #main .group-table .who .player-avatar{display:none !important}
+  #main .group-table .who > span:not(.player-avatar):not(.q-chip){font-size:15px;font-weight:700;color:var(--ink);overflow:visible;white-space:normal;text-overflow:clip}
+  #main .group-table tr.out .who > span:not(.q-chip){font-weight:600;color:var(--text)}
+  #main .group-table .q-chip{font-size:0 !important;min-width:0;width:18px;height:18px;padding:0;border-radius:6px;flex:none}
+  #main .group-table .q-chip::after{content:"Q";font-size:10.5px;font-weight:800;color:#fff}
+  #main .group-table tr.qualify{background:var(--primary-tint);box-shadow:inset 3px 0 0 var(--primary)}
   #main .group-table tr.cut{border-top:2px dashed var(--primary-bright)}
-  #main .group-table tr.tap-row:hover td, #main .group-table tr.tap-row:active td{background:none}
-  #main .group-table tr.tap-row:active{background:var(--primary-tint)}
+  #main .group-table tr.tap-row:active{background:var(--surface-3)}
   :root[data-theme="dark"] #main .group-table tr.qualify{background:#14223F}
 }
-@media(max-width:340px){
-  #main .group-table tr{grid-template-columns:26px repeat(var(--n,8), minmax(0,1fr))}
-  #main .group-table th, #main .group-table td{font-size:12px}
-  #main .group-table thead th{font-size:10px;letter-spacing:0}
+@media(max-width:360px){
+  #main .group-table tr{grid-template-columns:26px repeat(var(--s,7), minmax(0,1fr)) 36px;padding:0 2px 0 4px}
+  #main .group-table tbody td:nth-child(n+3):not(:last-child){font-size:12px}
+  #main .group-table thead th{font-size:9.5px;letter-spacing:.02em}
+  #main .group-table tbody td:last-child{font-size:21px}
+  #main .group-table .who > span:not(.player-avatar):not(.q-chip){font-size:14px}
 }
 .fb-legend.inline{display:block;text-align:center;line-height:1.6;text-wrap:balance}
 .fb-legend.inline .fb-q{display:inline-flex;vertical-align:middle;margin-right:6px}

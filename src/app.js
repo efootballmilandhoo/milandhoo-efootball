@@ -2783,7 +2783,7 @@ function standingsTable(t, g, highlightN){
   const chip = isLeague ? (finished ? 'Champion' : 'Leader') : (finished ? 'Qualified' : 'Q');
   return `
     <div class="table-wrap">
-      <table class="group-table" style="--n:${hasNR?9:8}">
+      <table class="group-table" style="--s:${hasNR?8:7}">
         <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th>${hasNR?'<th scope="col" class="nr" title="No result: not played by the deadline (0-0, no points)">NR</th>':''}<th scope="col" class="c-gf">GF</th><th scope="col" class="c-ga">GA</th><th scope="col">GD</th><th scope="col">Pts</th></tr></thead>
         <tbody>
           ${rows.map((row,i)=>{
@@ -2793,7 +2793,7 @@ function standingsTable(t, g, highlightN){
               <td><span class="pos">${i+1}</span></td>
               <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${esc(p.name)}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
               <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>${hasNR?`<td class="nr">${row.nr||'<span class="dim">0</span>'}</td>`:''}
-              <td class="c-gf">${row.gf}</td><td class="c-ga">${row.ga}</td><td style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
+              <td class="c-gf">${row.gf}</td><td class="c-ga">${row.ga}</td><td class="c-gd ${gd>0?'pos-gd':gd<0?'neg-gd':''}" style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
               <td>${row.points}</td>
             </tr>`;
           }).join('')}
