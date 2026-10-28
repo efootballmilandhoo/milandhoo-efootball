@@ -911,7 +911,7 @@ function fbStandings(t){
       <table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th>${hasNR?'<th>NR</th>':''}<th>GF</th><th>GA</th><th>GD</th><th class="pts">Pts</th></tr></thead><tbody>
       ${rows.map(r=>{ const gd = r.gf-r.ga, qq = r.pos<=q; return `<tr class="${qq?'q':''}"><td>${fbPos(r.pos, qq)}</td><td class="l nm">${esc(playerName(r.playerId))}${qq && final?' <span class="fb-q">Q</span>':''}</td><td>${r.played}</td><td>${r.wins}</td><td>${r.draws}</td><td>${r.losses}</td>${hasNR?`<td class="muted">${r.nr||'<span class="dim">0</span>'}</td>`:''}<td>${r.gf}</td><td>${r.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td class="pts"><b>${r.points}</b></td></tr>` }).join('')}
       </tbody></table></div>
-      <div class="fb-legend inline">${final ? `<span class="fb-q">Q</span> ${isLeague ? 'League champion' : `Qualified · top ${q} went through to the knockouts`}` : (isLeague ? 'Highlighted: top of the table so far' : `Highlighted: top ${q} in qualifying places so far`)} · GA = goals conceded${hasNR ? ' · NR = no result (not played, 0 pts)' : ''}</div>`, 1, 1);
+      <div class="fb-legend inline">${final ? `<span class="fb-q">Q</span> ${isLeague ? 'League champion' : `Qualified · top ${q} went through to the knockouts`}` : (isLeague ? 'Highlighted: top of the table so far' : `Highlighted: top ${q} in qualifying places so far`)} · <span style="white-space:nowrap">GA = goals conceded</span>${hasNR ? ' · <span style="white-space:nowrap">NR = no result (not played, 0 pts)</span>' : ''}</div>`, 1, 1);
   // One page per group (a long league table continues on a second page).
   const pages = [];
   groups.forEach(g=>{
