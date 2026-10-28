@@ -1226,7 +1226,7 @@ function navigate(view, param, opts={}){
     else {
       const tabs = availableTabs(f).map(x=>x[0]);
       const want = view==='standings' ? 'tab-standings' : view==='fixtures' ? 'tab-fixtures' : 'tab-knockout';
-      if(f.id!==currentTournamentId) selectedPlayerFilter = null;
+      if(f.id!==currentTournamentId){ selectedPlayerFilter = null; selectedGroup = null }
       currentTournamentId = f.id;
       currentTab = tabs.includes(want) ? want : (view==='bracket' ? 'tab-overview' : tabs.includes('tab-knockout') ? 'tab-knockout' : 'tab-overview');
       view = 'tournament-detail';
@@ -1234,7 +1234,7 @@ function navigate(view, param, opts={}){
     }
   } else if(view==='tournament-detail'){
     if(opts.tab) currentTab = opts.tab;
-    else if(param!==currentTournamentId){ currentTab='tab-overview'; selectedPlayerFilter=null }
+    else if(param!==currentTournamentId){ currentTab='tab-overview'; selectedPlayerFilter=null; selectedGroup=null }
     currentTournamentId = param;
   }
   const after = {view, tid: view==='tournament-detail' ? param : null};
@@ -2809,6 +2809,11 @@ function nextStepText(t){
 }
 
 function switchTab(tabId){
+  // Standings and Fixtures always open on "All"; a group picked inside the tab stays until you leave it.
+  if(tabId!==currentTab && (tabId==='tab-standings' || tabId==='tab-fixtures') && selectedGroup && selectedGroup!=='*'){
+    selectedGroup = '*';
+    ['tab-standings','tab-fixtures'].forEach(id=>{ const el = document.getElementById(id); if(el){ el.innerHTML = ''; el.dataset.lazy = '1' } });
+  }
   currentTab = tabId;
   document.querySelectorAll('#detailTabs .tab').forEach(x=>{ const on = x.dataset.tab===tabId; x.classList.toggle('active', on); x.setAttribute('aria-selected', on) });
   const lazy = document.getElementById(tabId);
@@ -3031,7 +3036,7 @@ function groupSwitcher(t, onPick){
 function currentGroup(t){
   if(!t.groupData?.length) return null;
   if(selectedGroup==='*' || t.groupData.some(g=>g.name===selectedGroup)) return selectedGroup;
-  return t.groupData[0].name;
+  return '*';
 }
 function pickGroup(tid, name){
   selectedGroup = name;
