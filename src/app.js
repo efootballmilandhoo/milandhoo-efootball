@@ -2776,7 +2776,7 @@ function pickGroup(tid, name){
 
 function standingsTable(t, g, highlightN){
   const rows = computeStandings(t, g);
-  const hasNR = (t.fixtures||[]).some(f=>f.autoDraw);
+  const hasNR = false; // NR is shown in exports only, not in the app
   const groupFx = (t.fixtures||[]).filter(f=>f.group===g.name);
   const finished = groupFx.length>0 && groupFx.every(f=>hasScore(f.score1)&&hasScore(f.score2));
   const isLeague = t.format==='league';
@@ -2821,7 +2821,7 @@ function renderStandingsTab(t, admin, canEditScores){
       <div class="export-header" style="margin-bottom:12px"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">${isLeague?'League table':'Group standings'} · ${fmtDate(new Date())}</div></div>
       ${content}
       <div class="section-foot" style="margin-top:14px">
-        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.${(t.fixtures||[]).some(f=>f.autoDraw) ? ' <b>NR</b> = no result: not played by the deadline, recorded 0–0 with no points.' : ''}</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
+        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.${(t.fixtures||[]).some(f=>f.autoDraw) ? ' Matches not played by the deadline count as played, with no points.' : ''}</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
 
       </div>
     </section>
