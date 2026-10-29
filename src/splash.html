@@ -1,6 +1,11 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
-    <div class="sp-pattern"></div>
+    <svg class="sp-outline" viewBox="-2 -2 112 44" fill="none" stroke="#5EC8FF" stroke-width=".32" stroke-linejoin="round">
+      <path pathLength="1" d="M0 36h9L25 4h-9z"/>
+      <path pathLength="1" d="M13 36h9L38 4h-9z"/>
+      <path pathLength="1" d="M26 36h9L51 4h-9z"/>
+      <path pathLength="1" d="M56 4h50l-5 9H64l-7 14h33l-5 9H40z"/>
+    </svg>
     <div class="sp-glow"></div>
     <div class="sp-content">
       <div class="sp-slot"></div>
@@ -29,8 +34,9 @@
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
     /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
-    var MIN = rm || fast ? 400 : 1300, MAX = 2500, t0 = Date.now(), leaving = false;
-    function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
+    var MIN = rm || fast ? 400 : 1200, MAX = 2400, t0 = Date.now(), leaving = false;
+    var outline = s.querySelector('.sp-outline');
+    function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px'; if(outline) outline.style.top = (r.top + r.height/2)+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
     function drawn(){ return !!(window.__splashDrawn || window.__splashOffline) }
@@ -42,8 +48,8 @@
       var content = s.querySelector('.sp-content');
       content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.04)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
       box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
-      s.animate([{opacity:1}, {opacity:0}], {duration:380, delay:80, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = function(){ s.remove() };
-      setTimeout(enter, 120);
+      s.animate([{opacity:1}, {opacity:0}], {duration:320, delay:40, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = function(){ s.remove() };
+      setTimeout(enter, 60);
       setTimeout(function(){ if(s.parentNode) s.remove() }, 900);
     }
     var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);

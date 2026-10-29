@@ -1,9 +1,10 @@
 #splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#08142F}
 .no-splash #splash{display:none}
 .sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0B1B3F 0%,#08142F 55%,#050D22 100%)}
-.sp-pattern{position:absolute;inset:-60px;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2272%22%20height%3D%2244%22%20viewBox%3D%220%200%2072%2044%22%3E%3Cg%20fill%3D%22%235EC8FF%22%3E%3Cpath%20d%3D%22M2%2018h4l7-14H9zM9%2018h4l7-14h-4zM16%2018h4l7-14h-4z%22/%3E%3Cpath%20d%3D%22M38%2040h4l7-14h-4zM45%2040h4l7-14h-4zM52%2040h4l7-14h-4z%22/%3E%3C/g%3E%3C/svg%3E") 0 0/72px 44px repeat;opacity:.07;
-  -webkit-mask-image:radial-gradient(75% 60% at 50% 42%,transparent 18%,#000 75%);mask-image:radial-gradient(75% 60% at 50% 42%,transparent 18%,#000 75%);animation:spDrift 14s linear infinite}
-@keyframes spDrift{to{transform:translate(72px,-44px)}}
+.sp-outline{position:absolute;left:50%;top:42%;width:min(94vw,860px);transform:translate(-50%,-50%);opacity:.2;overflow:visible}
+.sp-outline path{stroke-dasharray:1;stroke-dashoffset:1;animation:spTrace 1s cubic-bezier(.45,0,.2,1) forwards}
+.sp-outline path:nth-child(2){animation-delay:.06s}.sp-outline path:nth-child(3){animation-delay:.12s}.sp-outline path:nth-child(4){animation-delay:.18s}
+@keyframes spTrace{to{stroke-dashoffset:0}}
 .sp-glow{position:absolute;left:50%;top:42%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(closest-side,rgba(20,99,255,.28),rgba(20,99,255,0));}
 .sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;margin-top:-3vh}
 .sp-slot{width:96px;height:96px;flex-shrink:0}
