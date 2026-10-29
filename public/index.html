@@ -22,7 +22,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script>(function(){try{var m=localStorage.getItem('mg-theme')||'auto';var d=m==='dark'||(m==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.dataset.themeMode=m}catch(e){document.documentElement.dataset.theme='light'}})();</script>
 <script>try{var H=document.documentElement,S=sessionStorage;if(navigator.webdriver||S.getItem('mg-nosplash'))H.classList.add('no-splash');if(S.getItem('mg-splash-fast'))H.classList.add('sp-fast');S.removeItem('mg-nosplash');S.removeItem('mg-splash-fast')}catch(e){}</script>
-<style>#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#08142F}
+<style>#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff}
 .no-splash #splash{display:none}
 .sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0B1B3F 0%,#08142F 55%,#050D22 100%)}
 .sp-outline{position:absolute;left:50%;top:42%;width:min(84vw,720px);transform:translate(-50%,-50%);opacity:.22;overflow:visible}
@@ -117,10 +117,39 @@
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
     function drawn(){ return !!(window.__splashDrawn || window.__splashOffline) }
+    /* The header logo that is on screen now (phone header or desktop sidebar). */
+    function target(){
+      var els = document.querySelectorAll('.mobile-header [data-mark] .logo-mark, .sidebar [data-mark] .logo-mark');
+      for(var i=0;i<els.length;i++){ var r = els[i].getBoundingClientRect(); if(r.width>8 && r.bottom>0 && r.top<innerHeight && r.right>0 && r.left<innerWidth && getComputedStyle(els[i]).visibility!=='hidden') return els[i] }
+      return null;
+    }
     function enter(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
     function leave(){
       if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
       if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
+      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), outlineEl = s.querySelector('.sp-outline'), foot = s.querySelector('.sp-foot');
+      var tg = target();
+      if(tg){
+        /* The logo glides into the logo in the header while everything else dissolves into the app. */
+        var a = box.getBoundingClientRect(), b = tg.getBoundingClientRect(), k = b.width / a.width;
+        var glide = 'cubic-bezier(.65,0,.35,1)', D = 640;
+        tg.style.visibility = 'hidden';
+        box.style.transformOrigin = '0 0';
+        box.animate([
+          {transform:'translate(0,0) scale(1)', boxShadow:getComputedStyle(box).boxShadow},
+          {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', boxShadow:'0 0 0 0 rgba(0,0,0,0),0 0 0 0 rgba(0,0,0,0),0 0 0 0 rgba(0,0,0,0),0 0 0 0 rgba(0,0,0,0),0 0 0 0 rgba(0,0,0,0)'}
+        ], {duration:D, easing:glide, fill:'forwards'}).onfinish = function(){
+          tg.style.visibility = '';
+          box.animate([{opacity:1}, {opacity:0}], {duration:160, easing:'ease-out', fill:'forwards'}).onfinish = function(){ s.remove() };
+        };
+        content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(12px) scale(.98)'}], {duration:260, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+        if(outlineEl) outlineEl.animate([{opacity:getComputedStyle(outlineEl).opacity}, {opacity:0}], {duration:240, fill:'forwards'});
+        if(foot) foot.animate([{opacity:1}, {opacity:0}], {duration:150, fill:'forwards'});
+        stage.animate([{opacity:1}, {opacity:0}], {duration:480, delay:120, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+        setTimeout(enter, 160);
+        setTimeout(function(){ tg.style.visibility = ''; if(s.parentNode) s.remove() }, D + 600);
+        return;
+      }
       /* Lift: the splash slides up like a card being pulled away, its content moving a little faster (depth),
          while a shade over the app clears. Only transform and opacity, so it stays smooth. */
       var content = s.querySelector('.sp-content'), outlineEl = s.querySelector('.sp-outline'), foot = s.querySelector('.sp-foot');

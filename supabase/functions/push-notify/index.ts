@@ -109,7 +109,8 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
   }
 
   const nm = await names();
-  const P = (pid: string) => nm[pid] || "TBD";
+  // Short names in notifications ("MG Saanihu" → "Saanihu"); the phone already shows the app name.
+  const P = (pid: string) => (nm[pid] || "TBD").replace(/^MG\s+/i, "");
   const oldFx = new Map((o.fixtures || []).map((f: Obj) => [f.id, f]));
   const results: Obj[] = [];
   // Group-stage matches are not announced one by one; a group is announced once all its fixtures have scores.
