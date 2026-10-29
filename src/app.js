@@ -577,18 +577,19 @@ async function renderFbSheets(pages, width, base, format, ready){
       await deliverFiles(files);
     }
   }catch(e){ console.error(e); toast('Export failed. Try again.', true) }
-  finally{ built.forEach(b=>b.host.remove()); EXPORT_CTX.zPerPage = false }
+  finally{ built.forEach(b=>b.host.remove()); EXPORT_CTX.zPerPage = false; EXPORT_CTX.zMax = 0 }
 }
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
-  if(fbFits(sheet, FB_Z.max)) return FB_Z.max;
+  const max = EXPORT_CTX.zMax || FB_Z.max;
+  if(fbFits(sheet, max)) return max;
   if(!fbFits(sheet, FB_Z.min)) return FB_Z.min;
-  let lo = FB_Z.min, hi = FB_Z.max;
+  let lo = FB_Z.min, hi = max;
   for(let k=0;k<9;k++){ const mid = (lo+hi)/2; if(fbFits(sheet, mid)) lo = mid; else hi = mid }
   return lo;
 }
@@ -696,18 +697,20 @@ function fbBracketPages(t, rounds){
     chunk(ties, 8).forEach((set, k, all)=>blocks.push({title, dl, set, part: all.length>1 ? ` (${k+1}/${all.length})` : '', isFinal: ri===t.knockoutBracket.length-1}));
   });
   const blockHTML = x => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
-    <div class="fb-ties ${x.set.length===1?'one':''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
+    <div class="fb-ties ${x.set.length===1?'one':''} ${rounds.length===1 && x.set.length<=4 ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
     ${x.isFinal && final?.winner ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}</div>`;
   const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${koLabel(t.knockoutFormat)}`, set.map(blockHTML).join(''), i+1, n);
   return fbPack(blocks, page);
 }
 function fbBracket(t){
   if(!t.knockoutBracket?.length){ toast('No bracket to export yet', true); return }
+  EXPORT_CTX.zMax = 3.4;
   return renderSheets(fbBracketPages(t, t.knockoutBracket.map((_,i)=>i)), FB.w, `${slug(t.name)}_bracket`);
 }
 function fbRound(tid, ri){
   const t = STORE.tournaments.find(x=>x.id===tid);
   if(!t?.knockoutBracket?.[ri]){ toast('Round not found', true); return }
+  EXPORT_CTX.zMax = 3.4;
   return renderSheets(fbBracketPages(t, [ri]), FB.w, `${slug(t.name)}_${slug(t.knockoutBracket[ri][0]?.round)}`);
 }
 

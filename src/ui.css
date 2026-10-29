@@ -1667,3 +1667,11 @@
 @keyframes heroSweep{0%{background-position:-150% 0,0 0,0 0}45%,100%{background-position:250% 0,0 0,0 0}}
 @keyframes sloganShine{0%{background-position:120% 0,0 0}50%,100%{background-position:-20% 0,0 0}}
 @media (prefers-reduced-motion:reduce){.hero.has-cover::before,.hero.has-cover::after,.sidebar-card.has-img::before,.sidebar-card.has-img::after,.sidebar-card-title{animation:none}}
+
+/* Knockout exports: whatever space is left is shared above and below the ties, so the round sits in the middle */
+.fb-body:has(> .fb-round){justify-content:center}
+.fb-ties.one{max-width:calc(820px*var(--z));width:100%;margin:0 auto}
+
+.fb-ties.stack{grid-template-columns:minmax(0,1fr);max-width:calc(860px*var(--z));width:100%;margin:0 auto}
+.fb-round-h{flex-wrap:wrap;row-gap:4px}
+.fb-round-h b{white-space:nowrap}
