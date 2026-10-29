@@ -169,6 +169,63 @@ function thanksText(t: Obj, pid: string, nm: Record<string, string>, html = true
   ].join("\n");
 }
 
+/* ---- Knockout helpers ---- */
+// Scores of each leg/game of a tie, from team1's side: [[a,b], ...] (tie-breaker included).
+function tieLegs(t: Obj, m: Obj): number[][] {
+  const out: number[][] = [];
+  const add = (a: unknown, b: unknown) => { if (has(a) && has(b)) out.push([Number(a), Number(b)]); };
+  if (t.knockoutFormat === "bo3" && Array.isArray(m.games)) m.games.forEach((g: Obj) => add(g?.a, g?.b));
+  else { add(m.score1, m.score2); if (t.knockoutFormat === "2leg") add(m.leg2Score1, m.leg2Score2); }
+  if (m.tb) add(m.tb.a, m.tb.b);
+  return out;
+}
+// A player's whole-tournament record: group matches (no-result 0-0s excluded) and every knockout leg.
+function playerRecord(t: Obj, pid: string) {
+  const r = { p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+  const add = (f: number, a: number) => { r.p++; r.gf += f; r.ga += a; if (f > a) r.w++; else if (f < a) r.l++; else r.d++; };
+  (t.fixtures || []).forEach((f: Obj) => {
+    if (f.autoDraw || !has(f.score1) || !has(f.score2) || (f.team1 !== pid && f.team2 !== pid)) return;
+    const me1 = f.team1 === pid; add(Number(me1 ? f.score1 : f.score2), Number(me1 ? f.score2 : f.score1));
+  });
+  (t.knockoutBracket || []).flat().forEach((m: Obj) => {
+    if (!m || m.isBye || (m.team1 !== pid && m.team2 !== pid)) return;
+    const me1 = m.team1 === pid; tieLegs(t, m).forEach(([a, b]) => add(me1 ? a : b, me1 ? b : a));
+  });
+  return r;
+}
+// The last knockout round a player reached ("Round of 16", "Final", ...), and whether they won it.
+function stageReached(t: Obj, pid: string): string {
+  let last = "";
+  (t.knockoutBracket || []).forEach((round: Obj[]) => round.forEach((m: Obj) => { if (m && !m.isBye && (m.team1 === pid || m.team2 === pid)) last = m.round || last; }));
+  if (last === "Final") { const f = (t.knockoutBracket || []).flat().find((m: Obj) => m?.round === "Final"); if (f?.winner) return f.winner === pid ? "Champion" : "Runner-up"; }
+  return last || "Group stage";
+}
+// The round whose ties are being played now: the first one with an undecided tie between two players.
+function currentKoRound(t: Obj): Obj[] {
+  for (const r of t.knockoutBracket || []) { const open = (r || []).filter((m: Obj) => m && !m.isBye && m.team1 && m.team2 && !m.winner); if (open.length) return open; }
+  return [];
+}
+function koRemindText(t: Obj, m: Obj, pid: string, nm: Record<string, string>): string {
+  const b = (s: string) => `<b>${esc(s)}</b>`;
+  const round = m.round || "Knockout";
+  const dl = t.rules?.roundDeadlines?.[round];
+  const dlMs = deadlineMs(dl);
+  const today = Number.isFinite(dlMs) && localDay(dlMs) === localDay(Date.now());
+  const me1 = m.team1 === pid, opp = me1 ? m.team2 : m.team1;
+  const labels = t.knockoutFormat === "2leg" ? ["Leg 1", "Leg 2"] : t.knockoutFormat === "bo3" ? ["Game 1", "Game 2", "Game 3"] : ["Match"];
+  const raw = t.knockoutFormat === "2leg" ? [[m.score1, m.score2], [m.leg2Score1, m.leg2Score2]] : t.knockoutFormat === "bo3" ? (m.games || [{}, {}, {}]).map((g: Obj) => [g?.a, g?.b]) : [[m.score1, m.score2]];
+  const legs = labels.map((l, i) => { const x = raw[i] || []; return has(x[0]) && has(x[1]) ? `• ${l}: ${b(`${me1 ? x[0] : x[1]}–${me1 ? x[1] : x[0]}`)} ✅` : `• ${l}: ${b("not played yet")}`; });
+  return [
+    `⏰ ${b("Reminder!")}`, "",
+    `🏆 ${b(t.name || "Tournament")}`,
+    `${esc(round)} · your tie vs ${b(nm[opp] || "TBD")}`,
+    dl ? `📅 Deadline: ${b((today ? "TONIGHT · " : "") + when(dl))}` : "", "",
+    ...legs, "",
+    `Please finish your tie ${b("before the deadline")} and post the full-time screenshots in the knockout screenshots topic.`,
+    "", `Bracket: ${APP}/#t=${t.id}`,
+  ].filter((x, i, a) => !(x === "" && a[i - 1] === "")).join("\n");
+}
+
 const KO_FMT: Obj = { bo3: "best of 3 games", "2leg": "two legs, aggregate score", single: "one match" };
 
 /* ---- A player's fixtures as a message. html=false gives plain text for WhatsApp / SMS. ---- */
@@ -360,6 +417,69 @@ Deno.serve(async (req) => {
       }
       const onlyPids = body.group === "qualified" ? [...q] : body.group === "out" ? (t.registrations || []).map((r: Obj) => r.playerId).filter((p: string) => !q.has(p)) : undefined;
       return json(await sendTournament(t, (pid) => textFor(pid), onlyPids));
+    }
+    if (body.action === "ko_remind") {
+      // Players whose current knockout tie isn't decided yet.
+      const nm = await names();
+      const open = currentKoRound(t);
+      const map = new Map<string, Obj>(); open.forEach((m: Obj) => { map.set(m.team1, m); map.set(m.team2, m); });
+      if (body.preview) return json({ players: [...map.keys()].map((pid) => ({ pid, name: nm[pid], text: koRemindText(t, map.get(pid)!, pid, nm) })) });
+      return json(await sendTournament(t, (pid) => (map.has(pid) ? koRemindText(t, map.get(pid)!, pid, nm) : null), [...map.keys()]));
+    }
+    if (body.action === "eliminated") {
+      // Certificate of participation with tournament stats for players knocked out of the knockout stage.
+      // body.pids: who to send to; without it, everyone already eliminated. cert_log makes it once per player.
+      const nm = await names();
+      const losers = new Set<string>();
+      (t.knockoutBracket || []).flat().forEach((m: Obj) => { if (m && !m.isBye && m.winner && m.team1 && m.team2) losers.add(m.winner === m.team1 ? m.team2 : m.team1); });
+      const targets: string[] = (Array.isArray(body.pids) ? body.pids : [...losers]).filter((p: string) => losers.has(p));
+      const { data: done } = await sb.from("cert_log").select("pid").eq("tid", t.id);
+      const already = new Set((done || []).map((r: Obj) => r.pid));
+      const todo = targets.filter((p) => !already.has(p));
+      const links = await linksFor(todo);
+      if (body.list) return json({ pending: todo.filter((p) => links.has(p)), notLinked: todo.filter((p) => !links.has(p)), alreadySent: targets.filter((p) => already.has(p)) });
+      const short = (v: unknown) => { const ms = deadlineMs(v); return Number.isFinite(ms) ? new Date(ms).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: TZ }) : ""; };
+      const startD = short(t.startDateTime || t.date);
+      const make = (pid: string) => { const r = playerRecord(t, pid), stage = stageReached(t, pid); return certificatePdf({
+          player: nm[pid] || "Player", tournament: t.name || "Tournament",
+          dates: [startD, short(new Date().toISOString())].filter(Boolean).join(" – ") + (t.game ? ` · ${t.game}` : ""),
+          detail: "", issued: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: TZ }),
+          logoUrl: typeof t.logo === "string" && t.logo.startsWith("http") ? t.logo : undefined,
+          appIconUrl: `${URL_}/functions/v1/app-icon?s=192`,
+          stats: [
+            { label: "Reached", value: stage }, { label: "Played", value: String(r.p) }, { label: "Won", value: String(r.w) }, { label: "Drawn", value: String(r.d) },
+            { label: "Lost", value: String(r.l) }, { label: "Goals for", value: String(r.gf) }, { label: "Goals against", value: String(r.ga) },
+          ],
+        }); };
+      if (body.preview) {
+        // One sample certificate (base64), for checking the layout; nothing is sent or logged.
+        const pid = (Array.isArray(body.pids) && body.pids[0]) || [...losers][0];
+        if (!pid) return json({ error: "Nobody has been eliminated yet" }, 400);
+        const u = await make(pid); let b = ""; for (let i = 0; i < u.length; i += 0x8000) b += String.fromCharCode(...u.subarray(i, i + 0x8000));
+        return json({ pid, record: playerRecord(t, pid), stage: stageReached(t, pid), pdf: btoa(b) });
+      }
+      let sent = 0, failed = 0;
+      // One certificate per call keeps within the server's CPU budget; callers send one pid at a time.
+      for (const pid of todo.slice(0, 1)) {
+        const chat = links.get(pid); if (!chat) continue;
+        const r = playerRecord(t, pid), stage = stageReached(t, pid);
+        const pdf = await make(pid);
+        const fd = new FormData();
+        fd.append("chat_id", String(chat));
+        fd.append("caption", [
+          `🎖️ <b>Certificate of Participation</b>`, `🏆 ${esc(t.name)}`, "",
+          `Thank you for taking part, <b>${esc(nm[pid] || "player")}</b>! You reached the <b>${esc(stage)}</b> — well played.`,
+          `Your record: ${r.p} played · ${r.w}W ${r.d}D ${r.l}L · ${r.gf}–${r.ga} goals.`, "",
+          `We hope to see you in the next tournament too. More great news and opportunities are coming!`, "",
+          `<b>— From Team MG</b>`,
+        ].join("\n"));
+        fd.append("parse_mode", "HTML");
+        fd.append("document", new Blob([pdf], { type: "application/pdf" }), `Certificate_${String(nm[pid] || "Player").replace(/[^A-Za-z0-9]+/g, "_")}.pdf`);
+        const res = await fetch(`https://api.telegram.org/bot${s.telegram_token}/sendDocument`, { method: "POST", body: fd }).then((x) => x.json()).catch(() => ({ ok: false }));
+        if (res?.ok) { sent++; await sb.from("cert_log").upsert({ tid: t.id, pid, sent_at: new Date().toISOString() }); }
+        else { failed++; console.error("elim cert failed", pid, JSON.stringify(res)); }
+      }
+      return json({ sent, failed, remaining: Math.max(0, todo.filter((p) => links.has(p)).length - sent) });
     }
     if (body.action === "certs") {
       // Certificates of participation for everyone who did not reach the knockout stage.

@@ -130,6 +130,7 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
       out.push({ title: `${tn}: Group ${g.name} is complete`, body: top.length ? `Through to the knockouts: ${top.join(", ")}` : "See the final group standings", url, tag: `grp-${id}-${g.name}` });
     });
   }
+  const eliminated: string[] = [];
   const oldKo = new Map(((o.knockoutBracket || []).flat()).map((m: Obj) => [m.id, m]));
   ((n.knockoutBracket || []).flat()).forEach((m: Obj) => {
     if (m.isBye || !m.winner || !m.team1 || !m.team2) return;
@@ -137,7 +138,10 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
     if (p && p.winner === m.winner) return;
     const loser = m.winner === m.team1 ? m.team2 : m.team1;
     results.push({ title: `${P(m.winner)} beat ${P(loser)}${koScore(n.knockoutFormat, m)}`, body: `${tn} · ${m.round || "Knockout"}` });
+    eliminated.push(loser);
   });
+  // Knocked-out players get a certificate of participation with their tournament stats (one per call, sent once each).
+  if (n.status !== "draft") eliminated.forEach((pid) => telegramLater({ action: "eliminated", tid: id, pids: [pid] }));
   if (results.length > 3) out.push({ title: `${results.length} new results`, body: `${tn}: tap to see the latest scores`, url, tag: "res-" + id });
   else results.forEach((r, i) => out.push({ ...r, url, tag: `res-${id}-${Date.now()}-${i}` }));
 

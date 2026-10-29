@@ -48,7 +48,7 @@ function centered(page: PDFPage, text: string, font: PDFFont, size: number, y: n
 // Largest size (<= max) at which the text fits the width.
 const fit = (font: PDFFont, text: string, max: number, width: number) => { let s = max; while (s > 10 && font.widthOfTextAtSize(text, s) > width) s -= 1; return s; };
 
-export async function certificatePdf(o: { player: string; tournament: string; dates: string; detail: string; issued: string; logoUrl?: string; appIconUrl: string }): Promise<Uint8Array> {
+export async function certificatePdf(o: { player: string; tournament: string; dates: string; detail: string; issued: string; logoUrl?: string; appIconUrl: string; stats?: { label: string; value: string }[] }): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
   const [displayB, bodyR, bodyB] = await Promise.all([FONT.display, FONT.body, FONT.bold].map((u) => fetchBytes(u)));
@@ -79,25 +79,41 @@ export async function certificatePdf(o: { player: string; tournament: string; da
   const tlogo = await embedImage(doc, o.logoUrl);
   if (tlogo) { const s = 56; page.drawImage(tlogo, { x: W - M - 26 - s, y: bandMid - s / 2, width: s, height: s }); }
 
-  // body
-  let y = H - M - bandH - 72;
+  // body (a little tighter when there is a stats row)
+  const st = o.stats && o.stats.length ? o.stats : null;
+  let y = H - M - bandH - (st ? 56 : 72);
   centered(page, "CERTIFICATE OF PARTICIPATION", fBold, 13, y, BLUE, 3.2);
-  y -= 46;
+  y -= st ? 38 : 46;
   centered(page, "This certificate is proudly presented to", fBody, 13, y, MUTED);
-  y -= 66;
+  y -= st ? 60 : 66;
   const nameSize = fit(fDisplay, o.player, 58, W - 2 * M - 120);
   centered(page, o.player, fDisplay, nameSize, y, INK);
-  y -= 22;
+  y -= st ? 18 : 22;
   page.drawRectangle({ x: W / 2 - 110, y, width: 220, height: 1.5, color: BLUE });
-  y -= 38;
+  y -= st ? 30 : 38;
   centered(page, "for taking part in", fBody, 13, y, MUTED);
   y -= 34;
   const tSize = fit(fBold, o.tournament, 24, W - 2 * M - 120);
   centered(page, o.tournament, fBold, tSize, y, INK);
-  y -= 24;
+  y -= st ? 20 : 24;
   centered(page, o.dates, fBody, 11.5, y, MUTED);
-  y -= 30;
-  centered(page, o.detail, fBody, 11.5, y, MUTED);
+  if (st) {
+    // tournament stats: a row of equal boxes
+    const n = st.length, gap = 8, bw = Math.min(96, (W - 2 * M - 120 - gap * (n - 1)) / n), bh = 46;
+    const total = n * bw + gap * (n - 1);
+    let bx = (W - total) / 2; const by = y - 22 - bh;
+    for (const it of st) {
+      page.drawRectangle({ x: bx, y: by, width: bw, height: bh, color: BG, borderColor: LINE, borderWidth: 1 });
+      const vs = fit(fDisplay, it.value, 20, bw - 10);
+      page.drawText(it.value, { x: bx + (bw - fDisplay.widthOfTextAtSize(it.value, vs)) / 2, y: by + 20, size: vs, font: fDisplay, color: INK });
+      const lab = it.label.toUpperCase();
+      spaced(page, lab, fBold, 6.5, bx + (bw - spacedWidth(lab, fBold, 6.5, 0.8)) / 2, by + 8, MUTED, 0.8);
+      bx += bw + gap;
+    }
+  } else {
+    y -= 30;
+    centered(page, o.detail, fBody, 11.5, y, MUTED);
+  }
 
   // footer: issued (left), Team MG (right)
   const fy = M + 46;
