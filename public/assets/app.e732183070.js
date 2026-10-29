@@ -573,6 +573,7 @@ async function boot(){
   initPush();
 }
 function renderOffline(){
+  window.__splashReady && window.__splashReady();
   setHeader('Welcome', 'Dashboard');
   document.getElementById('main').innerHTML = `<div class="card empty"><div class="empty-title">Can't reach the community server</div><div class="text-sm">Check your internet connection and try again.</div><button type="button" class="btn btn-primary mt-16" onclick="location.reload()">Try again</button></div>`;
 }
@@ -581,7 +582,7 @@ function renderOffline(){
 let hashRouted = false;
 function applyHashRoute(){
   if(hashRouted) return; hashRouted = true;
-  playEnter();
+  if(window.__splashUp) window.__splashReady && window.__splashReady(); else playEnter();
   routeTo(location.hash);
 }
 function routeTo(hash){

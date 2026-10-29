@@ -1,32 +1,75 @@
 <div id="splash" aria-hidden="true">
-  <div class="sp-bg"></div>
-  <svg class="sp-pitch" viewBox="0 0 260 400" preserveAspectRatio="xMidYMid slice" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
-    <rect pathLength="1" x="14" y="14" width="232" height="372" rx="3"/>
-    <path pathLength="1" d="M58 14V78H202V14M96 14V36H164V14M104 78A30 30 0 0 0 156 78"/>
-    <path pathLength="1" d="M58 386V322H202V386M96 386V364H164V386M104 322A30 30 0 0 1 156 322"/>
-    <path pathLength="1" d="M14 24A10 10 0 0 0 24 14M236 14A10 10 0 0 0 246 24M246 376A10 10 0 0 0 236 386M24 386A10 10 0 0 0 14 376"/>
-  </svg>
-  <div class="sp-stripes"></div>
-  <div class="sp-center">
-    <div class="sp-mark">
-    <i class="sp-midline"></i><i class="sp-circle"></i><i class="sp-ring"></i>
-    <div class="sp-logo">
-      <img src="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=256" alt="" onerror="this.remove()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
+  <div class="sp-stage">
+    <div class="sp-bg"></div>
+    <svg class="sp-pitch" viewBox="0 0 260 400" preserveAspectRatio="xMidYMid slice" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
+      <rect pathLength="1" x="14" y="14" width="232" height="372" rx="2"/>
+      <path pathLength="1" d="M58 14V78H202V14M96 14V36H164V14M104 78A30 30 0 0 0 156 78"/>
+      <path pathLength="1" d="M58 386V322H202V386M96 386V364H164V386M104 322A30 30 0 0 1 156 322"/>
+    </svg>
+    <div class="sp-content">
+      <div class="sp-slot"></div>
+      <div class="sp-name">MG EFOOTBALL</div>
+      <div class="sp-rule"></div>
+      <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
     </div>
-    </div>
-    <div class="sp-name">MG EFOOTBALL</div>
-    <div class="sp-sub">Milandhoo Community</div>
-    <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
+    <div class="sp-foot"><div class="sp-bar"><b></b></div>Milandhoo Community</div>
   </div>
-  <div class="sp-bar"><b></b></div>
+  <div class="sp-logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
+    <img src="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=256" alt="" onerror="this.remove()">
+  </div>
 </div>
 <script>(function(){
-  var s=document.getElementById('splash'); if(!s) return;
-  var done=false, end=function(){ if(done) return; done=true; s.classList.add('out'); setTimeout(function(){ s.remove() }, 520) };
-  if(document.documentElement.classList.contains('no-splash')){ s.remove(); return }
-  try{ sessionStorage.setItem('mg-splash','1') }catch(e){}
-  var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  setTimeout(end, rm ? 900 : 2600);
-  s.addEventListener('click', end);
+  var tpl = document.getElementById('splash'); if(!tpl) return;
+  if(document.documentElement.classList.contains('no-splash')){ tpl.remove(); return }
+  var html = tpl.outerHTML, rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var MIN = rm ? 700 : 2300, MAX = 5000;
+  function play(s, fast){
+    var t0 = Date.now(), ready = !!fast, gone = false, logo = s.querySelector('.sp-logo'), slot = s.querySelector('.sp-slot');
+    function place(){ var r = slot.getBoundingClientRect(); logo.style.left = r.left+'px'; logo.style.top = r.top+'px'; logo.style.width = r.width+'px'; logo.style.height = r.height+'px' }
+    place(); addEventListener('resize', place);
+    if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
+    function target(){
+      var els = document.querySelectorAll('.mobile-header [data-mark] .logo-mark, .sidebar [data-mark] .logo-mark');
+      for(var i=0;i<els.length;i++){ var r = els[i].getBoundingClientRect(); if(r.width>4 && r.bottom>0 && r.top<innerHeight && getComputedStyle(els[i]).visibility!=='hidden') return {r:r, rad:getComputedStyle(els[i]).borderTopLeftRadius} }
+      return null;
+    }
+    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
+    function leave(){
+      if(s.dataset.leaving) return; s.dataset.leaving = 1;
+      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot'), tg = target();
+      if(rm || !s.animate || !tg){
+        s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; setTimeout(finish, 460); return;
+      }
+      var a = logo.getBoundingClientRect(), b = tg.r, k = b.width / a.width;
+      var cx = b.left + b.width/2, cy = b.top + b.height/2;
+      var ease = 'cubic-bezier(.7,0,.2,1)';
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(10px) scale(.98)'}], {duration:260, easing:'ease-in', fill:'forwards'});
+      foot.animate([{opacity:1}, {opacity:0}], {duration:200, fill:'forwards'});
+      logo.animate([
+        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius},
+        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px'}
+      ], {duration:720, delay:120, easing:ease, fill:'forwards'});
+      var far = Math.hypot(Math.max(cx, innerWidth-cx), Math.max(cy, innerHeight-cy));
+      var iris = stage.animate([{clipPath:'circle('+far+'px at '+cx+'px '+cy+'px)'}, {clipPath:'circle('+(b.width/2)+'px at '+cx+'px '+cy+'px)'}], {duration:760, delay:100, easing:ease, fill:'forwards'});
+      logo.animate([{opacity:1}, {opacity:0}], {duration:180, delay:820, fill:'forwards'}).onfinish = finish;
+      setTimeout(finish, 1400);
+    }
+    function maybe(){ if(ready && Date.now()-t0 >= MIN) leave() }
+    window.__splashReady = function(){ ready = true; setTimeout(maybe, Math.max(0, MIN-(Date.now()-t0))) };
+    window.__splashUp = true;
+    if(ready) setTimeout(maybe, MIN);
+    setTimeout(leave, MAX);
+    s.addEventListener('click', function(){ ready = true; t0 = 0; leave() });
+  }
+  play(tpl, false);
+  /* Opening the app again after it has been in the background for a while plays it again. */
+  var hiddenAt = 0;
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){ hiddenAt = Date.now(); return }
+    if(hiddenAt && Date.now()-hiddenAt > 5*60e3 && !document.getElementById('splash')){
+      var w = document.createElement('div'); w.innerHTML = html; var s = w.firstElementChild; document.body.appendChild(s); play(s, true);
+    }
+    hiddenAt = 0;
+  });
 })();</script>
