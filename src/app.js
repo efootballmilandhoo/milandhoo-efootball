@@ -378,6 +378,14 @@ function computeStandings(t, g){
 
 function seedOrder(P){ let o=[1]; while(o.length<P){ const n=o.length*2; o=o.flatMap(s=>[s, n+1-s]) } return o }
 function roundLabel(matches){ return matches===1 ? 'Final' : matches===2 ? 'Semi Finals' : matches===4 ? 'Quarter Finals' : `Round of ${matches*2}` }
+/* Short match codes: RO16 M1, QF M2, SF M1, Final. */
+function koRoundShort(name){ return name==='Final' ? 'Final' : name==='Semi Finals' ? 'SF' : name==='Quarter Finals' ? 'QF' : /^Round of (\d+)$/.test(name||'') ? 'RO'+RegExp.$1 : (name||'') }
+function koCode(t, m){
+  for(const round of t.knockoutBracket||[]){ const i = round.indexOf(m); if(i>=0){ const s = koRoundShort(round[0]?.round); return s==='Final' ? 'Final' : `${s} M${i+1}` } }
+  return m.round || '';
+}
+/* The seeding tag of a first-round tie ("A1 vs B2"), when there is one. */
+const koTag = m => m.label && !/^(Final|Winners advance|Match)$/.test(m.label) ? m.label : '';
 function emptyMatch(){ return {id:uid(), team1:null, team2:null, score1:null, score2:null, leg2Score1:null, leg2Score2:null, games:null, pens:null, winner:null} }
 
 const sameGroup = (a,b) => !!(a && b && a.group && a.group===b.group);
@@ -668,7 +676,7 @@ function fbTie(t, m){
   if(labels.length && !r.legacy) legs.forEach((l,i)=>{ if(hasScore(l[0]) && hasScore(l[1])) bits.push(`${labels[i]} ${l[0]}–${l[1]}`) });
   if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) bits.push(`Tie-breaker ${m.tb.a}–${m.tb.b}`);
   if(m.pens && hasScore(m.pens.a) && hasScore(m.pens.b)) bits.push(`Pens ${m.pens.a}–${m.pens.b}`);
-  return `<div class="fbk ${m.isBye?'bye':''}">${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
+  return `<div class="fbk ${m.isBye?'bye':''}"><div class="fbk-h">${esc(koCode(t, m))}${koTag(m) ? `<span>${esc(koTag(m))}</span>` : ''}</div>${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
 }
 function fbBracketPages(t, rounds){
   const final = t.knockoutBracket.at(-1)?.[0];
@@ -1417,7 +1425,7 @@ function bracketHTML(t, admin){
         <div class="bracket-round-title">${esc(round[0]?.round||'Round '+(ri+1))}${(t.rules?.roundDeadlines||{})[round[0]?.round] ? `<span class="round-dl">Deadline ${fmtShort(t.rules.roundDeadlines[round[0].round])}</span>` : ''}</div>
         ${round.map(m=>`
           <div class="bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''} ${ri===rounds.length-1?'final':''}">
-            ${m.label && !/^(Final|Winners advance|Match)$/.test(m.label) ? `<div class="bracket-match-title">${esc(m.label)}</div>`:''}
+            <div class="bracket-match-title"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div>
             ${koMatchBody(t, m, playerName)}
             ${admin && t.status==='active' && !m.isBye && m.team1 && m.team2 ? `<button type="button" class="btn btn-sm" onclick="openKnockoutMatchModal('${t.id}',${ri},'${m.id}')">${m.winner?'Edit result':'Enter result'}</button>`:''}
           </div>`).join('')}
@@ -1441,7 +1449,7 @@ function exportRoundAsJPEG(tid, roundIndex){
   const cols = round.length>1 ? 2 : 1;
   const body = `<div class="xs-grid" style="grid-template-columns:repeat(${cols}, 400px)">
     ${round.map(m=>`<div class="xs-card bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''}" style="padding:0">
-      <div class="bracket-match-title">${esc(m.label && !/^(Final|Winners advance|Match)$/.test(m.label) ? m.label : m.round)}</div>
+      <div class="bracket-match-title"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div>
       ${koMatchBody(t, m, playerName)}
     </div>`).join('')}
   </div>`;
@@ -3216,7 +3224,10 @@ function renderKnockoutTab(t, admin, canEditScores){
           <button type="button" class="btn btn-primary" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Export full bracket</button>
         </div>
       </div>
-      ${bracketHTML(t, admin)}
+      <div class="segmented ko-view-switch no-export" role="group" aria-label="Knockout view">
+        ${[['bracket','Bracket'],['cards','Match cards']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
+      </div>
+      ${koView()==='cards' ? koCardsHTML(t, admin) : bracketHTML(t, admin)}
       <div class="round-export-section no-export">
         <div class="round-export-title">Export a single round</div>
         <div class="action-buttons">
@@ -3224,6 +3235,33 @@ function renderKnockoutTab(t, admin, canEditScores){
         </div>
       </div>
     </section>`;
+}
+
+/* Knockout view: the bracket, or each round as a grid of match cards (remembered per browser). */
+function koView(){ try{ return localStorage.getItem('mg-ko-view') || (matchMedia('(max-width: 700px)').matches ? 'cards' : 'bracket') }catch{ return 'bracket' } }
+function setKoView(v){ try{ localStorage.setItem('mg-ko-view', v) }catch{} rerender() }
+function koCardsHTML(t, admin){
+  const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
+  const final = rounds.at(-1)?.[0];
+  return `<div class="ko-cards">${rounds.map((round, ri)=>{
+    const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
+    const real = ties.filter(m=>!m.isBye), decided = real.filter(m=>m.winner).length;
+    const dl = dls[round[0]?.round];
+    return `<section class="ko-round" aria-label="${esc(round[0]?.round||'Round '+(ri+1))}">
+      <div class="ko-round-h">
+        <h3>${esc(round[0]?.round||'Round '+(ri+1))}</h3>
+        <span class="ko-round-meta">${real.length ? `${decided}/${real.length} decided` : 'Waiting for the previous round'}${dl ? ` · <b>Deadline ${fmtShort(dl)}</b>` : ''}</span>
+      </div>
+      <div class="ko-grid ${ties.length===1?'one':''}">${ties.map(m=>{
+        const legs = koLegs(t, m), played = legs.filter(l=>hasScore(l[0]) && hasScore(l[1])).length;
+        const st = m.isBye ? ['bye','Bye'] : m.winner ? ['done','Full time'] : !m.team1 || !m.team2 ? ['tbd','Waiting'] : played ? ['live', `${played}/${legs.length} played`] : ['todo','Not played'];
+        return `<div class="ko-card bracket-match ${st[0]} ${ri===rounds.length-1?'final':''}">
+          <div class="ko-card-h"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? `<span class="ko-tag">${esc(koTag(m))}</span>` : ''}<span class="ko-st ${st[0]}">${st[1]}</span></div>
+          ${koMatchBody(t, m, playerName)}
+          ${admin && t.status==='active' && !m.isBye && m.team1 && m.team2 ? `<button type="button" class="btn btn-sm" onclick="openKnockoutMatchModal('${t.id}',${ri},'${m.id}')">${m.winner?'Edit result':'Enter result'}</button>`:''}
+        </div>`}).join('')}</div>
+      ${ri===rounds.length-1 && final?.winner ? `<div class="ko-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
+    </section>`}).join('')}</div>`;
 }
 
 function koMatchBody(t, m, nameFn){
@@ -3261,7 +3299,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
   const cols = `minmax(0,1fr) repeat(${labels.length}, minmax(42px,62px))${labels.length>1?' minmax(48px,70px)':''}`;
   const totalHead = labels.length>1 ? `<span class="ko-th ko-total-col">${fmt==='bo3'?'Series':'Aggregate'}</span>` : '';
   openModal(`
-    <div class="modal-head"><div class="modal-title">${esc(m.round)} · ${esc(m.label||'')}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${esc(koCode(t, m))}${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="page-sub">${fmt==='bo3'?'Best of 3: enter the goals in each game. First to win 2 games goes through; game 3 is only needed at 1–1.':fmt==='2leg'?'Two legs: enter the goals in each leg. The aggregate score decides who goes through.':'Single match: enter the final score.'} ${koTieMatch(t) ? 'If the aggregate is level, enter the tie-breaker match; if that is level too, the penalty shoot-out.' : 'If it ends level, enter the penalty shoot-out.'}</div>
       <div class="ko-entry-wrap">

@@ -1557,3 +1557,40 @@
   .ongoing-art > b, .ongoing-art > span:not(.ongoing-logo):not(.ongoing-trophy){display:none !important}
   .ongoing-trophy, .ongoing-logo{margin-bottom:0 !important}
 }
+
+/* ---- Knockout: match codes and the match-card view ---- */
+.ko-code{color:var(--primary-dark);font-weight:800;letter-spacing:.06em}
+.ko-view-switch{align-self:flex-start}
+.ko-cards{display:flex;flex-direction:column;gap:22px}
+.ko-round-h{display:flex;align-items:baseline;justify-content:space-between;gap:6px 14px;flex-wrap:wrap;margin-bottom:10px}
+.ko-round-h h3{margin:0;font-family:var(--font-display);font-size:22px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--ink)}
+.ko-round-meta{font-size:12.5px;color:var(--muted);font-weight:600}
+.ko-round-meta b{color:var(--primary-dark)}
+.ko-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.ko-grid.one{grid-template-columns:minmax(0,420px)}
+.ko-card.bracket-match{font-size:15px;border-radius:14px}
+.ko-card .km-row.bracket-team{padding:11px 14px}
+.ko-card .km-head{padding:8px 14px 0}
+.ko-card .km-total{font-size:22px}
+.ko-card .km-cell{font-size:13px}
+.ko-card .km-note{padding:0 14px 10px}
+.ko-card-h{display:flex;align-items:center;gap:8px;padding:10px 14px 2px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;min-width:0}
+.ko-card-h .ko-code{font-size:12px}
+.ko-tag{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.ko-st{margin-left:auto;flex-shrink:0;padding:3px 8px;border-radius:999px;font-size:10px;letter-spacing:.05em;background:var(--surface-3);color:var(--muted)}
+.ko-st.done{background:color-mix(in srgb,var(--primary) 14%,transparent);color:var(--primary-dark)}
+.ko-st.live{background:rgba(255,166,0,.16);color:var(--orange-ink)}
+.ko-st.todo{background:rgba(229,72,77,.12);color:var(--danger-ink)}
+.ko-card.bye{opacity:.75}
+.ko-champ{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 16px;border-radius:14px;border:2px solid var(--primary);background:var(--surface);max-width:420px}
+.ko-champ svg{width:34px;height:34px;color:#E8B04A;flex-shrink:0}
+.ko-champ small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.ko-champ b{font-family:var(--font-display);font-size:22px;color:var(--ink)}
+@media (max-width:700px){
+  .ko-grid{grid-template-columns:minmax(0,1fr)}
+  .ko-grid.one{grid-template-columns:minmax(0,1fr)}
+  .ko-round-h h3{font-size:19px}
+}
+/* FB export: match code above each tie */
+.fbk-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(8px*var(--z)) calc(20px*var(--z)) 0;font-size:calc(15px*var(--z));font-weight:800;letter-spacing:.08em;color:var(--primary-dark);text-transform:uppercase}
+.fbk-h span{color:var(--muted);font-weight:700;letter-spacing:.04em}
