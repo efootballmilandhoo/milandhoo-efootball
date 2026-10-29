@@ -184,8 +184,6 @@ function watchForUpdates(reg){
      straight away while the app is still opening, otherwise the next time it goes to the background. */
   const showBar = ()=>{
     if(shown) return; shown = true;
-    const now = ()=>{ try{ sessionStorage.setItem('mg-splash-fast','1') }catch{} location.reload() };
-    if(window.__splashUp || performance.now() < 9000) return now();
     const later = ()=>{ if(document.visibilityState==='hidden'){ try{ sessionStorage.removeItem('mg-splash-fast') }catch{} location.reload() } };
     document.addEventListener('visibilitychange', later);
   };

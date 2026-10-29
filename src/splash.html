@@ -1,11 +1,11 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
+    <div class="sp-pattern"></div>
     <div class="sp-glow"></div>
     <div class="sp-content">
       <div class="sp-slot"></div>
       <div class="sp-name">MG EFOOTBALL</div>
       <div class="sp-sub">Milandhoo Community</div>
-      <div class="sp-mark"><i></i><i></i><i></i></div>
       <div class="sp-slogan"><span>Play</span><b></b><span>Compete</span><b></b><span>Belong</span></div>
     </div>
     <div class="sp-foot"><div class="sp-bar"><i></i></div></div>
@@ -29,7 +29,7 @@
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
     /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
-    var MIN = rm || fast ? 400 : 1500, MAX = 2600, t0 = Date.now(), leaving = false;
+    var MIN = rm || fast ? 400 : 1300, MAX = 2500, t0 = Date.now(), leaving = false;
     function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);

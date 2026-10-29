@@ -25,28 +25,26 @@
 <style>#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#08142F}
 .no-splash #splash{display:none}
 .sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0B1B3F 0%,#08142F 55%,#050D22 100%)}
-.sp-glow{position:absolute;left:50%;top:42%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(closest-side,rgba(20,99,255,.28),rgba(20,99,255,0));opacity:0;animation:spFade 1.2s ease .1s forwards}
+.sp-pattern{position:absolute;inset:-60px;background:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2272%22%20height%3D%2244%22%20viewBox%3D%220%200%2072%2044%22%3E%3Cg%20fill%3D%22%235EC8FF%22%3E%3Cpath%20d%3D%22M2%2018h4l7-14H9zM9%2018h4l7-14h-4zM16%2018h4l7-14h-4z%22/%3E%3Cpath%20d%3D%22M38%2040h4l7-14h-4zM45%2040h4l7-14h-4zM52%2040h4l7-14h-4z%22/%3E%3C/g%3E%3C/svg%3E") 0 0/72px 44px repeat;opacity:.07;
+  -webkit-mask-image:radial-gradient(75% 60% at 50% 42%,transparent 18%,#000 75%);mask-image:radial-gradient(75% 60% at 50% 42%,transparent 18%,#000 75%);animation:spDrift 14s linear infinite}
+@keyframes spDrift{to{transform:translate(72px,-44px)}}
+.sp-glow{position:absolute;left:50%;top:42%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(closest-side,rgba(20,99,255,.28),rgba(20,99,255,0));}
 .sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;margin-top:-3vh}
 .sp-slot{width:96px;height:96px;flex-shrink:0}
 .sp-logo{position:fixed;left:50%;top:40%;width:96px;height:96px;z-index:2;border-radius:22px;overflow:hidden;background:#0E2350;display:grid;place-items:center;
-  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 20px 50px -14px rgba(20,99,255,.55);opacity:0;transform:scale(.92);animation:spIn .7s cubic-bezier(.2,.8,.2,1) .1s forwards}
+  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 20px 50px -14px rgba(20,99,255,.55);transform:scale(.96);animation:spIn .6s cubic-bezier(.2,.8,.2,1) forwards}
 .sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sp-logo svg{width:58%;height:58%;display:none}
 .sp-logo.noimg svg{display:block}
-.sp-name{margin-top:28px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-size:38px;line-height:1;letter-spacing:.08em;margin-right:-.08em;white-space:nowrap;opacity:0;transform:translateY(8px);animation:spIn .6s cubic-bezier(.2,.8,.2,1) .35s forwards}
-.sp-sub{margin-top:10px;font-size:11px;font-weight:600;letter-spacing:.32em;margin-right:-.32em;text-transform:uppercase;color:#93A9D6;opacity:0;animation:spFade .6s ease .5s forwards}
-/* three slanted bars, echoing the logo */
-.sp-mark{display:flex;gap:4px;margin-top:20px;height:10px}
-.sp-mark i{width:10px;height:10px;background:#5EC8FF;transform:skewX(-35deg) scaleX(0);transform-origin:left;animation:spBar .35s cubic-bezier(.2,.8,.2,1) forwards}
-.sp-mark i:nth-child(1){animation-delay:.6s}.sp-mark i:nth-child(2){animation-delay:.67s}.sp-mark i:nth-child(3){animation-delay:.74s;width:22px;background:#1463FF}
-.sp-slogan{margin-top:18px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.3em;margin-right:-.3em;text-transform:uppercase;color:#C9D5EE;opacity:0;animation:spFade .6s ease .85s forwards}
+.sp-name{margin-top:28px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-size:38px;line-height:1;letter-spacing:.08em;margin-right:-.08em;white-space:nowrap;opacity:0;transform:translateY(6px);animation:spIn .5s cubic-bezier(.2,.8,.2,1) .1s forwards}
+.sp-sub{margin-top:10px;font-size:11px;font-weight:600;letter-spacing:.32em;margin-right:-.32em;text-transform:uppercase;color:#93A9D6;opacity:0;animation:spFade .5s ease .25s forwards}
+.sp-slogan{margin-top:24px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.3em;margin-right:-.3em;text-transform:uppercase;color:#C9D5EE;opacity:0;animation:spFade .5s ease .4s forwards}
 .sp-slogan b{width:3px;height:3px;border-radius:50%;background:#5EC8FF}
-.sp-foot{position:absolute;left:0;right:0;bottom:calc(46px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .5s ease .9s forwards}
+.sp-foot{position:absolute;left:0;right:0;bottom:calc(46px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .4s ease .5s forwards}
 .sp-bar{width:72px;height:2px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
 .sp-bar i{display:block;height:100%;width:40%;border-radius:2px;background:#5EC8FF;animation:spLoad 1.1s cubic-bezier(.5,0,.5,1) infinite}
 @keyframes spIn{to{opacity:1;transform:none}}
 @keyframes spFade{to{opacity:1}}
-@keyframes spBar{to{transform:skewX(-35deg) scaleX(1)}}
 @keyframes spLoad{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
 @media (min-width:700px){.sp-slot,.sp-logo{width:112px;height:112px}.sp-logo{border-radius:26px}.sp-name{font-size:46px}.sp-slogan{font-size:13px}}
 @media (max-width:350px){.sp-name{font-size:34px}.sp-slogan{font-size:10.5px;letter-spacing:.24em;gap:9px}}
@@ -57,17 +55,17 @@
 <link rel="preload" as="style" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"></noscript>
 <script id="sbjs" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" async crossorigin="anonymous" onerror="window.__sbFailed=1"></script>
-<script src="/assets/app.3902a7659c.js" defer></script>
+<script src="/assets/app.f101a8ef72.js" defer></script>
 </head>
 <body>
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
+    <div class="sp-pattern"></div>
     <div class="sp-glow"></div>
     <div class="sp-content">
       <div class="sp-slot"></div>
       <div class="sp-name">MG EFOOTBALL</div>
       <div class="sp-sub">Milandhoo Community</div>
-      <div class="sp-mark"><i></i><i></i><i></i></div>
       <div class="sp-slogan"><span>Play</span><b></b><span>Compete</span><b></b><span>Belong</span></div>
     </div>
     <div class="sp-foot"><div class="sp-bar"><i></i></div></div>
@@ -91,7 +89,7 @@
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
     /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
-    var MIN = rm || fast ? 400 : 1500, MAX = 2600, t0 = Date.now(), leaving = false;
+    var MIN = rm || fast ? 400 : 1300, MAX = 2500, t0 = Date.now(), leaving = false;
     function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
