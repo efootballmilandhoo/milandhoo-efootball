@@ -3218,15 +3218,11 @@ function renderKnockoutTab(t, admin, canEditScores){
   return `
     <section id="bracketExport" class="export-container" aria-label="Knockout bracket" style="display:flex;flex-direction:column;gap:16px">
       <div class="export-header"><div class="export-title">${esc(t.name)} · Knockout</div><div class="export-subtitle">${koLabel(t.knockoutFormat)}</div></div>
-      <div class="flex-between no-export">
-        <span class="page-sub">${koLabel(t.knockoutFormat)}${t.format==='group_knockout'?` · ${t.seeding==='random'?'Random draw':'Seeded by group finish'} · no first-round tie pairs players from the same group`:''}</span>
-        <div class="toolbar-actions">
-          ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-secondary" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}
-          <button type="button" class="btn btn-primary" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Export full bracket</button>
+      <div class="ko-bar no-export">
+        <div class="segmented ko-view-switch" role="group" aria-label="Knockout view">
+          ${[['bracket','Bracket'],['cards','<span class="ko-x-long">Match cards</span><span class="ko-x-short">Cards</span>']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
         </div>
-      </div>
-      <div class="segmented ko-view-switch no-export" role="group" aria-label="Knockout view">
-        ${[['bracket','Bracket'],['cards','Match cards']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
+        <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL}<span class="ko-x-long">Export bracket</span><span class="ko-x-short">Export</span></button>
       </div>
       ${koView()==='cards' ? koCardsHTML(t, admin) : bracketHTML(t, admin)}
       <div class="round-export-section no-export">
@@ -3234,6 +3230,7 @@ function renderKnockoutTab(t, admin, canEditScores){
         <div class="action-buttons">
           ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(round[0]?.round||'Round '+(ri+1))}</button>`).join('')}
         </div>
+        ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-ghost ko-redraw" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}
       </div>
     </section>`;
 }

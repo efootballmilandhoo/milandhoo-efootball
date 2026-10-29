@@ -1598,3 +1598,18 @@
 .ko-round-pick{align-self:flex-start;max-width:100%;overflow-x:auto;scrollbar-width:none}
 .ko-round-pick::-webkit-scrollbar{display:none}
 .ko-round-pick .seg{flex-shrink:0}
+/* Knockout tab toolbar: view switch + export on one line */
+.ko-x-short{display:none}
+.ko-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ko-bar .ko-view-switch{flex:0 1 auto}
+.ko-export{flex-shrink:0}
+.ko-redraw{margin-top:14px;padding-left:0;padding-right:0;color:var(--muted);font-size:13px;min-height:32px}
+.ko-redraw:hover{color:var(--danger-ink)}
+@media (max-width:520px){
+  .ko-bar{flex-wrap:nowrap}
+  .ko-bar .ko-view-switch{flex:1 1 auto;min-width:0}
+  .ko-bar .ko-view-switch .seg,.ko-round-pick .seg{flex:1;padding:0 10px}
+  .ko-round-pick{width:100%}
+  .ko-x-long{display:none}
+  .ko-x-short{display:inline}
+}
