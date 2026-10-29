@@ -44,14 +44,18 @@
     function leave(){
       if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
       if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
-      /* Fast, modern exit: the splash fades out quickly while the logo settles back; the app rises in underneath. */
-      var content = s.querySelector('.sp-content'), outlineEl = s.querySelector('.sp-outline'), e = 'cubic-bezier(.3,0,.2,1)';
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(-10px)'}], {duration:200, easing:e, fill:'forwards'});
-      if(outlineEl) outlineEl.animate([{opacity:getComputedStyle(outlineEl).opacity}, {opacity:0}], {duration:180, fill:'forwards'});
-      box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(.86)'}], {duration:220, easing:e, fill:'forwards'});
-      s.animate([{opacity:1}, {opacity:0}], {duration:260, delay:40, easing:e, fill:'forwards'}).onfinish = function(){ s.remove() };
-      enter();
-      setTimeout(function(){ if(s.parentNode) s.remove() }, 600);
+      /* Lift: the splash slides up like a card being pulled away, its content moving a little faster (depth),
+         while a shade over the app clears. Only transform and opacity, so it stays smooth. */
+      var content = s.querySelector('.sp-content'), outlineEl = s.querySelector('.sp-outline'), foot = s.querySelector('.sp-foot');
+      var lift = 'cubic-bezier(.7,0,.2,1)', D = 520;
+      var shade = document.createElement('div'); shade.className = 'sp-shade'; document.body.appendChild(shade);
+      s.classList.add('lifting');
+      s.animate([{transform:'translateY(0)'}, {transform:'translateY(-104%)'}], {duration:D, easing:lift, fill:'forwards'}).onfinish = function(){ s.remove() };
+      [content, box, outlineEl].forEach(function(el){ if(el) el.animate([{transform:el===box ? 'none' : getComputedStyle(el).transform === 'none' ? 'none' : getComputedStyle(el).transform, opacity:1}, {transform:(el===box || el===content ? 'translateY(-60px)' : getComputedStyle(el).transform+' translateY(-40px)'), opacity:0}], {duration:D*.7, easing:lift, fill:'forwards'}) });
+      if(foot) foot.animate([{opacity:1}, {opacity:0}], {duration:150, fill:'forwards'});
+      shade.animate([{opacity:1}, {opacity:0}], {duration:D, delay:60, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = function(){ shade.remove() };
+      setTimeout(enter, 120);
+      setTimeout(function(){ if(s.parentNode) s.remove(); if(shade.parentNode) shade.remove() }, D + 400);
     }
     var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);
     setTimeout(leave, MAX);

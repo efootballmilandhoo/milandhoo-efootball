@@ -40,3 +40,7 @@
 .sp-fast #splash *,#splash.fast *{animation-duration:.01s!important;animation-delay:0s!important}
 .sp-fast #splash .sp-bar i,#splash.fast .sp-bar i{animation-duration:1.1s!important}
 @media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+
+/* exit: the sheet's lower edge gets rounded corners and a shadow while it lifts */
+#splash.lifting{border-radius:0 0 28px 28px;overflow:hidden;box-shadow:0 30px 80px rgba(2,8,24,.55);will-change:transform}
+.sp-shade{position:fixed;inset:0;z-index:9998;pointer-events:none;background:rgba(5,12,32,.55)}
