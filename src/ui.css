@@ -1675,3 +1675,32 @@
 .fb-ties.stack{grid-template-columns:minmax(0,1fr);max-width:calc(860px*var(--z));width:100%;margin:0 auto}
 .fb-round-h{flex-wrap:wrap;row-gap:4px}
 .fb-round-h b{white-space:nowrap}
+
+/* ---- Ongoing banner, live details: LIVE badge, current stage, stadium light beams, progress ---- */
+.ongoing-art{padding-top:54px !important;padding-bottom:56px !important}
+.ongoing-art .oa-top{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:1}
+.ongoing-art .oa-live{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;background:rgba(229,72,77,.92);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 14px rgba(229,72,77,.35)}
+.ongoing-art .oa-live.open{background:rgba(20,99,255,.92);box-shadow:0 4px 14px rgba(20,99,255,.35)}
+.ongoing-art .oa-live i{position:relative;width:7px;height:7px;border-radius:50%;background:#fff}
+.ongoing-art .oa-live i::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:#fff;opacity:.5;animation:dotPulse 1.6s ease-out infinite}
+.ongoing-art .oa-stage{height:26px;line-height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);color:#DCE6FA;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.ongoing-art .oa-beam{position:absolute;top:-30%;width:42%;height:160%;z-index:-1;pointer-events:none;opacity:.55;
+  background:linear-gradient(180deg,rgba(150,200,255,.30),rgba(150,200,255,0) 75%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);filter:blur(2px)}
+.ongoing-art .oa-beam.l{left:2%;transform-origin:50% 0;transform:rotate(18deg);animation:oaBeamL 9s ease-in-out infinite alternate}
+.ongoing-art .oa-beam.r{right:2%;transform-origin:50% 0;transform:rotate(-18deg);animation:oaBeamR 11s ease-in-out infinite alternate}
+.ongoing-art .oa-prog{position:absolute;left:14px;right:14px;bottom:14px;z-index:1;display:flex;flex-direction:column;gap:6px}
+.ongoing-art .oa-prog-bar{height:5px;border-radius:5px;background:rgba(255,255,255,.12);overflow:hidden}
+.ongoing-art .oa-prog-bar i{position:relative;display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#1463FF,#5EC8FF);overflow:hidden}
+.ongoing-art .oa-prog-bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.6),transparent);transform:translateX(-100%);animation:oaProg 2.4s ease-in-out infinite}
+.ongoing-art .oa-prog-l{font-size:11px;font-weight:700;letter-spacing:.06em;color:#AFC1E6;text-transform:uppercase;text-align:left;margin:0}
+@keyframes oaBeamL{from{transform:rotate(26deg)}to{transform:rotate(8deg)}}
+@keyframes oaBeamR{from{transform:rotate(-8deg)}to{transform:rotate(-26deg)}}
+@keyframes oaProg{to{transform:translateX(100%)}}
+@media (max-width:700px){ .ongoing-art{min-height:200px !important} }
+@media (prefers-reduced-motion:reduce){.ongoing-art .oa-beam,.ongoing-art .oa-prog-bar i::after,.ongoing-art .oa-live i::after{animation:none}}
+/* All Facebook-size exports: leftover space is shared above and below the content, so it sits in the middle */
+.fbp .fb-body{justify-content:center}
+
+.ongoing-art .oa-stage span{position:static;display:inline;margin:0;font-size:inherit;letter-spacing:inherit;color:inherit;text-transform:inherit}
+.ongoing-art .oa-stage .s{display:none}
+@media (min-width:701px){.ongoing-art .oa-stage .l{display:none}.ongoing-art .oa-stage .s{display:inline}}

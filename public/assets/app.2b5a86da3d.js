@@ -2052,14 +2052,27 @@ function renderDashboard(){
     if(fx.length) facts.push(`${played}/${fx.length} played`);
     if(f.groupDeadline && f.format!=='single_elimination') facts.push(`Ends ${fmtDate(f.groupDeadline)}`);
     else facts.push(`${tDateInfo(f).label} ${fmtDate(tDateInfo(f).when)}`);
+    // Live status for the banner: the stage being played now and how far through it is.
+    const live = (()=>{
+      if(f.status==='open') return {tag:'Registration open', label:`${(f.registrations||[]).length} registered`, pct:null};
+      const kb = f.knockoutDrawn ? (f.knockoutBracket||[]) : [];
+      if(kb.length){
+        const r = kb.find(r=>r.some(m=>m && !m.isBye && m.team1 && m.team2 && !m.winner)) || kb.at(-1);
+        const real = r.filter(m=>m && !m.isBye), done = real.filter(m=>m.winner).length;
+        return {tag:r[0]?.round || 'Knockout', label:`${done}/${real.length} ${real.length===1?'match':'ties'} decided`, pct: real.length ? done/real.length : 0};
+      }
+      return {tag:f.format==='league' ? 'League' : 'Group stage', label:`${played}/${fx.length} matches played`, pct: fx.length ? played/fx.length : 0};
+    })();
     ongoing = `
       <div class="ongoing">
         <div class="ongoing-art">
-          <i class="oa-glow" aria-hidden="true"></i>${MC_OUTLINE('oa-outline')}
+          <i class="oa-glow" aria-hidden="true"></i>${MC_OUTLINE('oa-outline')}<i class="oa-beam l" aria-hidden="true"></i><i class="oa-beam r" aria-hidden="true"></i>
+          <div class="oa-top"><div class="oa-live ${f.status==='active'?'':'open'}"><i></i>${f.status==='active'?'Live':'Open'}</div><div class="oa-stage"><span class="l">${esc(live.tag)}</span><span class="s">${esc(/Round of|Final|Semi|Quarter/.test(live.tag) ? koRoundShort(live.tag) : live.tag==="Group stage" ? "Groups" : live.tag==="Registration open" ? "Sign-ups" : live.tag)}</span></div></div>
           <span class="ongoing-logo oa-flip"><span class="oa-card">
             ${(()=>{ const face = f.logo ? tournamentLogo(f, 96, 'on-color') : `<span class="ongoing-trophy">${ICON.cup.replace('width="36" height="36"','width="58" height="58"')}</span>`; return `<span class="oa-face front">${face}</span><span class="oa-face back" aria-hidden="true">${face}</span>` })()}
           </span></span>
           <b>${esc(f.name)}</b><span>${esc(f.game||'eFootball')}</span>
+          ${live.pct!==null ? `<div class="oa-prog"><div class="oa-prog-bar"><i style="width:${Math.max(3, Math.round(live.pct*100))}%"></i></div><div class="oa-prog-l">${esc(live.label)}</div></div>` : ''}
         </div>
         <div class="ongoing-body">
           <h3 class="ongoing-name">${esc(f.name)}</h3>
