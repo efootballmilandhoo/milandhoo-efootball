@@ -158,6 +158,8 @@ const commFull = () => [commName(), commTag()].filter(Boolean).join(' ');
 const titleCase = x => x.replace(/\S+/g, w => /^e[A-Z]/.test(w) ? w : w.charAt(0).toUpperCase()+w.slice(1).toLowerCase());
 
 const DEFAULT_MARK = size => `<svg width="${Math.round(size*0.6)}" height="${Math.round(size*0.6)}" viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round" aria-hidden="true"><path d="M3 19V5l9 8 9-8v14"/></svg>`;
+/* Outline of the MC community logo (same shape as on the opening screen), used as a background motif. */
+const MC_OUTLINE = cls => `<svg class="${cls}" viewBox="-8 -8 1949 568" fill="none" stroke="#5EC8FF" stroke-width="6" aria-hidden="true"><path d="M552 0H758L206 552H0Z"/><path d="M821 0H1026L474 552H269Z"/><path d="M1089 0H1295L743 552H537Z"/><path d="M1396 0H1933L1795 138H1464L1188 414H1521L1383 552H847Z"/></svg>`;
 function communityMark(size){
   const logo = STORE.settings?.logo;
   if(logo && isImgSrc(logo)) return `<span class="logo-mark has-img" style="width:${size}px;height:${size}px"><img src="${esc(logo)}"${imgAttrs(logo)} alt="${esc(commFull())} logo"></span>`;
@@ -1752,7 +1754,11 @@ function renderDashboard(){
     ongoing = `
       <div class="ongoing">
         <div class="ongoing-art">
-          ${f.logo ? `<span class="ongoing-logo">${tournamentLogo(f, 96, 'on-color')}</span>` : `<span class="ongoing-trophy">${ICON.cup.replace('width="36" height="36"','width="58" height="58"')}</span>`}
+          <i class="oa-glow" aria-hidden="true"></i>${MC_OUTLINE('oa-outline')}
+          <span class="ongoing-logo oa-flip"><span class="oa-card">
+            <span class="oa-face front">${f.logo ? tournamentLogo(f, 96, 'on-color') : `<span class="ongoing-trophy">${ICON.cup.replace('width="36" height="36"','width="58" height="58"')}</span>`}</span>
+            <span class="oa-face back" aria-hidden="true">${communityMark(96)}</span>
+          </span></span>
           <b>${esc(f.name)}</b><span>${esc(f.game||'eFootball')}</span>
         </div>
         <div class="ongoing-body">

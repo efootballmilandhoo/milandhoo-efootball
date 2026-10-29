@@ -1619,3 +1619,21 @@
 
 .spin-ring{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;border:3px solid var(--surface-3);border-top-color:var(--primary);animation:spinR .9s linear infinite}
 @keyframes spinR{to{transform:rotate(360deg)}}
+
+/* ---- Ongoing tournament banner: theme background with the MC outline, and a logo that keeps flipping ---- */
+.ongoing-art{background:linear-gradient(160deg,#10275A 0%,#0B1B3F 50%,#06102A 100%) !important;isolation:isolate}
+.ongoing-art .oa-glow{position:absolute;inset:0;z-index:-1;background:radial-gradient(55% 60% at 50% 42%,rgba(20,99,255,.42),rgba(20,99,255,0) 70%)}
+.ongoing-art svg.oa-outline{position:absolute;inset:auto;left:50%;top:50%;width:150%;height:auto;z-index:-1;opacity:.16;transform:translate(-50%,-50%);animation:oaDrift 14s ease-in-out infinite alternate}
+.ongoing-art::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.07) 50%,transparent 60%);transform:translateX(-100%);animation:oaSweep 7s ease-in-out 1.5s infinite}
+.ongoing-art .oa-flip{display:block;position:relative !important;left:auto !important;top:auto !important;width:96px;height:96px;margin:0 auto;perspective:800px;font-size:0;letter-spacing:0;text-transform:none;color:inherit}
+.ongoing-art .oa-card{margin:0;position:relative;display:block;width:100%;height:100%;transform-style:preserve-3d;animation:oaFlip 8s cubic-bezier(.65,0,.35,1) infinite}
+.ongoing-art .oa-face{margin:0;position:absolute;inset:0;display:flex;align-items:center;justify-content:center;-webkit-backface-visibility:hidden;backface-visibility:hidden;filter:drop-shadow(0 10px 18px rgba(0,0,0,.45)) drop-shadow(0 0 22px rgba(20,99,255,.35))}
+.ongoing-art .oa-face.back{transform:rotateY(180deg)}
+.ongoing-art .oa-face span{margin:0}
+.oa-face .logo-mark{width:96px !important;height:96px !important;border-radius:22px;overflow:hidden}
+.oa-face .logo-mark svg{position:static !important;width:60% !important;height:60% !important}
+.oa-face .ongoing-trophy{animation:none}
+@keyframes oaFlip{0%,38%{transform:rotateY(0)}50%,88%{transform:rotateY(180deg)}100%{transform:rotateY(360deg)}}
+@keyframes oaDrift{from{transform:translate(-54%,-50%)}to{transform:translate(-46%,-50%)}}
+@keyframes oaSweep{0%{transform:translateX(-100%)}40%,100%{transform:translateX(100%)}}
+@media (prefers-reduced-motion:reduce){.oa-card,.ongoing-art svg.oa-outline,.ongoing-art::after{animation:none}}
