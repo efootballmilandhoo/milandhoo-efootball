@@ -34,9 +34,9 @@
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
     /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
-    var MIN = rm || fast ? 400 : 1200, MAX = 2400, t0 = Date.now(), leaving = false;
+    var MIN = rm || fast ? 300 : 1000, MAX = 2200, t0 = Date.now(), leaving = false;
     var outline = s.querySelector('.sp-outline');
-    function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px'; if(outline) outline.style.top = (r.top + r.height/2)+'px' }
+    function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px'; if(outline){ var ow = Math.max(160, Math.min(innerWidth*.84, 640, (r.top-48)*.78/.2914)); outline.style.width = ow+'px'; outline.style.top = (r.top*.5 + 4)+'px' } }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
     function drawn(){ return !!(window.__splashDrawn || window.__splashOffline) }
@@ -44,13 +44,14 @@
     function leave(){
       if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
       if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
-      /* Clean exit: the content lifts slightly and the screen fades into the app. */
-      var content = s.querySelector('.sp-content');
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.04)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
-      box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
-      s.animate([{opacity:1}, {opacity:0}], {duration:320, delay:40, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = function(){ s.remove() };
-      setTimeout(enter, 60);
-      setTimeout(function(){ if(s.parentNode) s.remove() }, 900);
+      /* Fast, modern exit: the splash fades out quickly while the logo settles back; the app rises in underneath. */
+      var content = s.querySelector('.sp-content'), outlineEl = s.querySelector('.sp-outline'), e = 'cubic-bezier(.3,0,.2,1)';
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(-10px)'}], {duration:200, easing:e, fill:'forwards'});
+      if(outlineEl) outlineEl.animate([{opacity:getComputedStyle(outlineEl).opacity}, {opacity:0}], {duration:180, fill:'forwards'});
+      box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(.86)'}], {duration:220, easing:e, fill:'forwards'});
+      s.animate([{opacity:1}, {opacity:0}], {duration:260, delay:40, easing:e, fill:'forwards'}).onfinish = function(){ s.remove() };
+      enter();
+      setTimeout(function(){ if(s.parentNode) s.remove() }, 600);
     }
     var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);
     setTimeout(leave, MAX);

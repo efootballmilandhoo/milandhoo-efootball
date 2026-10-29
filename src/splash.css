@@ -1,7 +1,7 @@
 #splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#08142F}
 .no-splash #splash{display:none}
 .sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0B1B3F 0%,#08142F 55%,#050D22 100%)}
-.sp-outline{position:absolute;left:50%;top:42%;width:min(94vw,860px);transform:translate(-50%,-50%);opacity:.2;overflow:visible}
+.sp-outline{position:absolute;left:50%;top:42%;width:min(84vw,720px);transform:translate(-50%,-50%);opacity:.22;overflow:visible}
 .sp-outline path{stroke-dasharray:1;stroke-dashoffset:1;animation:spTrace 1s cubic-bezier(.45,0,.2,1) forwards}
 .sp-outline path:nth-child(2){animation-delay:.06s}.sp-outline path:nth-child(3){animation-delay:.12s}.sp-outline path:nth-child(4){animation-delay:.18s}
 @keyframes spTrace{to{stroke-dashoffset:0}}
