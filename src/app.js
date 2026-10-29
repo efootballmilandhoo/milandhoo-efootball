@@ -3222,12 +3222,12 @@ function renderKnockoutTab(t, admin, canEditScores){
         <div class="segmented ko-view-switch" role="group" aria-label="Knockout view">
           ${[['bracket','Bracket'],['cards','<span class="ko-x-long">Match cards</span><span class="ko-x-short">Cards</span>']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
         </div>
-        <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL}<span class="ko-x-long">Export bracket</span><span class="ko-x-short">Export</span></button>
       </div>
       ${koView()==='cards' ? koCardsHTML(t, admin) : bracketHTML(t, admin)}
       <div class="round-export-section no-export">
-        <div class="round-export-title">Export a single round</div>
-        <div class="action-buttons">
+        <div class="round-export-title">Export</div>
+        <div class="action-buttons ko-exports">
+          <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Full bracket</button>
           ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(round[0]?.round||'Round '+(ri+1))}</button>`).join('')}
         </div>
         ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-ghost ko-redraw" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}

@@ -1613,3 +1613,6 @@
   .ko-x-long{display:none}
   .ko-x-short{display:inline}
 }
+
+.ko-exports{align-items:center}
+@media (max-width:520px){ .ko-exports .ko-export{flex:1 1 100%} .ko-bar .ko-view-switch{flex:1 1 100%} }
