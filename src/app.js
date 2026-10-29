@@ -1756,8 +1756,7 @@ function renderDashboard(){
         <div class="ongoing-art">
           <i class="oa-glow" aria-hidden="true"></i>${MC_OUTLINE('oa-outline')}
           <span class="ongoing-logo oa-flip"><span class="oa-card">
-            <span class="oa-face front">${f.logo ? tournamentLogo(f, 96, 'on-color') : `<span class="ongoing-trophy">${ICON.cup.replace('width="36" height="36"','width="58" height="58"')}</span>`}</span>
-            <span class="oa-face back" aria-hidden="true">${communityMark(96)}</span>
+            ${(()=>{ const face = f.logo ? tournamentLogo(f, 96, 'on-color') : `<span class="ongoing-trophy">${ICON.cup.replace('width="36" height="36"','width="58" height="58"')}</span>`; return `<span class="oa-face front">${face}</span><span class="oa-face back" aria-hidden="true">${face}</span>` })()}
           </span></span>
           <b>${esc(f.name)}</b><span>${esc(f.game||'eFootball')}</span>
         </div>
