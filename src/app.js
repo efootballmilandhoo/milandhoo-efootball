@@ -995,6 +995,7 @@ function setHeader(crumb, title, back){
 function renderChrome(){
   renderSiteFoot();
   document.querySelectorAll('[data-mark]').forEach(el=>setHTML(el, communityMark(+el.dataset.mark)));
+  try{ const lg = STORE.settings?.logo; if(lg && /^https:/.test(lg) && lg.length<600) localStorage.setItem('mg-logo', lg) }catch{}
   const f = featuredTournament();
   const view = currentView;
   const active = view==='tournament-detail' ? 'tournaments' : view;

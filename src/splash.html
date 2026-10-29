@@ -16,15 +16,24 @@
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
-    <img src="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=256" alt="" onerror="this.remove()">
+    <img alt="">
   </div>
 </div>
 <script>(function(){
   var tpl = document.getElementById('splash'); if(!tpl) return;
   if(document.documentElement.classList.contains('no-splash')){ tpl.remove(); return }
+  /* The community logo: the one the app last showed (remembered), else the app icon, which is cached with the app. */
+  var FALLBACK = '/icons/icon-512.png?v=2', logoSrc = FALLBACK;
+  try{ var L = localStorage.getItem('mg-logo'); if(L && /^(https:|\/)/.test(L)) logoSrc = L }catch(e){}
+  function setLogo(s){
+    var img = s.querySelector('.sp-logo img'), box = s.querySelector('.sp-logo');
+    img.onerror = function(){ if(img.getAttribute('src') !== FALLBACK) img.src = FALLBACK; else { img.remove(); box.classList.add('noimg') } };
+    img.src = logoSrc;
+  }
   var html = tpl.outerHTML, rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var MIN = rm ? 700 : 2300, MAX = 5000;
   function play(s, fast){
+    setLogo(s);
     var t0 = Date.now(), ready = !!fast, gone = false, logo = s.querySelector('.sp-logo'), slot = s.querySelector('.sp-slot');
     function place(){ var r = slot.getBoundingClientRect(); logo.style.left = r.left+'px'; logo.style.top = r.top+'px'; logo.style.width = r.width+'px'; logo.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
@@ -34,7 +43,7 @@
       for(var i=0;i<els.length;i++){ var r = els[i].getBoundingClientRect(); if(r.width>4 && r.bottom>0 && r.top<innerHeight && getComputedStyle(els[i]).visibility!=='hidden') return {r:r, rad:getComputedStyle(els[i]).borderTopLeftRadius} }
       return null;
     }
-    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
+    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }
     function leave(){
       if(s.dataset.leaving) return; s.dataset.leaving = 1;
       var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot'), tg = target();
@@ -42,18 +51,17 @@
         s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; setTimeout(finish, 460); return;
       }
       var a = logo.getBoundingClientRect(), b = tg.r, k = b.width / a.width;
-      var cx = b.left + b.width/2, cy = b.top + b.height/2;
-      var ease = 'cubic-bezier(.7,0,.2,1)';
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(10px) scale(.98)'}], {duration:260, easing:'ease-in', fill:'forwards'});
-      foot.animate([{opacity:1}, {opacity:0}], {duration:200, fill:'forwards'});
+      var glide = 'cubic-bezier(.65,0,.35,1)';
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(6px)'}], {duration:320, easing:'ease-out', fill:'forwards'});
+      foot.animate([{opacity:1}, {opacity:0}], {duration:260, fill:'forwards'});
       logo.animate([
-        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius},
-        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px'}
-      ], {duration:720, delay:120, easing:ease, fill:'forwards'});
-      var far = Math.hypot(Math.max(cx, innerWidth-cx), Math.max(cy, innerHeight-cy));
-      var iris = stage.animate([{clipPath:'circle('+far+'px at '+cx+'px '+cy+'px)'}, {clipPath:'circle('+(b.width/2)+'px at '+cx+'px '+cy+'px)'}], {duration:760, delay:100, easing:ease, fill:'forwards'});
-      logo.animate([{opacity:1}, {opacity:0}], {duration:180, delay:820, fill:'forwards'}).onfinish = finish;
-      setTimeout(finish, 1400);
+        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius, boxShadow:getComputedStyle(logo).boxShadow},
+        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px', boxShadow:'0 0 0 0 rgba(20,99,255,0)'}
+      ], {duration:900, delay:150, easing:glide, fill:'forwards'});
+      stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.05)'}], {duration:750, delay:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+      setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 500);
+      logo.animate([{opacity:1}, {opacity:0}], {duration:220, delay:1030, fill:'forwards'}).onfinish = finish;
+      setTimeout(finish, 1600);
     }
     function maybe(){ if(ready && Date.now()-t0 >= MIN) leave() }
     window.__splashReady = function(){ ready = true; setTimeout(maybe, Math.max(0, MIN-(Date.now()-t0))) };

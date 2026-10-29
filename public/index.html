@@ -24,7 +24,7 @@
 <script>try{if(navigator.webdriver)document.documentElement.classList.add('no-splash')}catch(e){}</script>
 <style>#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff}
 .no-splash #splash{display:none}
-.sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#06102A}
+.sp-stage{position:absolute;transform-origin:50% 42%;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#06102A}
 .sp-bg{position:absolute;inset:0;background:radial-gradient(50% 38% at 50% 44%,rgba(20,99,255,.30),rgba(20,99,255,0) 72%),linear-gradient(180deg,#0B1B3F 0%,#06102A 60%,#040B1E 100%)}
 .sp-pitch{position:absolute;inset:-6%;width:112%;height:112%;color:#5E8FE8;opacity:.13}
 .sp-pitch>*{stroke-dasharray:1;stroke-dashoffset:1;animation:spDraw 1.8s cubic-bezier(.5,0,.2,1) forwards}
@@ -37,7 +37,8 @@
 .sp-logo{position:fixed;left:50%;top:40%;width:104px;height:104px;z-index:2;border-radius:26px;overflow:hidden;background:#0E2350;display:grid;place-items:center;transform-origin:0 0;
   box-shadow:0 0 0 1px rgba(255,255,255,.07),0 22px 60px -10px rgba(20,99,255,.55);opacity:0;animation:spLogo .9s cubic-bezier(.2,.8,.2,1) .15s forwards}
 .sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.sp-logo svg{width:58%;height:58%}
+.sp-logo svg{width:58%;height:58%;display:none}
+.sp-logo.noimg svg{display:block}
 .sp-name{margin-top:30px;height:44px;line-height:44px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-size:42px;white-space:nowrap;letter-spacing:.32em;margin-right:-.32em;opacity:0;animation:spTrack 1.1s cubic-bezier(.2,.8,.2,1) .55s forwards}
 .sp-rule{width:44px;height:2px;margin-top:16px;border-radius:2px;background:#1463FF;transform:scaleX(0);animation:spGrow .6s cubic-bezier(.2,.8,.2,1) 1s forwards}
 .sp-slogan{margin-top:16px;height:20px;display:flex;align-items:center;gap:12px;font-size:12.5px;font-weight:600;letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:#B9C8EA}
@@ -63,7 +64,7 @@
 <link rel="preload" as="style" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"></noscript>
 <script id="sbjs" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" async crossorigin="anonymous" onerror="window.__sbFailed=1"></script>
-<script src="/assets/app.e732183070.js" defer></script>
+<script src="/assets/app.46c7a5c03f.js" defer></script>
 </head>
 <body>
 <div id="splash" aria-hidden="true">
@@ -84,15 +85,24 @@
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
-    <img src="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=256" alt="" onerror="this.remove()">
+    <img alt="">
   </div>
 </div>
 <script>(function(){
   var tpl = document.getElementById('splash'); if(!tpl) return;
   if(document.documentElement.classList.contains('no-splash')){ tpl.remove(); return }
+  /* The community logo: the one the app last showed (remembered), else the app icon, which is cached with the app. */
+  var FALLBACK = '/icons/icon-512.png?v=2', logoSrc = FALLBACK;
+  try{ var L = localStorage.getItem('mg-logo'); if(L && /^(https:|\/)/.test(L)) logoSrc = L }catch(e){}
+  function setLogo(s){
+    var img = s.querySelector('.sp-logo img'), box = s.querySelector('.sp-logo');
+    img.onerror = function(){ if(img.getAttribute('src') !== FALLBACK) img.src = FALLBACK; else { img.remove(); box.classList.add('noimg') } };
+    img.src = logoSrc;
+  }
   var html = tpl.outerHTML, rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var MIN = rm ? 700 : 2300, MAX = 5000;
   function play(s, fast){
+    setLogo(s);
     var t0 = Date.now(), ready = !!fast, gone = false, logo = s.querySelector('.sp-logo'), slot = s.querySelector('.sp-slot');
     function place(){ var r = slot.getBoundingClientRect(); logo.style.left = r.left+'px'; logo.style.top = r.top+'px'; logo.style.width = r.width+'px'; logo.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
@@ -102,7 +112,7 @@
       for(var i=0;i<els.length;i++){ var r = els[i].getBoundingClientRect(); if(r.width>4 && r.bottom>0 && r.top<innerHeight && getComputedStyle(els[i]).visibility!=='hidden') return {r:r, rad:getComputedStyle(els[i]).borderTopLeftRadius} }
       return null;
     }
-    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
+    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }
     function leave(){
       if(s.dataset.leaving) return; s.dataset.leaving = 1;
       var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot'), tg = target();
@@ -110,18 +120,17 @@
         s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; setTimeout(finish, 460); return;
       }
       var a = logo.getBoundingClientRect(), b = tg.r, k = b.width / a.width;
-      var cx = b.left + b.width/2, cy = b.top + b.height/2;
-      var ease = 'cubic-bezier(.7,0,.2,1)';
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(10px) scale(.98)'}], {duration:260, easing:'ease-in', fill:'forwards'});
-      foot.animate([{opacity:1}, {opacity:0}], {duration:200, fill:'forwards'});
+      var glide = 'cubic-bezier(.65,0,.35,1)';
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(6px)'}], {duration:320, easing:'ease-out', fill:'forwards'});
+      foot.animate([{opacity:1}, {opacity:0}], {duration:260, fill:'forwards'});
       logo.animate([
-        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius},
-        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px'}
-      ], {duration:720, delay:120, easing:ease, fill:'forwards'});
-      var far = Math.hypot(Math.max(cx, innerWidth-cx), Math.max(cy, innerHeight-cy));
-      var iris = stage.animate([{clipPath:'circle('+far+'px at '+cx+'px '+cy+'px)'}, {clipPath:'circle('+(b.width/2)+'px at '+cx+'px '+cy+'px)'}], {duration:760, delay:100, easing:ease, fill:'forwards'});
-      logo.animate([{opacity:1}, {opacity:0}], {duration:180, delay:820, fill:'forwards'}).onfinish = finish;
-      setTimeout(finish, 1400);
+        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius, boxShadow:getComputedStyle(logo).boxShadow},
+        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px', boxShadow:'0 0 0 0 rgba(20,99,255,0)'}
+      ], {duration:900, delay:150, easing:glide, fill:'forwards'});
+      stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.05)'}], {duration:750, delay:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+      setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 500);
+      logo.animate([{opacity:1}, {opacity:0}], {duration:220, delay:1030, fill:'forwards'}).onfinish = finish;
+      setTimeout(finish, 1600);
     }
     function maybe(){ if(ready && Date.now()-t0 >= MIN) leave() }
     window.__splashReady = function(){ ready = true; setTimeout(maybe, Math.max(0, MIN-(Date.now()-t0))) };
