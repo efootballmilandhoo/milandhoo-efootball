@@ -1,17 +1,14 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
-    <div class="sp-bg"></div>
-    <i class="sp-panel l"></i><i class="sp-panel r"></i>
-    <i class="sp-edge e1"></i><i class="sp-edge e2"></i><i class="sp-edge e3"></i>
-    <i class="sp-streak s1"></i><i class="sp-streak s2"></i>
+    <div class="sp-glow"></div>
     <div class="sp-content">
       <div class="sp-slot"></div>
-      <div class="sp-name"><span>MG EFOOTBALL</span></div>
+      <div class="sp-name">MG EFOOTBALL</div>
       <div class="sp-sub">Milandhoo Community</div>
-      <div class="sp-tabs"><span>Play</span><span class="hot">Compete</span><span>Belong</span></div>
+      <div class="sp-mark"><i></i><i></i><i></i></div>
+      <div class="sp-slogan"><span>Play</span><b></b><span>Compete</span><b></b><span>Belong</span></div>
     </div>
-    <div class="sp-foot"><div class="sp-bar"><b></b></div></div>
-    <i class="sp-cut c1"></i><i class="sp-cut c2"></i><i class="sp-cut c3"></i>
+    <div class="sp-foot"><div class="sp-bar"><i></i></div></div>
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
@@ -32,7 +29,7 @@
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
     /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
-    var MIN = rm || fast ? 400 : 1400, MAX = 2800, t0 = Date.now(), leaving = false;
+    var MIN = rm || fast ? 400 : 1500, MAX = 2600, t0 = Date.now(), leaving = false;
     function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
@@ -41,27 +38,13 @@
     function leave(){
       if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
       if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
-      /* eFootball-style wipe: slanted slabs sweep in, the app is swapped in underneath, and they sweep out. */
-      var w = document.createElement('div'); w.className = 'sp-wipe';
-      w.innerHTML = '<i class="w1"></i><i class="w2"></i><i class="w3"></i>';
-      document.body.appendChild(w);
-      var W = innerWidth, Hh = innerHeight, slabs = w.children, inEase = 'cubic-bezier(.5,0,.15,1)', outEase = 'cubic-bezier(.7,0,.5,1)';
-      var span = W + Hh*.38 + 24;
-      [].forEach.call(slabs, function(el, i){
-        var wd = i===2 ? span : i===1 ? span*.45 : span*.22, from = -wd - Hh*.3, to = W + Hh*.3;
-        el.style.width = wd + 'px';
-        if(i < 2){ el.animate([{transform:'translateX('+from+'px) skewX(-20deg)'}, {transform:'translateX('+to+'px) skewX(-20deg)'}], {duration:520, delay:i*40, easing:'cubic-bezier(.55,0,.35,1)', fill:'forwards'}); return }
-        /* One continuous motion (runs smoothly even while the app is being drawn underneath). */
-        var mid = -Hh*.19 - 12, D = 620, cover = .45;
-        el.animate([
-          {transform:'translateX('+from+'px) skewX(-20deg)', offset:0, easing:'cubic-bezier(.3,0,.2,1)'},
-          {transform:'translateX('+mid+'px) skewX(-20deg)', offset:cover, easing:'linear'},
-          {transform:'translateX('+(mid+6)+'px) skewX(-20deg)', offset:.5, easing:'cubic-bezier(.6,0,.4,1)'},
-          {transform:'translateX('+to+'px) skewX(-20deg)', offset:1}
-        ], {duration:D, delay:60, fill:'forwards'}).onfinish = function(){ w.remove() };
-        setTimeout(function(){ s.remove(); enter() }, 60 + D*cover + 16);
-      });
-      setTimeout(function(){ if(s.parentNode) s.remove(); if(w.parentNode) w.remove(); enter() }, 1400);
+      /* Clean exit: the content lifts slightly and the screen fades into the app. */
+      var content = s.querySelector('.sp-content');
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.04)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+      box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
+      s.animate([{opacity:1}, {opacity:0}], {duration:380, delay:80, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'}).onfinish = function(){ s.remove() };
+      setTimeout(enter, 120);
+      setTimeout(function(){ if(s.parentNode) s.remove() }, 900);
     }
     var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);
     setTimeout(leave, MAX);

@@ -1,63 +1,31 @@
-#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff}
+#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff;background:#08142F}
 .no-splash #splash{display:none}
-.sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#040A1C}
-.sp-bg{position:absolute;inset:0;background:radial-gradient(60% 42% at 50% 44%,rgba(20,99,255,.32),rgba(20,99,255,0) 70%),linear-gradient(160deg,#0B1B3F 0%,#060F28 55%,#030817 100%)}
-/* Angled panels with cyan edges, the eFootball menu look */
-.sp-panel{position:absolute;top:-10%;bottom:-10%;width:60vw;transform:skewX(-20deg);opacity:0}
-.sp-panel.l{left:-34vw;background:linear-gradient(90deg,rgba(14,35,80,.0),rgba(20,60,140,.55));animation:spPanelL .7s cubic-bezier(.16,1,.3,1) .15s forwards}
-.sp-panel.r{right:-38vw;background:linear-gradient(270deg,rgba(14,35,80,.0),rgba(20,60,140,.45));animation:spPanelR .7s cubic-bezier(.16,1,.3,1) .2s forwards}
-.sp-edge{position:absolute;top:-10%;bottom:-10%;width:2px;background:linear-gradient(180deg,rgba(94,200,255,0),#5EC8FF 50%,rgba(94,200,255,0));transform:skewX(-20deg) scaleY(0);opacity:.85}
-.sp-edge.e1{left:calc(26vw - 2px);animation:spEdge .6s cubic-bezier(.16,1,.3,1) .35s forwards}
-.sp-edge.e2{left:calc(26vw + 10px);width:1px;opacity:.45;animation:spEdge .6s cubic-bezier(.16,1,.3,1) .42s forwards}
-.sp-edge.e3{right:22vw;animation:spEdge .6s cubic-bezier(.16,1,.3,1) .4s forwards}
-.sp-streak{position:absolute;top:50%;left:0;height:2px;width:30vw;border-radius:2px;background:linear-gradient(90deg,rgba(94,200,255,0),#9FDCFF,rgba(94,200,255,0));transform:translateX(-40vw) rotate(-20deg);opacity:0}
-.sp-streak.s1{top:24%;animation:spStreak 1.1s cubic-bezier(.5,0,.3,1) .5s infinite}
-.sp-streak.s2{top:76%;animation:spStreak 1.1s cubic-bezier(.5,0,.3,1) 1s infinite}
-/* Intro cut: three slanted slabs flash across */
-.sp-cut{position:absolute;top:-10%;bottom:-10%;left:0;width:45vw;transform:translateX(-80vw) skewX(-20deg);animation:spCut .55s cubic-bezier(.6,0,.3,1) forwards}
-.sp-cut.c1{background:#5EC8FF;width:12vw;animation-delay:0s}
-.sp-cut.c2{background:#1463FF;width:30vw;animation-delay:.05s}
-.sp-cut.c3{background:#0B1B3F;width:60vw;animation-delay:.1s}
-.sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 20px;margin-top:-4vh}
-.sp-slot{width:104px;height:104px;flex-shrink:0}
-.sp-logo{position:fixed;left:50%;top:40%;width:104px;height:104px;z-index:2;border-radius:24px;overflow:hidden;background:#0E2350;display:grid;place-items:center;
-  box-shadow:0 0 0 1px rgba(94,200,255,.25),0 0 40px -6px rgba(20,99,255,.8);opacity:0;animation:spLogo .55s cubic-bezier(.3,1.5,.5,1) .3s forwards}
+.sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(180deg,#0B1B3F 0%,#08142F 55%,#050D22 100%)}
+.sp-glow{position:absolute;left:50%;top:42%;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(closest-side,rgba(20,99,255,.28),rgba(20,99,255,0));opacity:0;animation:spFade 1.2s ease .1s forwards}
+.sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;margin-top:-3vh}
+.sp-slot{width:96px;height:96px;flex-shrink:0}
+.sp-logo{position:fixed;left:50%;top:40%;width:96px;height:96px;z-index:2;border-radius:22px;overflow:hidden;background:#0E2350;display:grid;place-items:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 20px 50px -14px rgba(20,99,255,.55);opacity:0;transform:scale(.92);animation:spIn .7s cubic-bezier(.2,.8,.2,1) .1s forwards}
 .sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sp-logo svg{width:58%;height:58%;display:none}
 .sp-logo.noimg svg{display:block}
-.sp-logo::after{content:"";position:absolute;inset:-30%;z-index:2;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.45) 50%,transparent 58%);transform:translateX(-120%);animation:spSheen .8s ease .75s forwards}
-.sp-name{margin-top:26px;height:48px;line-height:48px;overflow:hidden;padding:0 6px}
-.sp-name span{display:block;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-style:italic;font-size:46px;letter-spacing:.02em;white-space:nowrap;transform:translateY(105%) skewX(-6deg);animation:spRise .5s cubic-bezier(.16,1,.3,1) .5s forwards}
-.sp-sub{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:#8FB0EC;opacity:0;animation:spFade .5s ease .7s forwards}
-.sp-tabs{margin-top:22px;display:flex;gap:8px}
-.sp-tabs span{display:inline-flex;align-items:center;height:28px;padding:0 14px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-style:italic;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#DCE6FA;
-  border:1px solid rgba(94,200,255,.45);background:rgba(11,27,63,.6);transform:skewX(-14deg) translateY(10px);opacity:0;animation:spTab .4s cubic-bezier(.16,1,.3,1) forwards}
-.sp-tabs span.hot{background:linear-gradient(90deg,#1463FF,#3D8BFF);border-color:#5EC8FF;color:#fff}
-.sp-tabs span:nth-child(1){animation-delay:.8s}.sp-tabs span:nth-child(2){animation-delay:.9s}.sp-tabs span:nth-child(3){animation-delay:1s}
-.sp-foot{position:absolute;left:0;right:0;bottom:calc(44px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .5s ease .9s forwards}
-.sp-bar{width:96px;height:3px;background:rgba(255,255,255,.10);overflow:hidden;transform:skewX(-20deg)}
-.sp-bar b{display:block;height:100%;width:40%;background:linear-gradient(90deg,#1463FF,#5EC8FF);animation:spLoad 1s cubic-bezier(.5,0,.5,1) infinite}
-/* Exit wipe (added on top of everything while the app is swapped in) */
-.sp-wipe{position:fixed;inset:0;z-index:10000;pointer-events:none;overflow:hidden}
-.sp-wipe i{position:absolute;top:0;bottom:0;left:0;will-change:transform;transform:translateX(-200vw)}
-.sp-wipe .w1{background:#5EC8FF}
-.sp-wipe .w2{background:#1463FF}
-.sp-wipe .w3{background:linear-gradient(90deg,#0B1B3F,#0E2350);box-shadow:-3px 0 0 #5EC8FF}
-@keyframes spPanelL{from{opacity:0;transform:translateX(-20vw) skewX(-20deg)}to{opacity:1;transform:skewX(-20deg)}}
-@keyframes spPanelR{from{opacity:0;transform:translateX(20vw) skewX(-20deg)}to{opacity:1;transform:skewX(-20deg)}}
-@keyframes spEdge{to{transform:skewX(-20deg) scaleY(1)}}
-@keyframes spStreak{0%{opacity:0;transform:translateX(-40vw) rotate(-20deg)}20%{opacity:.9}100%{opacity:0;transform:translateX(120vw) rotate(-20deg)}}
-@keyframes spCut{0%{transform:translateX(-80vw) skewX(-20deg)}100%{transform:translateX(140vw) skewX(-20deg)}}
-@keyframes spLogo{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:none}}
-@keyframes spSheen{to{transform:translateX(120%)}}
-@keyframes spRise{to{transform:skewX(-6deg)}}
-@keyframes spTab{to{opacity:1;transform:skewX(-14deg)}}
+.sp-name{margin-top:28px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-size:38px;line-height:1;letter-spacing:.08em;margin-right:-.08em;white-space:nowrap;opacity:0;transform:translateY(8px);animation:spIn .6s cubic-bezier(.2,.8,.2,1) .35s forwards}
+.sp-sub{margin-top:10px;font-size:11px;font-weight:600;letter-spacing:.32em;margin-right:-.32em;text-transform:uppercase;color:#93A9D6;opacity:0;animation:spFade .6s ease .5s forwards}
+/* three slanted bars, echoing the logo */
+.sp-mark{display:flex;gap:4px;margin-top:20px;height:10px}
+.sp-mark i{width:10px;height:10px;background:#5EC8FF;transform:skewX(-35deg) scaleX(0);transform-origin:left;animation:spBar .35s cubic-bezier(.2,.8,.2,1) forwards}
+.sp-mark i:nth-child(1){animation-delay:.6s}.sp-mark i:nth-child(2){animation-delay:.67s}.sp-mark i:nth-child(3){animation-delay:.74s;width:22px;background:#1463FF}
+.sp-slogan{margin-top:18px;display:flex;align-items:center;gap:12px;font-size:12px;font-weight:600;letter-spacing:.3em;margin-right:-.3em;text-transform:uppercase;color:#C9D5EE;opacity:0;animation:spFade .6s ease .85s forwards}
+.sp-slogan b{width:3px;height:3px;border-radius:50%;background:#5EC8FF}
+.sp-foot{position:absolute;left:0;right:0;bottom:calc(46px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .5s ease .9s forwards}
+.sp-bar{width:72px;height:2px;border-radius:2px;background:rgba(255,255,255,.1);overflow:hidden}
+.sp-bar i{display:block;height:100%;width:40%;border-radius:2px;background:#5EC8FF;animation:spLoad 1.1s cubic-bezier(.5,0,.5,1) infinite}
+@keyframes spIn{to{opacity:1;transform:none}}
 @keyframes spFade{to{opacity:1}}
+@keyframes spBar{to{transform:skewX(-35deg) scaleX(1)}}
 @keyframes spLoad{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-@media (max-width:420px){.sp-name span{font-size:42px}}
-@media (max-width:350px){.sp-name span{font-size:36px}.sp-tabs span{font-size:13px;padding:0 10px}}
-@media (min-width:700px){.sp-slot,.sp-logo{width:120px;height:120px}.sp-logo{border-radius:28px}.sp-name{height:56px;line-height:56px}.sp-name span{font-size:54px}.sp-tabs span{font-size:17px;height:32px}
-  .sp-panel{width:40vw}.sp-panel.l{left:-18vw}.sp-panel.r{right:-20vw}.sp-edge.e1{left:calc(22vw - 2px)}.sp-edge.e2{left:calc(22vw + 10px)}.sp-edge.e3{right:20vw}}
+@media (min-width:700px){.sp-slot,.sp-logo{width:112px;height:112px}.sp-logo{border-radius:26px}.sp-name{font-size:46px}.sp-slogan{font-size:13px}}
+@media (max-width:350px){.sp-name{font-size:34px}.sp-slogan{font-size:10.5px;letter-spacing:.24em;gap:9px}}
 .sp-fast #splash *,#splash.fast *{animation-duration:.01s!important;animation-delay:0s!important}
-.sp-fast #splash .sp-cut,#splash.fast .sp-cut{display:none}
-@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}.sp-cut,.sp-streak{display:none}}
+.sp-fast #splash .sp-bar i,#splash.fast .sp-bar i{animation-duration:1.1s!important}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
