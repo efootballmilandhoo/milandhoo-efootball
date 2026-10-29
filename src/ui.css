@@ -1725,3 +1725,9 @@
 @media (prefers-reduced-motion:reduce){.tc-logo,.tc-logo::after,.tc-beam,.t-card-head svg.tc-mc,.t-card-head.st-active::after{animation:none}}
 /* the "Live" chip on tournament cards matches the dashboard badge */
 .t-card-head .t-live{background:linear-gradient(90deg,#1463FF,#3D8BFF);border-color:rgba(255,255,255,.18);box-shadow:0 6px 16px -4px rgba(20,99,255,.6);letter-spacing:.04em}
+/* Tournament logos on the navy banners: one clean rounded shape (no extra frame or see-through corners) */
+.tc-logo{border-radius:20%;width:76px;height:76px}
+.tc-logo .t-logo, .oa-face .t-logo{border:0 !important;background:transparent !important;border-radius:inherit !important;width:100% !important;height:100% !important}
+.tc-logo .t-logo img, .oa-face .t-logo img{object-fit:cover;border-radius:inherit}
+.oa-face{border-radius:20%}
+.oa-face .t-logo{border-radius:20% !important}
