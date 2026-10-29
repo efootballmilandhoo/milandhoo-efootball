@@ -2544,6 +2544,7 @@ function nextStepText(t){
 
 function switchTab(tabId){
   // Standings and Fixtures always open on "All"; a group picked inside the tab stays until you leave it.
+  if(tabId!==currentTab && tabId==='tab-knockout') koRoundPick = {};
   if(tabId!==currentTab && (tabId==='tab-standings' || tabId==='tab-fixtures') && selectedGroup && selectedGroup!=='*'){
     selectedGroup = '*';
     ['tab-standings','tab-fixtures'].forEach(id=>{ const el = document.getElementById(id); if(el){ el.innerHTML = ''; el.dataset.lazy = '1' } });
@@ -3240,10 +3241,19 @@ function renderKnockoutTab(t, admin, canEditScores){
 /* Knockout view: the bracket, or each round as a grid of match cards (remembered per browser). */
 function koView(){ try{ return localStorage.getItem('mg-ko-view') || (matchMedia('(max-width: 700px)').matches ? 'cards' : 'bracket') }catch{ return 'bracket' } }
 function setKoView(v){ try{ localStorage.setItem('mg-ko-view', v) }catch{} rerender() }
+/* Round picker for the match cards: All, RO16, QF, SF, Final. Opens on All. */
+let koRoundPick = {};
+function setKoRound(tid, v){ koRoundPick[tid] = v; rerender() }
 function koCardsHTML(t, admin){
   const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
   const final = rounds.at(-1)?.[0];
-  return `<div class="ko-cards">${rounds.map((round, ri)=>{
+  const pick = rounds[koRoundPick[t.id]] ? koRoundPick[t.id] : '*';
+  const picker = rounds.length>1 ? `<div class="segmented ko-round-pick" role="group" aria-label="Choose round">
+      <button type="button" class="seg ${pick==='*'?'active':''}" aria-pressed="${pick==='*'}" onclick="setKoRound('${t.id}','*')">All</button>
+      ${rounds.map((r,ri)=>{ const sh = koRoundShort(r[0]?.round) || 'Round '+(ri+1); return `<button type="button" class="seg ${pick===ri?'active':''}" aria-pressed="${pick===ri}" title="${esc(r[0]?.round||'')}" onclick="setKoRound('${t.id}',${ri})">${esc(sh)}</button>` }).join('')}
+    </div>` : '';
+  return picker + `<div class="ko-cards">${rounds.map((round, ri)=>{
+    if(pick!=='*' && pick!==ri) return '';
     const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
     const real = ties.filter(m=>!m.isBye), decided = real.filter(m=>m.winner).length;
     const dl = dls[round[0]?.round];

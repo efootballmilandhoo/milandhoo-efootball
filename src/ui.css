@@ -1594,3 +1594,7 @@
 /* FB export: match code above each tie */
 .fbk-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(8px*var(--z)) calc(20px*var(--z)) 0;font-size:calc(15px*var(--z));font-weight:800;letter-spacing:.08em;color:var(--primary-dark);text-transform:uppercase}
 .fbk-h span{color:var(--muted);font-weight:700;letter-spacing:.04em}
+
+.ko-round-pick{align-self:flex-start;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.ko-round-pick::-webkit-scrollbar{display:none}
+.ko-round-pick .seg{flex-shrink:0}
