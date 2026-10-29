@@ -1731,3 +1731,8 @@
 .tc-logo .t-logo img, .oa-face .t-logo img{object-fit:cover;border-radius:inherit}
 .oa-face{border-radius:20%}
 .oa-face .t-logo{border-radius:20% !important}
+/* very narrow phones: the match code is enough on knockout cards */
+@media (max-width:340px){.ko-card-h .ko-tag{display:none}}
+/* desktop ongoing banner is narrow: tighter stage chip so short stage names fit */
+@media (min-width:701px){.ongoing-art .oa-top{left:10px;right:10px;gap:6px}.ongoing-art .oa-stage{padding:0 8px;letter-spacing:.04em}.ongoing-art .oa-live{padding:0 9px 0 8px;letter-spacing:.1em}}
+@supports not ((-webkit-background-clip:text) or (background-clip:text)){.sidebar-card-title{background:none !important;-webkit-text-fill-color:#FFFFFF;color:#FFFFFF}}
