@@ -97,6 +97,8 @@ def build():
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script>(function(){{try{{var m=localStorage.getItem('mg-theme')||'auto';var d=m==='dark'||(m==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';document.documentElement.dataset.themeMode=m}}catch(e){{document.documentElement.dataset.theme='light'}}}})();</script>
+<script>try{{if(sessionStorage.getItem('mg-splash')||navigator.webdriver)document.documentElement.classList.add('no-splash')}}catch(e){{}}</script>
+<style>{src('splash.css').strip()}</style>
 <link rel="stylesheet" href="/assets/{css_name}">
 <link rel="preload" as="style" crossorigin="anonymous" href="{FONTS}" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="{FONTS}"></noscript>
@@ -104,6 +106,7 @@ def build():
 <script src="/assets/{js_name}" defer></script>
 </head>
 <body>
+{src('splash.html').strip()}
 {src('shell.html').strip()}
 </body>
 </html>

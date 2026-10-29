@@ -1,0 +1,32 @@
+<div id="splash" aria-hidden="true">
+  <div class="sp-bg"></div>
+  <svg class="sp-pitch" viewBox="0 0 260 400" preserveAspectRatio="xMidYMid slice" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+    <rect pathLength="1" x="14" y="14" width="232" height="372" rx="3"/>
+    <path pathLength="1" d="M58 14V78H202V14M96 14V36H164V14M104 78A30 30 0 0 0 156 78"/>
+    <path pathLength="1" d="M58 386V322H202V386M96 386V364H164V386M104 322A30 30 0 0 1 156 322"/>
+    <path pathLength="1" d="M14 24A10 10 0 0 0 24 14M236 14A10 10 0 0 0 246 24M246 376A10 10 0 0 0 236 386M24 386A10 10 0 0 0 14 376"/>
+  </svg>
+  <div class="sp-stripes"></div>
+  <div class="sp-center">
+    <div class="sp-mark">
+    <i class="sp-midline"></i><i class="sp-circle"></i><i class="sp-ring"></i>
+    <div class="sp-logo">
+      <img src="https://pdgkxbkxpzinlbyedvco.supabase.co/functions/v1/app-icon?s=256" alt="" onerror="this.remove()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
+    </div>
+    </div>
+    <div class="sp-name">MG EFOOTBALL</div>
+    <div class="sp-sub">Milandhoo Community</div>
+    <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
+  </div>
+  <div class="sp-bar"><b></b></div>
+</div>
+<script>(function(){
+  var s=document.getElementById('splash'); if(!s) return;
+  var done=false, end=function(){ if(done) return; done=true; s.classList.add('out'); setTimeout(function(){ s.remove() }, 520) };
+  if(document.documentElement.classList.contains('no-splash')){ s.remove(); return }
+  try{ sessionStorage.setItem('mg-splash','1') }catch(e){}
+  var rm=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(end, rm ? 900 : 2600);
+  s.addEventListener('click', end);
+})();</script>
