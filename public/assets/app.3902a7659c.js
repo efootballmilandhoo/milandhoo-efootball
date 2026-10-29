@@ -573,16 +573,21 @@ async function boot(){
   initPush();
 }
 function renderOffline(){
-  window.__splashReady && window.__splashReady();
+  window.__splashOffline = true;
   setHeader('Welcome', 'Dashboard');
-  document.getElementById('main').innerHTML = `<div class="card empty"><div class="empty-title">Can't reach the community server</div><div class="text-sm">Check your internet connection and try again.</div><button type="button" class="btn btn-primary mt-16" onclick="location.reload()">Try again</button></div>`;
+  document.getElementById('main').innerHTML = `<div class="card empty"><div class="spin-ring" aria-hidden="true"></div><div class="empty-title">Connecting to the community server…</div><div class="text-sm">Check your internet connection. The app reconnects by itself.</div></div>`;
+  // Try again on its own: when the connection comes back, or every few seconds.
+  const retry = ()=>{ try{ sessionStorage.setItem('mg-nosplash','1') }catch{} location.reload() };
+  addEventListener('online', retry, {once:true});
+  setTimeout(()=>{ if(navigator.onLine !== false) retry() }, 6000);
 }
 
 /* Deep links: #t=<tournament id>, #halloffame, #players, #leaderboard, #tournaments, #admin */
 let hashRouted = false;
 function applyHashRoute(){
   if(hashRouted) return; hashRouted = true;
-  if(window.__splashUp) window.__splashReady && window.__splashReady(); else playEnter();
+  window.__splashDrawn = true;
+  if(!window.__splashUp) playEnter();
   routeTo(location.hash);
 }
 function routeTo(hash){
@@ -5483,12 +5488,14 @@ function watchForUpdates(reg){
   if(!reg) return;
   const hadController = !!navigator.serviceWorker.controller;
   let shown = false;
+  /* A new version is applied automatically, never with a button:
+     straight away while the app is still opening, otherwise the next time it goes to the background. */
   const showBar = ()=>{
     if(shown) return; shown = true;
-    const bar = document.createElement('div');
-    bar.className = 'update-bar'; bar.setAttribute('role','status');
-    bar.innerHTML = `<span>A new version of the app is ready.</span><button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">Reload</button><button type="button" class="update-x" aria-label="Dismiss" onclick="this.parentNode.remove()">×</button>`;
-    document.body.appendChild(bar);
+    const now = ()=>{ try{ sessionStorage.setItem('mg-splash-fast','1') }catch{} location.reload() };
+    if(window.__splashUp || performance.now() < 9000) return now();
+    const later = ()=>{ if(document.visibilityState==='hidden'){ try{ sessionStorage.removeItem('mg-splash-fast') }catch{} location.reload() } };
+    document.addEventListener('visibilitychange', later);
   };
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(!hadController || shown) return;

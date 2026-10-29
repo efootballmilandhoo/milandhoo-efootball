@@ -275,16 +275,21 @@ async function boot(){
   initPush();
 }
 function renderOffline(){
-  window.__splashReady && window.__splashReady();
+  window.__splashOffline = true;
   setHeader('Welcome', 'Dashboard');
-  document.getElementById('main').innerHTML = `<div class="card empty"><div class="empty-title">Can't reach the community server</div><div class="text-sm">Check your internet connection and try again.</div><button type="button" class="btn btn-primary mt-16" onclick="location.reload()">Try again</button></div>`;
+  document.getElementById('main').innerHTML = `<div class="card empty"><div class="spin-ring" aria-hidden="true"></div><div class="empty-title">Connecting to the community server…</div><div class="text-sm">Check your internet connection. The app reconnects by itself.</div></div>`;
+  // Try again on its own: when the connection comes back, or every few seconds.
+  const retry = ()=>{ try{ sessionStorage.setItem('mg-nosplash','1') }catch{} location.reload() };
+  addEventListener('online', retry, {once:true});
+  setTimeout(()=>{ if(navigator.onLine !== false) retry() }, 6000);
 }
 
 /* Deep links: #t=<tournament id>, #halloffame, #players, #leaderboard, #tournaments, #admin */
 let hashRouted = false;
 function applyHashRoute(){
   if(hashRouted) return; hashRouted = true;
-  if(window.__splashUp) window.__splashReady && window.__splashReady(); else playEnter();
+  window.__splashDrawn = true;
+  if(!window.__splashUp) playEnter();
   routeTo(location.hash);
 }
 function routeTo(hash){

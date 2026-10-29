@@ -1,11 +1,18 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
     <div class="sp-bg"></div>
-    <svg class="sp-pitch" viewBox="0 0 260 400" preserveAspectRatio="xMidYMid slice" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round">
-      <rect pathLength="1" x="14" y="14" width="232" height="372" rx="2"/>
-      <path pathLength="1" d="M58 14V78H202V14M96 14V36H164V14M104 78A30 30 0 0 0 156 78"/>
-      <path pathLength="1" d="M58 386V322H202V386M96 386V364H164V386M104 322A30 30 0 0 1 156 322"/>
-    </svg>
+    <div class="sp-fx">
+      <i class="sp-band" style="--x:-46vw;--w:7vmax;--d:.05s"></i>
+      <i class="sp-band thin" style="--x:-36vw;--w:3vmax;--d:.15s"></i>
+      <i class="sp-band thin" style="--x:-29vw;--w:1.4vmax;--d:.25s"></i>
+      <i class="sp-band" style="--x:30vw;--w:9vmax;--d:.1s"></i>
+      <i class="sp-band thin" style="--x:42vw;--w:2.4vmax;--d:.2s"></i>
+      <i class="sp-streak" style="--x:-30vw;--d:.4s"></i>
+      <i class="sp-streak" style="--x:8vw;--d:.9s"></i>
+      <i class="sp-streak" style="--x:34vw;--d:.65s"></i>
+      <i class="sp-streak" style="--x:-8vw;--d:1.3s"></i>
+    </div>
+    <div class="sp-grid"></div>
     <div class="sp-content">
       <div class="sp-slot"></div>
       <div class="sp-name">MG EFOOTBALL</div>
@@ -22,51 +29,51 @@
 </div>
 <script>(function(){
   var tpl = document.getElementById('splash'); if(!tpl) return;
-  if(document.documentElement.classList.contains('no-splash')){ tpl.remove(); return }
+  var H = document.documentElement;
+  if(H.classList.contains('no-splash')){ tpl.remove(); return }
   /* The community logo: the one the app last showed (remembered), else the app icon, which is cached with the app. */
   var FALLBACK = '/icons/icon-512.png?v=2', logoSrc = FALLBACK;
   try{ var L = localStorage.getItem('mg-logo'); if(L && /^(https:|\/)/.test(L)) logoSrc = L }catch(e){}
-  function setLogo(s){
-    var img = s.querySelector('.sp-logo img'), box = s.querySelector('.sp-logo');
+  var html = tpl.outerHTML, rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function play(s, fast){
+    var img = s.querySelector('.sp-logo img'), box = s.querySelector('.sp-logo'), slot = s.querySelector('.sp-slot');
     img.onerror = function(){ if(img.getAttribute('src') !== FALLBACK) img.src = FALLBACK; else { img.remove(); box.classList.add('noimg') } };
     img.src = logoSrc;
-  }
-  var html = tpl.outerHTML, rm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var MIN = rm ? 700 : 2300, MAX = 5000;
-  function play(s, fast){
-    setLogo(s);
-    var t0 = Date.now(), ready = !!fast, gone = false, logo = s.querySelector('.sp-logo'), slot = s.querySelector('.sp-slot');
-    function place(){ var r = slot.getBoundingClientRect(); logo.style.left = r.left+'px'; logo.style.top = r.top+'px'; logo.style.width = r.width+'px'; logo.style.height = r.height+'px' }
+    if(fast) s.classList.add('fast');
+    var MIN = rm || fast ? 700 : 2400, MAX = 6000;
+    var t0 = Date.now(), gone = false, leaving = false;
+    function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
-    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }
+    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false }
+    /* The app is ready once its first screen is drawn and live data has arrived (or it is offline). */
+    function appReady(){ var S = window.STORE; return !!(window.__splashOffline || (S && S.live && window.__splashDrawn)) }
     function leave(){
-      if(s.dataset.leaving) return; s.dataset.leaving = 1;
-      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot');
-      if(rm || !s.animate){ s.style.transition = 'opacity .4s ease'; s.style.opacity = 0; setTimeout(finish, 420); return }
-      /* Zoom through the logo: only transform and opacity, so it stays smooth on phones. */
-      var out = 'cubic-bezier(.55,0,.1,1)';
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(.96)'}], {duration:280, easing:'ease-in', fill:'forwards'});
-      foot.animate([{opacity:1}, {opacity:0}], {duration:200, fill:'forwards'});
-      logo.animate([{transform:'scale(1)', opacity:1, offset:0}, {transform:'scale(.9)', opacity:1, offset:.22}, {transform:'scale(9)', opacity:0, offset:1}], {duration:780, delay:120, easing:out, fill:'forwards'});
-      stage.animate([{opacity:1}, {opacity:0}], {duration:520, delay:380, easing:'ease-out', fill:'forwards'}).onfinish = finish;
-      setTimeout(function(){ if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }, 420);
-      setTimeout(finish, 1300);
+      if(leaving) return; leaving = true; clearInterval(poll);
+      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content');
+      if(rm || !s.animate){ s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} setTimeout(finish, 470); return }
+      /* Two frames after the last render, so nothing else is drawing while it fades. */
+      requestAnimationFrame(function(){ requestAnimationFrame(function(){
+        var ease = 'cubic-bezier(.4,0,.2,1)';
+        content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(-8px)'}], {duration:380, easing:ease, fill:'forwards'});
+        box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.35)'}], {duration:620, delay:60, easing:ease, fill:'forwards'});
+        stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:700, delay:140, easing:ease, fill:'forwards'}).onfinish = finish;
+        setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 300);
+        setTimeout(finish, 1100);
+      }) });
     }
-    function maybe(){ if(ready && Date.now()-t0 >= MIN) leave() }
-    window.__splashReady = function(){ ready = true; setTimeout(maybe, Math.max(0, MIN-(Date.now()-t0))) };
-    window.__splashUp = true;
-    if(ready) setTimeout(maybe, MIN);
+    var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && appReady()) leave() }, 120);
     setTimeout(leave, MAX);
-    s.addEventListener('click', function(){ ready = true; t0 = 0; leave() });
+    s.addEventListener('click', leave);
+    window.__splashUp = true;
   }
-  play(tpl, false);
+  play(tpl, H.classList.contains('sp-fast'));
   /* Opening the app again after it has been in the background for a while plays it again. */
   var hiddenAt = 0;
   document.addEventListener('visibilitychange', function(){
     if(document.hidden){ hiddenAt = Date.now(); return }
     if(hiddenAt && Date.now()-hiddenAt > 5*60e3 && !document.getElementById('splash')){
-      var w = document.createElement('div'); w.innerHTML = html; var s = w.firstElementChild; document.body.appendChild(s); play(s, true);
+      var w = document.createElement('div'); w.innerHTML = html; var s = w.firstElementChild; document.body.appendChild(s); window.__splashDrawn = true; play(s, false);
     }
     hiddenAt = 0;
   });

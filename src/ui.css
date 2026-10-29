@@ -1616,3 +1616,6 @@
 
 .ko-exports{align-items:center}
 @media (max-width:520px){ .ko-exports .ko-export{flex:1 1 100%} .ko-bar .ko-view-switch{flex:1 1 100%} }
+
+.spin-ring{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;border:3px solid var(--surface-3);border-top-color:var(--primary);animation:spinR .9s linear infinite}
+@keyframes spinR{to{transform:rotate(360deg)}}

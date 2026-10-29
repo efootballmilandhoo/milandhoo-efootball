@@ -180,12 +180,14 @@ function watchForUpdates(reg){
   if(!reg) return;
   const hadController = !!navigator.serviceWorker.controller;
   let shown = false;
+  /* A new version is applied automatically, never with a button:
+     straight away while the app is still opening, otherwise the next time it goes to the background. */
   const showBar = ()=>{
     if(shown) return; shown = true;
-    const bar = document.createElement('div');
-    bar.className = 'update-bar'; bar.setAttribute('role','status');
-    bar.innerHTML = `<span>A new version of the app is ready.</span><button type="button" class="btn btn-primary btn-sm" onclick="location.reload()">Reload</button><button type="button" class="update-x" aria-label="Dismiss" onclick="this.parentNode.remove()">×</button>`;
-    document.body.appendChild(bar);
+    const now = ()=>{ try{ sessionStorage.setItem('mg-splash-fast','1') }catch{} location.reload() };
+    if(window.__splashUp || performance.now() < 9000) return now();
+    const later = ()=>{ if(document.visibilityState==='hidden'){ try{ sessionStorage.removeItem('mg-splash-fast') }catch{} location.reload() } };
+    document.addEventListener('visibilitychange', later);
   };
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(!hadController || shown) return;
