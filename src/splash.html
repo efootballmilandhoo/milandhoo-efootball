@@ -9,10 +9,11 @@
     <div class="sp-content">
       <div class="sp-slot"></div>
       <div class="sp-name">MG EFOOTBALL</div>
+      <div class="sp-sub">Milandhoo Community</div>
       <div class="sp-rule"></div>
       <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
     </div>
-    <div class="sp-foot"><div class="sp-bar"><b></b></div>Milandhoo Community</div>
+    <div class="sp-foot"><div class="sp-bar"><b></b></div></div>
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
@@ -38,30 +39,19 @@
     function place(){ var r = slot.getBoundingClientRect(); logo.style.left = r.left+'px'; logo.style.top = r.top+'px'; logo.style.width = r.width+'px'; logo.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
-    function target(){
-      var els = document.querySelectorAll('.mobile-header [data-mark] .logo-mark, .sidebar [data-mark] .logo-mark');
-      for(var i=0;i<els.length;i++){ var r = els[i].getBoundingClientRect(); if(r.width>4 && r.bottom>0 && r.top<innerHeight && getComputedStyle(els[i]).visibility!=='hidden') return {r:r, rad:getComputedStyle(els[i]).borderTopLeftRadius} }
-      return null;
-    }
     function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }
     function leave(){
       if(s.dataset.leaving) return; s.dataset.leaving = 1;
-      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot'), tg = target();
-      if(rm || !s.animate || !tg){
-        s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; setTimeout(finish, 460); return;
-      }
-      var a = logo.getBoundingClientRect(), b = tg.r, k = b.width / a.width;
-      var glide = 'cubic-bezier(.65,0,.35,1)';
-      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(6px)'}], {duration:320, easing:'ease-out', fill:'forwards'});
-      foot.animate([{opacity:1}, {opacity:0}], {duration:260, fill:'forwards'});
-      logo.animate([
-        {transform:'none', borderRadius:getComputedStyle(logo).borderTopLeftRadius, boxShadow:getComputedStyle(logo).boxShadow},
-        {transform:'translate('+(b.left-a.left)+'px,'+(b.top-a.top)+'px) scale('+k+')', borderRadius:(parseFloat(tg.rad)||10)/k+'px', boxShadow:'0 0 0 0 rgba(20,99,255,0)'}
-      ], {duration:900, delay:150, easing:glide, fill:'forwards'});
-      stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.05)'}], {duration:750, delay:300, easing:'cubic-bezier(.4,0,.2,1)', fill:'forwards'});
-      setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 500);
-      logo.animate([{opacity:1}, {opacity:0}], {duration:220, delay:1030, fill:'forwards'}).onfinish = finish;
-      setTimeout(finish, 1600);
+      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content'), foot = s.querySelector('.sp-foot');
+      if(rm || !s.animate){ s.style.transition = 'opacity .4s ease'; s.style.opacity = 0; setTimeout(finish, 420); return }
+      /* Zoom through the logo: only transform and opacity, so it stays smooth on phones. */
+      var out = 'cubic-bezier(.55,0,.1,1)';
+      content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(.96)'}], {duration:280, easing:'ease-in', fill:'forwards'});
+      foot.animate([{opacity:1}, {opacity:0}], {duration:200, fill:'forwards'});
+      logo.animate([{transform:'scale(1)', opacity:1, offset:0}, {transform:'scale(.9)', opacity:1, offset:.22}, {transform:'scale(9)', opacity:0, offset:1}], {duration:780, delay:120, easing:out, fill:'forwards'});
+      stage.animate([{opacity:1}, {opacity:0}], {duration:520, delay:380, easing:'ease-out', fill:'forwards'}).onfinish = finish;
+      setTimeout(function(){ if(window.__splashUp){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} } }, 420);
+      setTimeout(finish, 1300);
     }
     function maybe(){ if(ready && Date.now()-t0 >= MIN) leave() }
     window.__splashReady = function(){ ready = true; setTimeout(maybe, Math.max(0, MIN-(Date.now()-t0))) };
