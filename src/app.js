@@ -2141,8 +2141,9 @@ function tCardHead(t){
   const total = fx.length + ko.length, played = fx.filter(f=>hasScore(f.score1)&&hasScore(f.score2)).length + ko.filter(m=>m.winner).length;
   const stage = t.status==='active' ? (t.format==='single_elimination' || t.knockoutDrawn ? 'Knockout stage' : t.format==='league' ? 'League' : 'Group stage') : t.status==='open' ? 'Registration open' : t.status==='completed' ? 'Finished' : 'Draft';
   return `<div class="t-card-head st-${esc(t.status)}">
-    <svg class="t-card-pitch" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="#FFFFFF" stroke-opacity=".07" stroke-width="2"><rect x="200" y="-20" width="260" height="180" rx="4"/><circle cx="200" cy="70" r="46"/><path d="M200 -20v180"/><rect x="380" y="25" width="60" height="90"/></g></svg>
-    ${t.logo ? tournamentLogo(t, 76, 'on-color') : `<span class="t-card-code">${esc(tCode(t))}</span>`}
+    ${MC_OUTLINE('t-card-pitch tc-mc')}
+    ${t.status==='active' ? '<i class="tc-beam l" aria-hidden="true"></i><i class="tc-beam r" aria-hidden="true"></i>' : ''}
+    ${t.logo ? `<span class="tc-logo">${tournamentLogo(t, 76, 'on-color')}</span>` : `<span class="t-card-code">${esc(tCode(t))}</span>`}
     <div class="t-card-side">
       ${t.status==='active' ? `<span class="t-live"><i></i>Live</span>` : statusBadge(t.status)}
       <span class="t-card-stage">${stage}</span>

@@ -1679,10 +1679,10 @@
 /* ---- Ongoing banner, live details: LIVE badge, current stage, stadium light beams, progress ---- */
 .ongoing-art{padding-top:54px !important;padding-bottom:56px !important}
 .ongoing-art .oa-top{position:absolute;top:12px;left:12px;right:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:1}
-.ongoing-art .oa-live{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;background:rgba(229,72,77,.92);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 4px 14px rgba(229,72,77,.35)}
-.ongoing-art .oa-live.open{background:rgba(20,99,255,.92);box-shadow:0 4px 14px rgba(20,99,255,.35)}
-.ongoing-art .oa-live i{position:relative;width:7px;height:7px;border-radius:50%;background:#fff}
-.ongoing-art .oa-live i::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:#fff;opacity:.5;animation:dotPulse 1.6s ease-out infinite}
+.ongoing-art .oa-live{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 12px 0 10px;border-radius:999px;background:linear-gradient(90deg,#1463FF,#3D8BFF);border:1px solid rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;box-shadow:0 6px 16px -4px rgba(20,99,255,.6)}
+.ongoing-art .oa-live.open{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.22);box-shadow:none}
+.ongoing-art .oa-live i{position:relative;width:7px;height:7px;border-radius:50%;background:var(--live-dot,#7CF0B2);box-shadow:0 0 6px rgba(124,240,178,.8)}
+.ongoing-art .oa-live i::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:var(--live-dot,#7CF0B2);opacity:.5;animation:dotPulse 1.6s ease-out infinite}
 .ongoing-art .oa-stage{height:26px;line-height:26px;padding:0 11px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);color:#DCE6FA;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .ongoing-art .oa-beam{position:absolute;top:-30%;width:42%;height:160%;z-index:-1;pointer-events:none;opacity:.55;
   background:linear-gradient(180deg,rgba(150,200,255,.30),rgba(150,200,255,0) 75%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);filter:blur(2px)}
@@ -1704,3 +1704,24 @@
 .ongoing-art .oa-stage span{position:static;display:inline;margin:0;font-size:inherit;letter-spacing:inherit;color:inherit;text-transform:inherit}
 .ongoing-art .oa-stage .s{display:none}
 @media (min-width:701px){.ongoing-art .oa-stage .l{display:none}.ongoing-art .oa-stage .s{display:inline}}
+
+/* ---- Tournament cards: the same live background as the dashboard banner, and a flipping logo ---- */
+.t-card-head{isolation:isolate;background:linear-gradient(160deg,#10275A 0%,#0B1B3F 55%,#06102A 100%) !important}
+.t-card-head::before{z-index:-1}
+.t-card-head svg.tc-mc{position:absolute;inset:auto;left:58%;top:50%;width:120%;height:auto;z-index:-1;opacity:.14;transform:translate(-50%,-50%)}
+.t-card-head.st-active svg.tc-mc{animation:tcDrift 14s ease-in-out infinite alternate}
+.t-card-head.st-active::after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.08) 50%,transparent 60%);transform:translateX(-100%);animation:oaSweep 8s ease-in-out 1s infinite}
+.t-card-head .tc-beam{position:absolute !important;top:-40%;width:38%;height:180%;z-index:-1;pointer-events:none;opacity:.5;background:linear-gradient(180deg,rgba(150,200,255,.28),rgba(150,200,255,0) 75%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);mask-image:linear-gradient(90deg,transparent,#000 40%,#000 60%,transparent);filter:blur(2px);transform-origin:50% 0}
+.t-card-head .tc-beam.l{left:28%;animation:oaBeamL 9s ease-in-out infinite alternate}
+.t-card-head .tc-beam.r{right:4%;animation:oaBeamR 11s ease-in-out infinite alternate}
+/* the logo floats gently, with a soft glow and a light that glides across it now and then */
+.tc-logo{display:block;flex-shrink:0;border-radius:18px;overflow:hidden;box-shadow:0 10px 22px -8px rgba(0,0,0,.55),0 0 22px -4px rgba(20,99,255,.45);animation:tcFloat 6s ease-in-out infinite}
+.tc-logo .t-logo{display:block;box-shadow:none !important}
+.tc-logo::after{content:"";position:absolute;inset:-30%;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.35) 50%,transparent 58%);transform:translateX(-110%);animation:tcSheen 6s ease-in-out 1.2s infinite}
+.t-card-head .tc-logo{position:relative}
+@keyframes tcFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes tcSheen{0%{transform:translateX(-110%)}30%,100%{transform:translateX(110%)}}
+@keyframes tcDrift{from{transform:translate(-54%,-50%)}to{transform:translate(-46%,-50%)}}
+@media (prefers-reduced-motion:reduce){.tc-logo,.tc-logo::after,.tc-beam,.t-card-head svg.tc-mc,.t-card-head.st-active::after{animation:none}}
+/* the "Live" chip on tournament cards matches the dashboard badge */
+.t-card-head .t-live{background:linear-gradient(90deg,#1463FF,#3D8BFF);border-color:rgba(255,255,255,.18);box-shadow:0 6px 16px -4px rgba(20,99,255,.6);letter-spacing:.04em}
