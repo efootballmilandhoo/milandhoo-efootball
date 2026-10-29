@@ -1,26 +1,17 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
     <div class="sp-bg"></div>
-    <div class="sp-fx">
-      <i class="sp-band" style="--x:-46vw;--w:7vmax;--d:.05s"></i>
-      <i class="sp-band thin" style="--x:-36vw;--w:3vmax;--d:.15s"></i>
-      <i class="sp-band thin" style="--x:-29vw;--w:1.4vmax;--d:.25s"></i>
-      <i class="sp-band" style="--x:30vw;--w:9vmax;--d:.1s"></i>
-      <i class="sp-band thin" style="--x:42vw;--w:2.4vmax;--d:.2s"></i>
-      <i class="sp-streak" style="--x:-30vw;--d:.4s"></i>
-      <i class="sp-streak" style="--x:8vw;--d:.9s"></i>
-      <i class="sp-streak" style="--x:34vw;--d:.65s"></i>
-      <i class="sp-streak" style="--x:-8vw;--d:1.3s"></i>
-    </div>
-    <div class="sp-grid"></div>
+    <i class="sp-panel l"></i><i class="sp-panel r"></i>
+    <i class="sp-edge e1"></i><i class="sp-edge e2"></i><i class="sp-edge e3"></i>
+    <i class="sp-streak s1"></i><i class="sp-streak s2"></i>
     <div class="sp-content">
       <div class="sp-slot"></div>
-      <div class="sp-name">MG EFOOTBALL</div>
+      <div class="sp-name"><span>MG EFOOTBALL</span></div>
       <div class="sp-sub">Milandhoo Community</div>
-      <div class="sp-rule"></div>
-      <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
+      <div class="sp-tabs"><span>Play</span><span class="hot">Compete</span><span>Belong</span></div>
     </div>
     <div class="sp-foot"><div class="sp-bar"><b></b></div></div>
+    <i class="sp-cut c1"></i><i class="sp-cut c2"></i><i class="sp-cut c3"></i>
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
@@ -40,29 +31,39 @@
     img.onerror = function(){ if(img.getAttribute('src') !== FALLBACK) img.src = FALLBACK; else { img.remove(); box.classList.add('noimg') } };
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
-    var MIN = rm || fast ? 700 : 2400, MAX = 6000;
-    var t0 = Date.now(), gone = false, leaving = false;
+    /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
+    var MIN = rm || fast ? 400 : 1400, MAX = 2800, t0 = Date.now(), leaving = false;
     function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
-    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false }
-    /* The app is ready once its first screen is drawn and live data has arrived (or it is offline). */
-    function appReady(){ var S = window.STORE; return !!(window.__splashOffline || (S && S.live && window.__splashDrawn)) }
+    function drawn(){ return !!(window.__splashDrawn || window.__splashOffline) }
+    function enter(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
     function leave(){
-      if(leaving) return; leaving = true; clearInterval(poll);
-      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content');
-      if(rm || !s.animate){ s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} setTimeout(finish, 470); return }
-      /* Two frames after the last render, so nothing else is drawing while it fades. */
-      requestAnimationFrame(function(){ requestAnimationFrame(function(){
-        var ease = 'cubic-bezier(.4,0,.2,1)';
-        content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(-8px)'}], {duration:380, easing:ease, fill:'forwards'});
-        box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.35)'}], {duration:620, delay:60, easing:ease, fill:'forwards'});
-        stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:700, delay:140, easing:ease, fill:'forwards'}).onfinish = finish;
-        setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 300);
-        setTimeout(finish, 1100);
-      }) });
+      if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
+      if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
+      /* eFootball-style wipe: slanted slabs sweep in, the app is swapped in underneath, and they sweep out. */
+      var w = document.createElement('div'); w.className = 'sp-wipe';
+      w.innerHTML = '<i class="w1"></i><i class="w2"></i><i class="w3"></i>';
+      document.body.appendChild(w);
+      var W = innerWidth, Hh = innerHeight, slabs = w.children, inEase = 'cubic-bezier(.5,0,.15,1)', outEase = 'cubic-bezier(.7,0,.5,1)';
+      var span = W + Hh*.38 + 24;
+      [].forEach.call(slabs, function(el, i){
+        var wd = i===2 ? span : i===1 ? span*.45 : span*.22, from = -wd - Hh*.3, to = W + Hh*.3;
+        el.style.width = wd + 'px';
+        if(i < 2){ el.animate([{transform:'translateX('+from+'px) skewX(-20deg)'}, {transform:'translateX('+to+'px) skewX(-20deg)'}], {duration:520, delay:i*40, easing:'cubic-bezier(.55,0,.35,1)', fill:'forwards'}); return }
+        /* One continuous motion (runs smoothly even while the app is being drawn underneath). */
+        var mid = -Hh*.19 - 12, D = 620, cover = .45;
+        el.animate([
+          {transform:'translateX('+from+'px) skewX(-20deg)', offset:0, easing:'cubic-bezier(.3,0,.2,1)'},
+          {transform:'translateX('+mid+'px) skewX(-20deg)', offset:cover, easing:'linear'},
+          {transform:'translateX('+(mid+6)+'px) skewX(-20deg)', offset:.5, easing:'cubic-bezier(.6,0,.4,1)'},
+          {transform:'translateX('+to+'px) skewX(-20deg)', offset:1}
+        ], {duration:D, delay:60, fill:'forwards'}).onfinish = function(){ w.remove() };
+        setTimeout(function(){ s.remove(); enter() }, 60 + D*cover + 16);
+      });
+      setTimeout(function(){ if(s.parentNode) s.remove(); if(w.parentNode) w.remove(); enter() }, 1400);
     }
-    var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && appReady()) leave() }, 120);
+    var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);
     setTimeout(leave, MAX);
     s.addEventListener('click', leave);
     window.__splashUp = true;
@@ -73,7 +74,7 @@
   document.addEventListener('visibilitychange', function(){
     if(document.hidden){ hiddenAt = Date.now(); return }
     if(hiddenAt && Date.now()-hiddenAt > 5*60e3 && !document.getElementById('splash')){
-      var w = document.createElement('div'); w.innerHTML = html; var s = w.firstElementChild; document.body.appendChild(s); window.__splashDrawn = true; play(s, false);
+      var d = document.createElement('div'); d.innerHTML = html; var s = d.firstElementChild; document.body.appendChild(s); play(s, false);
     }
     hiddenAt = 0;
   });

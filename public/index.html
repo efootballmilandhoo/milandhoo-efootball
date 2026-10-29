@@ -24,53 +24,67 @@
 <script>try{var H=document.documentElement,S=sessionStorage;if(navigator.webdriver||S.getItem('mg-nosplash'))H.classList.add('no-splash');if(S.getItem('mg-splash-fast'))H.classList.add('sp-fast');S.removeItem('mg-nosplash');S.removeItem('mg-splash-fast')}catch(e){}</script>
 <style>#splash{position:fixed;inset:0;z-index:9999;cursor:pointer;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#fff}
 .no-splash #splash{display:none}
-.sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#050C22;will-change:opacity,transform}
-.sp-bg{position:absolute;inset:0;background:radial-gradient(55% 40% at 50% 44%,rgba(20,99,255,.34),rgba(20,99,255,0) 70%),linear-gradient(155deg,#0C1F4A 0%,#06102A 50%,#030918 100%)}
-/* eFootball-style motion: big slanted light bands (the same lean as the logo's slashes), speed streaks and a dot grid */
-.sp-fx{position:absolute;inset:0;overflow:hidden;-webkit-mask-image:radial-gradient(60% 34% at 50% 46%,rgba(0,0,0,.18) 30%,#000 100%);mask-image:radial-gradient(60% 34% at 50% 46%,rgba(0,0,0,.18) 30%,#000 100%)}
-.sp-band{position:absolute;left:50%;top:50%;width:var(--w);height:240vmax;margin-top:-120vmax;opacity:0;
-  background:linear-gradient(180deg,rgba(20,99,255,0) 20%,rgba(20,99,255,.30) 44%,rgba(94,200,255,.22) 52%,rgba(20,99,255,0) 80%);
-  transform:translateX(var(--x)) rotate(30deg);animation:spBand 1.2s cubic-bezier(.16,1,.3,1) var(--d) forwards}
-.sp-band.thin{background:linear-gradient(180deg,rgba(94,200,255,0) 25%,rgba(94,200,255,.38) 48%,rgba(94,200,255,0) 75%)}
-.sp-streak{position:absolute;left:50%;top:50%;width:2px;height:26vmax;border-radius:2px;opacity:0;
-  background:linear-gradient(180deg,rgba(94,200,255,0),rgba(150,220,255,.9),rgba(94,200,255,0));
-  transform:translate(var(--x),70vh) rotate(30deg);animation:spStreak 1.5s cubic-bezier(.5,0,.5,1) var(--d) infinite}
-.sp-grid{position:absolute;inset:0;opacity:0;background-image:radial-gradient(rgba(120,160,240,.45) 1px,transparent 1.3px);background-size:18px 18px;
-  -webkit-mask-image:radial-gradient(42% 32% at 50% 44%,#000,transparent);mask-image:radial-gradient(42% 32% at 50% 44%,#000,transparent);animation:spGridIn 1.4s ease .3s forwards}
-.sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px;margin-top:-4vh;will-change:opacity,transform}
+.sp-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#040A1C}
+.sp-bg{position:absolute;inset:0;background:radial-gradient(60% 42% at 50% 44%,rgba(20,99,255,.32),rgba(20,99,255,0) 70%),linear-gradient(160deg,#0B1B3F 0%,#060F28 55%,#030817 100%)}
+/* Angled panels with cyan edges, the eFootball menu look */
+.sp-panel{position:absolute;top:-10%;bottom:-10%;width:60vw;transform:skewX(-20deg);opacity:0}
+.sp-panel.l{left:-34vw;background:linear-gradient(90deg,rgba(14,35,80,.0),rgba(20,60,140,.55));animation:spPanelL .7s cubic-bezier(.16,1,.3,1) .15s forwards}
+.sp-panel.r{right:-38vw;background:linear-gradient(270deg,rgba(14,35,80,.0),rgba(20,60,140,.45));animation:spPanelR .7s cubic-bezier(.16,1,.3,1) .2s forwards}
+.sp-edge{position:absolute;top:-10%;bottom:-10%;width:2px;background:linear-gradient(180deg,rgba(94,200,255,0),#5EC8FF 50%,rgba(94,200,255,0));transform:skewX(-20deg) scaleY(0);opacity:.85}
+.sp-edge.e1{left:calc(26vw - 2px);animation:spEdge .6s cubic-bezier(.16,1,.3,1) .35s forwards}
+.sp-edge.e2{left:calc(26vw + 10px);width:1px;opacity:.45;animation:spEdge .6s cubic-bezier(.16,1,.3,1) .42s forwards}
+.sp-edge.e3{right:22vw;animation:spEdge .6s cubic-bezier(.16,1,.3,1) .4s forwards}
+.sp-streak{position:absolute;top:50%;left:0;height:2px;width:30vw;border-radius:2px;background:linear-gradient(90deg,rgba(94,200,255,0),#9FDCFF,rgba(94,200,255,0));transform:translateX(-40vw) rotate(-20deg);opacity:0}
+.sp-streak.s1{top:24%;animation:spStreak 1.1s cubic-bezier(.5,0,.3,1) .5s infinite}
+.sp-streak.s2{top:76%;animation:spStreak 1.1s cubic-bezier(.5,0,.3,1) 1s infinite}
+/* Intro cut: three slanted slabs flash across */
+.sp-cut{position:absolute;top:-10%;bottom:-10%;left:0;width:45vw;transform:translateX(-80vw) skewX(-20deg);animation:spCut .55s cubic-bezier(.6,0,.3,1) forwards}
+.sp-cut.c1{background:#5EC8FF;width:12vw;animation-delay:0s}
+.sp-cut.c2{background:#1463FF;width:30vw;animation-delay:.05s}
+.sp-cut.c3{background:#0B1B3F;width:60vw;animation-delay:.1s}
+.sp-content{position:relative;display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 20px;margin-top:-4vh}
 .sp-slot{width:104px;height:104px;flex-shrink:0}
-.sp-logo{position:fixed;left:50%;top:40%;width:104px;height:104px;z-index:2;border-radius:26px;overflow:hidden;background:#0E2350;display:grid;place-items:center;will-change:opacity,transform;
-  box-shadow:0 0 0 1px rgba(255,255,255,.08),0 24px 60px -12px rgba(20,99,255,.6);opacity:0;animation:spLogo .8s cubic-bezier(.16,1,.3,1) .2s forwards}
+.sp-logo{position:fixed;left:50%;top:40%;width:104px;height:104px;z-index:2;border-radius:24px;overflow:hidden;background:#0E2350;display:grid;place-items:center;
+  box-shadow:0 0 0 1px rgba(94,200,255,.25),0 0 40px -6px rgba(20,99,255,.8);opacity:0;animation:spLogo .55s cubic-bezier(.3,1.5,.5,1) .3s forwards}
 .sp-logo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sp-logo svg{width:58%;height:58%;display:none}
 .sp-logo.noimg svg{display:block}
-.sp-logo::after{content:"";position:absolute;inset:-30%;z-index:2;background:linear-gradient(120deg,transparent 42%,rgba(255,255,255,.38) 50%,transparent 58%);transform:translateX(-120%);animation:spSheen 1.1s ease 1s forwards}
-.sp-name{margin-top:30px;height:44px;line-height:44px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-size:42px;white-space:nowrap;letter-spacing:.06em;margin-right:-.06em;opacity:0;transform:translateY(14px);animation:spUp .7s cubic-bezier(.16,1,.3,1) .6s forwards}
-.sp-sub{margin-top:8px;font-size:11px;font-weight:700;letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:#8FB0EC;opacity:0;animation:spFade .7s ease .85s forwards}
-.sp-rule{width:44px;height:2px;margin-top:18px;border-radius:2px;background:linear-gradient(90deg,#1463FF,#5EC8FF);transform:scaleX(0);animation:spGrow .6s cubic-bezier(.16,1,.3,1) 1.05s forwards}
-.sp-slogan{margin-top:16px;height:20px;display:flex;align-items:center;gap:12px;font-size:12.5px;font-weight:600;letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:#C3D2F0}
-.sp-slogan span{opacity:0;animation:spFade .6s ease forwards}
-.sp-slogan span:nth-child(1){animation-delay:1.2s}.sp-slogan span:nth-child(3){animation-delay:1.35s}.sp-slogan span:nth-child(5){animation-delay:1.5s}
-.sp-slogan i{width:3px;height:3px;border-radius:50%;background:#5EC8FF;opacity:0;animation:spFade .6s ease 1.35s forwards}
-.sp-foot{position:absolute;left:0;right:0;bottom:calc(44px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .8s ease 1s forwards}
-.sp-bar{width:96px;height:2px;border-radius:2px;background:rgba(255,255,255,.10);overflow:hidden}
-.sp-bar b{display:block;height:100%;width:40%;border-radius:2px;background:linear-gradient(90deg,#1463FF,#5EC8FF);animation:spLoad 1.2s cubic-bezier(.5,0,.5,1) infinite}
-@keyframes spBand{0%{opacity:0;transform:translateX(calc(var(--x) - 26vmax)) rotate(30deg)}100%{opacity:1;transform:translateX(var(--x)) rotate(30deg)}}
-@keyframes spStreak{0%{opacity:0;transform:translate(var(--x),70vh) rotate(30deg)}25%{opacity:.9}100%{opacity:0;transform:translate(calc(var(--x) + 75vh),-130vh) rotate(30deg)}}
-@keyframes spLogo{0%{opacity:0;transform:scale(.8)}100%{opacity:1;transform:none}}
+.sp-logo::after{content:"";position:absolute;inset:-30%;z-index:2;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.45) 50%,transparent 58%);transform:translateX(-120%);animation:spSheen .8s ease .75s forwards}
+.sp-name{margin-top:26px;height:48px;line-height:48px;overflow:hidden;padding:0 6px}
+.sp-name span{display:block;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-style:italic;font-size:46px;letter-spacing:.02em;white-space:nowrap;transform:translateY(105%) skewX(-6deg);animation:spRise .5s cubic-bezier(.16,1,.3,1) .5s forwards}
+.sp-sub{margin-top:6px;font-size:11px;font-weight:700;letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:#8FB0EC;opacity:0;animation:spFade .5s ease .7s forwards}
+.sp-tabs{margin-top:22px;display:flex;gap:8px}
+.sp-tabs span{display:inline-flex;align-items:center;height:28px;padding:0 14px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif;font-weight:800;font-style:italic;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#DCE6FA;
+  border:1px solid rgba(94,200,255,.45);background:rgba(11,27,63,.6);transform:skewX(-14deg) translateY(10px);opacity:0;animation:spTab .4s cubic-bezier(.16,1,.3,1) forwards}
+.sp-tabs span.hot{background:linear-gradient(90deg,#1463FF,#3D8BFF);border-color:#5EC8FF;color:#fff}
+.sp-tabs span:nth-child(1){animation-delay:.8s}.sp-tabs span:nth-child(2){animation-delay:.9s}.sp-tabs span:nth-child(3){animation-delay:1s}
+.sp-foot{position:absolute;left:0;right:0;bottom:calc(44px + env(safe-area-inset-bottom));display:flex;justify-content:center;opacity:0;animation:spFade .5s ease .9s forwards}
+.sp-bar{width:96px;height:3px;background:rgba(255,255,255,.10);overflow:hidden;transform:skewX(-20deg)}
+.sp-bar b{display:block;height:100%;width:40%;background:linear-gradient(90deg,#1463FF,#5EC8FF);animation:spLoad 1s cubic-bezier(.5,0,.5,1) infinite}
+/* Exit wipe (added on top of everything while the app is swapped in) */
+.sp-wipe{position:fixed;inset:0;z-index:10000;pointer-events:none;overflow:hidden}
+.sp-wipe i{position:absolute;top:0;bottom:0;left:0;will-change:transform;transform:translateX(-200vw)}
+.sp-wipe .w1{background:#5EC8FF}
+.sp-wipe .w2{background:#1463FF}
+.sp-wipe .w3{background:linear-gradient(90deg,#0B1B3F,#0E2350);box-shadow:-3px 0 0 #5EC8FF}
+@keyframes spPanelL{from{opacity:0;transform:translateX(-20vw) skewX(-20deg)}to{opacity:1;transform:skewX(-20deg)}}
+@keyframes spPanelR{from{opacity:0;transform:translateX(20vw) skewX(-20deg)}to{opacity:1;transform:skewX(-20deg)}}
+@keyframes spEdge{to{transform:skewX(-20deg) scaleY(1)}}
+@keyframes spStreak{0%{opacity:0;transform:translateX(-40vw) rotate(-20deg)}20%{opacity:.9}100%{opacity:0;transform:translateX(120vw) rotate(-20deg)}}
+@keyframes spCut{0%{transform:translateX(-80vw) skewX(-20deg)}100%{transform:translateX(140vw) skewX(-20deg)}}
+@keyframes spLogo{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:none}}
 @keyframes spSheen{to{transform:translateX(120%)}}
-@keyframes spUp{to{opacity:1;transform:none}}
-@keyframes spGrow{to{transform:none}}
+@keyframes spRise{to{transform:skewX(-6deg)}}
+@keyframes spTab{to{opacity:1;transform:skewX(-14deg)}}
 @keyframes spFade{to{opacity:1}}
 @keyframes spLoad{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
-@media (max-width:420px){.sp-name{font-size:38px}}
-@media (min-width:700px){.sp-slot,.sp-logo{width:120px;height:120px}.sp-logo{border-radius:30px}.sp-name{font-size:50px;height:52px;line-height:52px}.sp-slogan{font-size:13.5px}}
-@media (max-width:350px){.sp-name{font-size:36px}.sp-slogan{font-size:11px;letter-spacing:.26em;gap:9px}}
-/* Coming back after an automatic update: no intro, straight to the finished screen. */
+@media (max-width:420px){.sp-name span{font-size:42px}}
+@media (max-width:350px){.sp-name span{font-size:36px}.sp-tabs span{font-size:13px;padding:0 10px}}
+@media (min-width:700px){.sp-slot,.sp-logo{width:120px;height:120px}.sp-logo{border-radius:28px}.sp-name{height:56px;line-height:56px}.sp-name span{font-size:54px}.sp-tabs span{font-size:17px;height:32px}
+  .sp-panel{width:40vw}.sp-panel.l{left:-18vw}.sp-panel.r{right:-20vw}.sp-edge.e1{left:calc(22vw - 2px)}.sp-edge.e2{left:calc(22vw + 10px)}.sp-edge.e3{right:20vw}}
 .sp-fast #splash *,#splash.fast *{animation-duration:.01s!important;animation-delay:0s!important}
-.sp-fast #splash .sp-streak,.sp-fast #splash .sp-bar b,#splash.fast .sp-streak,#splash.fast .sp-bar b{animation-duration:1.5s!important}
-@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}.sp-streak{display:none}}
-@keyframes spGridIn{to{opacity:.5}}</style>
+.sp-fast #splash .sp-cut,#splash.fast .sp-cut{display:none}
+@media (prefers-reduced-motion:reduce){#splash *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}.sp-cut,.sp-streak{display:none}}</style>
 <link rel="stylesheet" href="/assets/app.7d12e2cf1e.css">
 <link rel="preload" as="style" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"></noscript>
@@ -81,26 +95,17 @@
 <div id="splash" aria-hidden="true">
   <div class="sp-stage">
     <div class="sp-bg"></div>
-    <div class="sp-fx">
-      <i class="sp-band" style="--x:-46vw;--w:7vmax;--d:.05s"></i>
-      <i class="sp-band thin" style="--x:-36vw;--w:3vmax;--d:.15s"></i>
-      <i class="sp-band thin" style="--x:-29vw;--w:1.4vmax;--d:.25s"></i>
-      <i class="sp-band" style="--x:30vw;--w:9vmax;--d:.1s"></i>
-      <i class="sp-band thin" style="--x:42vw;--w:2.4vmax;--d:.2s"></i>
-      <i class="sp-streak" style="--x:-30vw;--d:.4s"></i>
-      <i class="sp-streak" style="--x:8vw;--d:.9s"></i>
-      <i class="sp-streak" style="--x:34vw;--d:.65s"></i>
-      <i class="sp-streak" style="--x:-8vw;--d:1.3s"></i>
-    </div>
-    <div class="sp-grid"></div>
+    <i class="sp-panel l"></i><i class="sp-panel r"></i>
+    <i class="sp-edge e1"></i><i class="sp-edge e2"></i><i class="sp-edge e3"></i>
+    <i class="sp-streak s1"></i><i class="sp-streak s2"></i>
     <div class="sp-content">
       <div class="sp-slot"></div>
-      <div class="sp-name">MG EFOOTBALL</div>
+      <div class="sp-name"><span>MG EFOOTBALL</span></div>
       <div class="sp-sub">Milandhoo Community</div>
-      <div class="sp-rule"></div>
-      <div class="sp-slogan"><span>Play</span><i></i><span>Compete</span><i></i><span>Belong</span></div>
+      <div class="sp-tabs"><span>Play</span><span class="hot">Compete</span><span>Belong</span></div>
     </div>
     <div class="sp-foot"><div class="sp-bar"><b></b></div></div>
+    <i class="sp-cut c1"></i><i class="sp-cut c2"></i><i class="sp-cut c3"></i>
   </div>
   <div class="sp-logo">
     <svg viewBox="0 0 24 24" fill="none" stroke="#3D8BFF" stroke-width="2.6" stroke-linejoin="round"><path d="M3 19V5l9 8 9-8v14"/></svg>
@@ -120,29 +125,39 @@
     img.onerror = function(){ if(img.getAttribute('src') !== FALLBACK) img.src = FALLBACK; else { img.remove(); box.classList.add('noimg') } };
     img.src = logoSrc;
     if(fast) s.classList.add('fast');
-    var MIN = rm || fast ? 700 : 2400, MAX = 6000;
-    var t0 = Date.now(), gone = false, leaving = false;
+    /* Short: leaves once the first screen is drawn (about 1.6 s), sooner never, and never later than 3 s. */
+    var MIN = rm || fast ? 400 : 1400, MAX = 2800, t0 = Date.now(), leaving = false;
     function place(){ var r = slot.getBoundingClientRect(); box.style.left = r.left+'px'; box.style.top = r.top+'px'; box.style.width = r.width+'px'; box.style.height = r.height+'px' }
     place(); addEventListener('resize', place);
     if(document.fonts && document.fonts.ready) document.fonts.ready.then(place);
-    function finish(){ if(gone) return; gone = true; removeEventListener('resize', place); s.remove(); window.__splashUp = false }
-    /* The app is ready once its first screen is drawn and live data has arrived (or it is offline). */
-    function appReady(){ var S = window.STORE; return !!(window.__splashOffline || (S && S.live && window.__splashDrawn)) }
+    function drawn(){ return !!(window.__splashDrawn || window.__splashOffline) }
+    function enter(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }
     function leave(){
-      if(leaving) return; leaving = true; clearInterval(poll);
-      var stage = s.querySelector('.sp-stage'), content = s.querySelector('.sp-content');
-      if(rm || !s.animate){ s.style.transition = 'opacity .45s ease'; s.style.opacity = 0; window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} setTimeout(finish, 470); return }
-      /* Two frames after the last render, so nothing else is drawing while it fades. */
-      requestAnimationFrame(function(){ requestAnimationFrame(function(){
-        var ease = 'cubic-bezier(.4,0,.2,1)';
-        content.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'translateY(-8px)'}], {duration:380, easing:ease, fill:'forwards'});
-        box.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.35)'}], {duration:620, delay:60, easing:ease, fill:'forwards'});
-        stage.animate([{opacity:1, transform:'none'}, {opacity:0, transform:'scale(1.06)'}], {duration:700, delay:140, easing:ease, fill:'forwards'}).onfinish = finish;
-        setTimeout(function(){ window.__splashUp = false; if(window.playEnter) try{ playEnter() }catch(e){} }, 300);
-        setTimeout(finish, 1100);
-      }) });
+      if(leaving) return; leaving = true; clearInterval(poll); removeEventListener('resize', place);
+      if(rm || !s.animate){ s.style.transition = 'opacity .3s ease'; s.style.opacity = 0; enter(); setTimeout(function(){ s.remove() }, 320); return }
+      /* eFootball-style wipe: slanted slabs sweep in, the app is swapped in underneath, and they sweep out. */
+      var w = document.createElement('div'); w.className = 'sp-wipe';
+      w.innerHTML = '<i class="w1"></i><i class="w2"></i><i class="w3"></i>';
+      document.body.appendChild(w);
+      var W = innerWidth, Hh = innerHeight, slabs = w.children, inEase = 'cubic-bezier(.5,0,.15,1)', outEase = 'cubic-bezier(.7,0,.5,1)';
+      var span = W + Hh*.38 + 24;
+      [].forEach.call(slabs, function(el, i){
+        var wd = i===2 ? span : i===1 ? span*.45 : span*.22, from = -wd - Hh*.3, to = W + Hh*.3;
+        el.style.width = wd + 'px';
+        if(i < 2){ el.animate([{transform:'translateX('+from+'px) skewX(-20deg)'}, {transform:'translateX('+to+'px) skewX(-20deg)'}], {duration:520, delay:i*40, easing:'cubic-bezier(.55,0,.35,1)', fill:'forwards'}); return }
+        /* One continuous motion (runs smoothly even while the app is being drawn underneath). */
+        var mid = -Hh*.19 - 12, D = 620, cover = .45;
+        el.animate([
+          {transform:'translateX('+from+'px) skewX(-20deg)', offset:0, easing:'cubic-bezier(.3,0,.2,1)'},
+          {transform:'translateX('+mid+'px) skewX(-20deg)', offset:cover, easing:'linear'},
+          {transform:'translateX('+(mid+6)+'px) skewX(-20deg)', offset:.5, easing:'cubic-bezier(.6,0,.4,1)'},
+          {transform:'translateX('+to+'px) skewX(-20deg)', offset:1}
+        ], {duration:D, delay:60, fill:'forwards'}).onfinish = function(){ w.remove() };
+        setTimeout(function(){ s.remove(); enter() }, 60 + D*cover + 16);
+      });
+      setTimeout(function(){ if(s.parentNode) s.remove(); if(w.parentNode) w.remove(); enter() }, 1400);
     }
-    var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && appReady()) leave() }, 120);
+    var poll = setInterval(function(){ if(Date.now()-t0 >= MIN && drawn()) leave() }, 80);
     setTimeout(leave, MAX);
     s.addEventListener('click', leave);
     window.__splashUp = true;
@@ -153,7 +168,7 @@
   document.addEventListener('visibilitychange', function(){
     if(document.hidden){ hiddenAt = Date.now(); return }
     if(hiddenAt && Date.now()-hiddenAt > 5*60e3 && !document.getElementById('splash')){
-      var w = document.createElement('div'); w.innerHTML = html; var s = w.firstElementChild; document.body.appendChild(s); window.__splashDrawn = true; play(s, false);
+      var d = document.createElement('div'); d.innerHTML = html; var s = d.firstElementChild; document.body.appendChild(s); play(s, false);
     }
     hiddenAt = 0;
   });

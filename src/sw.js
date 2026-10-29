@@ -77,6 +77,12 @@ self.addEventListener('fetch', e => {
     e.respondWith((async () => {
       const cache = await caches.open(SHELL);
       const hit = await cache.match('/');
+      // Newest page from the network when it answers quickly; otherwise the cached one (instant, works offline).
+      try {
+        const net = fetch(req, { cache: 'no-store' });
+        const res = hit ? await Promise.race([net, new Promise(r => setTimeout(() => r(null), 2500))]) : await net;
+        if (res && res.ok) return res;
+      } catch (err) {}
       if (hit) return hit;
       try { return await fetch(req); }
       catch (err) { return new Response('<!doctype html><meta name="viewport" content="width=device-width"><p style="font-family:sans-serif;padding:24px">You are offline. Connect to the internet and try again.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }); }

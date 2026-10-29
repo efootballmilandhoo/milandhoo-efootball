@@ -3,7 +3,7 @@
    - Libraries and fonts from CDNs, and pictures from Supabase Storage, are cached after first use.
    - Live data (Supabase API and realtime) always goes to the network.
    - Push notifications. */
-const VERSION = '2122dd95fa';
+const VERSION = 'e2545a1219';
 const PRECACHE = ["/", "/assets/app.7d12e2cf1e.css", "/assets/app.3902a7659c.js", "/icons/icon-192.png?v=2", "/icons/icon-512.png?v=2", "/icons/badge-96.png?v=2", "/icons/apple-touch-icon.png?v=2", "/icons/favicon-32.png?v=2"];
 const SHELL = 'shell-' + VERSION;
 const RUNTIME = 'runtime-v1';
@@ -77,6 +77,12 @@ self.addEventListener('fetch', e => {
     e.respondWith((async () => {
       const cache = await caches.open(SHELL);
       const hit = await cache.match('/');
+      // Newest page from the network when it answers quickly; otherwise the cached one (instant, works offline).
+      try {
+        const net = fetch(req, { cache: 'no-store' });
+        const res = hit ? await Promise.race([net, new Promise(r => setTimeout(() => r(null), 2500))]) : await net;
+        if (res && res.ok) return res;
+      } catch (err) {}
       if (hit) return hit;
       try { return await fetch(req); }
       catch (err) { return new Response('<!doctype html><meta name="viewport" content="width=device-width"><p style="font-family:sans-serif;padding:24px">You are offline. Connect to the internet and try again.</p>', { headers: { 'Content-Type': 'text/html; charset=utf-8' } }); }
