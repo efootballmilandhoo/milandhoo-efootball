@@ -319,7 +319,7 @@ function dtField(id, value, defTime='23:59', attrs=''){
   return `<div class="dt-field" id="${id}" data-deftime="${defTime}" ${attrs}>
     <label class="dt-part" title="Pick a date"><span class="dt-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><input type="date" id="${id}_d" value="${d||''}" onclick="openPicker(this)" onchange="dtChanged('${id}')" aria-label="Date"></label>
     <label class="dt-part" title="Pick a time"><span class="dt-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><input type="time" id="${id}_t" value="${(t||'').slice(0,5)}" onclick="openPicker(this)" aria-label="Time"></label>
-    <button type="button" class="dt-clear" onclick="clearDT('${id}')" aria-label="Clear date and time" title="Clear">✕</button>
+    <button type="button" class="dt-clear" onclick="clearDT('${id}')" aria-label="Clear date and time" title="Clear">${ICON_X}</button>
   </div>`;
 }
 function openPicker(el){ try{ if(el.showPicker) el.showPicker() }catch{} }
@@ -419,7 +419,7 @@ function openPicModal(key){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const slot = PIC_SLOTS[key];
   openModal(`
-    <div class="modal-head"><div class="modal-title">${slot.title}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${slot.title}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">${imageFieldHTML('pic', slot.label, slot.hint, true)}</div>
     <div class="modal-foot"><button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button><button type="button" class="btn btn-primary" onclick="savePicFromModal('${key}')">Save picture</button></div>`, 'lg');
   initImageField('pic', slot.opts, STORE[key]?.image ? {image:STORE[key].image} : null);
@@ -1041,7 +1041,7 @@ function fbLeaderboard(){
   // Top 10 keeps everyone tied on 10th place.
   const all = top10 ? ranked.filter(x=>x.rank<=10) : ranked;
   const page = (part, i, n) => fbSheet(null, top10 ? 'Top 10 Rankings' : 'Community Leaderboard', `${top10 ? 'Community leaderboard' : 'All-time ranking'} by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
-    `<div class="fb-card"><table class="fbt fbt-lb"><colgroup><col class="c-rk"><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-pts"></colgroup><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>🏆</th><th class="pts">PTS</th></tr></thead><tbody>
+    `<div class="fb-card"><table class="fbt fbt-lb"><colgroup><col class="c-rk"><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-pts"></colgroup><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th><img class="i-th" src="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%238493B2%22%20stroke-width%3D%221.9%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M7.5%204.5h9v4.5a4.5%204.5%200%200%201-9%200z%22/%3E%3Cpath%20d%3D%22M7.5%206.5H5a2.5%202.5%200%200%200%202.6%203.5M16.5%206.5H19a2.5%202.5%200%200%201-2.6%203.5M12%2013.5v3.5M8.5%2020h7M9.5%2017h5%22/%3E%3C/svg%3E" alt="Titles"></th><th class="pts">PTS</th></tr></thead><tbody>
       ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm"><span class="lb-cell"><span class="lb-nm">${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td class="muted">${gd>0?'+':gd<0?'−':''}${Math.abs(gd)}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts ${String(x.s.pts).length>3?'long':''}">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
     <div class="fb-legend small"><b>${ptsLegendHTML()}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
@@ -1424,7 +1424,7 @@ function confirmDialog(title, message, okLabel='Confirm'){
   return new Promise(res=>{
     if(_confirmResolve){ const r=_confirmResolve; _confirmResolve=null; r(false) }
     openModal(`
-      <div class="modal-head"><div class="modal-title">${esc(title)}</div><button class="btn btn-ghost btn-icon" onclick="resolveConfirm(false)" aria-label="Close">✕</button></div>
+      <div class="modal-head"><div class="modal-title">${esc(title)}</div><button class="btn btn-ghost btn-icon" onclick="resolveConfirm(false)" aria-label="Close">${ICON_X}</button></div>
       <div class="modal-body"><p class="confirm-text">${esc(message)}</p></div>
       <div class="modal-foot"><button class="btn btn-secondary" onclick="resolveConfirm(false)">Cancel</button><button class="btn btn-danger-solid" onclick="resolveConfirm(true)">${esc(okLabel)}</button></div>
     `);
@@ -1581,7 +1581,7 @@ async function deliverFiles(files){
   const thumbs = imgs.slice(0, 6).map(f=>`<img src="${URL.createObjectURL(f.blob)}" alt="">`).join('');
   const isPdf = /pdf/.test(files[0].blob.type);
   openModal(`
-    <div class="modal-head"><div class="modal-title">${isPdf ? 'PDF ready' : files.length>1 ? `${files.length} images ready` : 'Image ready'}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${isPdf ? 'PDF ready' : files.length>1 ? `${files.length} images ready` : 'Image ready'}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
       ${thumbs ? `<div class="ready-thumbs">${thumbs}</div>` : `<div class="ready-file">${esc(files[0].name)}</div>`}
       <div class="text-sm text-muted">${isPdf ? 'Tap Save or share, then choose <b>Save to Files</b>, or send it straight to WhatsApp, Viber or Telegram.' : 'Tap Save or share, then choose <b>Save Image</b> (iPhone) or <b>Save</b> to keep them in your photos, or send them straight to WhatsApp, Viber or Telegram.'}</div>
@@ -1608,7 +1608,7 @@ function chooseExportFormat(pages){
     window.__exportScope = (id, el)=>{ scope = id; el.parentNode.querySelectorAll('button').forEach(b=>b.classList.toggle('on', b===el)) };
     window.__exportPick = v => finish(v ? {...v, scope} : v);
     openModal(`
-      <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">✕</button></div>
+      <div class="modal-head"><div class="modal-title">Export</div><button type="button" class="btn btn-ghost btn-icon" onclick="__exportPick&&__exportPick(null)" aria-label="Close">${ICON_X}</button></div>
       <div class="modal-body" style="display:flex;flex-direction:column;gap:12px">
         ${scopes ? `<div class="export-scope" role="group" aria-label="What to export">${scopes.map((o,i)=>`<button type="button" class="${i?'':'on'}" onclick="__exportScope('${o.id}', this)">${esc(o.label)}</button>`).join('')}</div>` : ''}
         <div class="text-sm text-muted">Facebook post size, 1080 × 1350, with large text that's easy to read in the feed.</div>
@@ -2005,6 +2005,7 @@ function statusBadge(s){ return `<span class="badge badge-${esc(s)}">${esc(STATU
 const CODE_COLORS = ['#1463FF','#B45309','#0B1B3F','#7C3AED','#0F7A4A','#BE185D','#0E7490'];
 function tCode(t){ const words = String(t.name||'').split(/\s+/).filter(Boolean); const season = String(t.name||'').match(/season\s*(\d+)/i); if(season) return 'S'+season[1]; const c = words.filter(w=>/^[A-Za-z0-9]/.test(w)).slice(0,2).map(w=>w[0]).join('').toUpperCase(); return c || 'MT' }
 function tColor(t){ return CODE_COLORS[[...String(t.id)].reduce((h,c)=>(h*31+c.charCodeAt(0))%997,0) % CODE_COLORS.length] }
+const ICON_X = '<svg class="i-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>', ICON_LOCK = '<svg class="i-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>', ICON_WARN = '<svg class="i-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4.2M12 17.2v.1"/></svg>', ICON_CUP_TH = '<svg class="i-th" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4.5h9v4.5a4.5 4.5 0 0 1-9 0z"/><path d="M7.5 6.5H5a2.5 2.5 0 0 0 2.6 3.5M16.5 6.5H19a2.5 2.5 0 0 1-2.6 3.5M12 13.5v3.5M8.5 20h7M9.5 17h5"/></svg>';
 const ICON = {
   users:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.5 14.2a5 5 0 0 1 3 5.3"/></svg>',
   trophy:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.5 4.5h9v4.5a4.5 4.5 0 0 1-9 0z"/><path d="M7.5 6.5H5a2.5 2.5 0 0 0 2.6 3.5M16.5 6.5H19a2.5 2.5 0 0 1-2.6 3.5M12 13.5v3.5M8.5 20h7M9.5 17h5"/></svg>',
@@ -2334,7 +2335,7 @@ function openPlayerModal(id){
   openModal(`
     <div class="modal-head">
       <div class="modal-title">${id?'Edit':'Add'} Player</div>
-      <button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button>
+      <button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button>
     </div>
     <div class="modal-body">
       ${imageFieldHTML('photo', 'Profile picture', 'Upload a photo, then drag and zoom until the face sits nicely in the circle.')}
@@ -2473,7 +2474,7 @@ function openCreateTournament(){
   openModal(`
     <div class="modal-head">
       <div class="modal-title">Create Tournament</div>
-      <button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button>
+      <button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button>
     </div>
     <div class="modal-body">
       <div class="form-group">
@@ -2610,7 +2611,7 @@ function updateConfigHelper(){
   const dist = distributePlayersToGroups(count, numGroups);
   const totalQ = dist.reduce((s,size)=>s+Math.min(size, qualify), 0);
   const bracket = nextPow2(totalQ);
-  const warn = dist.some(s=>s<qualify) ? `<br>⚠️ Some groups have fewer players than qualifiers.` : '';
+  const warn = dist.some(s=>s<qualify) ? `<br>${ICON_WARN} Some groups have fewer players than qualifiers.` : '';
   el.innerHTML = `
     <strong>Configuration Preview</strong><br>
     • Participants: <strong>${count} players</strong><br>
@@ -2806,7 +2807,7 @@ function openPrizeIconsModal(){
   PRIZE_DRAFT = {};
   PRIZE_SLOTS.forEach(([cls, n])=>{ PRIZE_DRAFT[cls] = prizeIcon(cls) || n });
   openModal(`
-    <div class="modal-head"><div class="modal-title">Prize icons</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Prize icons</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:18px">
       <div class="page-sub">Shown on the prize cards of every tournament. Pick a number or emoji, type your own, or upload a small picture (a square PNG with a clear background works best).</div>
       <div id="prizeIconRows">${prizeIconRows()}</div>
@@ -3040,7 +3041,7 @@ function openCheckboxRegisterModal(tid){
   const stats = calculateAllStats();
   const registered = new Set((t.registrations||[]).map(r=>r.playerId));
   openModal(`
-    <div class="modal-head"><div class="modal-title">Manage Participants</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Manage Participants</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="flex-between mb-16">
         <div class="text-sm text-muted">Tick the players who will take part.</div>
@@ -3205,7 +3206,7 @@ function fixtureRows(t, admin, canEdit){
       <td class="t-center"><span class="result-pill ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span></td>
       <td><span class="who" style="${done&&f.score2>f.score1?'color:var(--primary-dark)':''}">${renderAvatar(p2,30)}${esc(p2.name)}</span></td>
       <td class="t-right">${done ? `${f.autoDraw ? '<span class="badge badge-np" title="Not played by the deadline: recorded 0-0, no points">Not played · 0 pts</span>' : '<span class="badge badge-completed">Completed</span>'}` : `<span class="badge badge-pending">Pending</span>`}</td>
-      ${admin && canEdit ? `<td class="t-right no-export">${locked && (t.format==='league' || f.group) ? '<span class="fx-lock" title="Group results are locked">🔒 Locked</span>' : `<span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span>`}</td>`:''}
+      ${admin && canEdit ? `<td class="t-right no-export">${locked && (t.format==='league' || f.group) ? '<span class="fx-lock" title="Group results are locked">'+ICON_LOCK+' Locked</span>' : `<span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span>`}</td>`:''}
     </tr>`;
   }).join('');
 }
@@ -3216,7 +3217,7 @@ function groupLockNotice(t){
   const d = deadlineMsOf(t.groupDeadline); if(!Number.isFinite(d) || Date.now() < d) return '';
   const at = groupLockAt(t), stage = t.format==='league' ? 'League' : 'Group stage';
   return groupLocked(t)
-    ? `<div class="lock-note locked">🔒 <span><b>${stage} results are final.</b> They were locked 30 minutes after the deadline and can't be changed. Matches not played were recorded as 0–0 with no points.</span></div>`
+    ? `<div class="lock-note locked">${ICON_LOCK}<span><b>${stage} results are final.</b> They were locked 30 minutes after the deadline and can't be changed. Matches not played were recorded as 0–0 with no points.</span></div>`
     : `<div class="lock-note">⏳ <span><b>Deadline passed.</b> Unplayed matches were recorded as 0–0 with no points. Organisers can still correct scores until <b>${fmtDateTime(at)}</b>, then results lock.</span></div>`;
 }
 function renderAllFixturesTab(t, admin, canEditScores){
@@ -3434,7 +3435,7 @@ function editFixtureScore(tid, fid){
   if(!f) return;
   const p1 = STORE.players.find(x=>x.id===f.team1)||{name:'Unknown player'}, p2 = STORE.players.find(x=>x.id===f.team2)||{name:'Unknown player'};
   openModal(`
-    <div class="modal-head"><div class="modal-title">${fixtureStage(t,f)}</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${fixtureStage(t,f)}</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="score-entry">
         <div class="score-side">${renderAvatar(p1, 48)}<div class="score-name">${esc(p1.name)}</div><input class="form-input score-input" type="number" inputmode="numeric" id="fs_score1" value="${hasScore(f.score1)?f.score1:''}" min="0" max="99" aria-label="${esc(p1.name)} goals"></div>
@@ -3640,7 +3641,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
   const cols = `minmax(0,1fr) repeat(${labels.length}, minmax(42px,62px))${labels.length>1?' minmax(48px,70px)':''}`;
   const totalHead = labels.length>1 ? `<span class="ko-th ko-total-col">${fmt==='bo3'?'Series':'Aggregate'}</span>` : '';
   openModal(`
-    <div class="modal-head"><div class="modal-title">${esc(koCode(t, m))}${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${esc(koCode(t, m))}${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="page-sub">${fmt==='bo3'?'Best of 3: enter the goals in each game. First to win 2 games goes through; game 3 is only needed at 1–1.':fmt==='2leg'?'Two legs: enter the goals in each leg. The aggregate score decides who goes through.':'Single match: enter the final score.'} ${koTieMatch(t) ? 'If the aggregate is level, enter the tie-breaker match; if that is level too, the penalty shoot-out.' : 'If it ends level, enter the penalty shoot-out.'}</div>
       <div class="ko-entry-wrap">
@@ -3797,7 +3798,7 @@ function openCompleteTournamentModal(tid){
   if(t.fourthPlace) fourth = t.fourthPlace;
   const options = sel => `<option value="">— Select —</option>` + (t.registrations||[]).map(r=>`<option value="${r.playerId}" ${r.playerId===sel?'selected':''}>${esc(playerName(r.playerId))}</option>`).join('');
   openModal(`
-    <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league'?'Third place defaults to the losing semi-finalist with more wins; change it if you play a third-place match.':''} Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) are added to the leaderboard when you complete the tournament.</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
@@ -3842,7 +3843,7 @@ function editTournament(tid){
   const t = STORE.tournaments.find(x=>x.id===tid);
   const locked = t.groupsDrawn || t.knockoutDrawn;
   openModal(`
-    <div class="modal-head"><div class="modal-title">Edit Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Edit Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label" for="e_name">Name</label><input class="form-input" id="e_name" value="${esc(t.name)}" maxlength="80"></div>
       ${imageFieldHTML('tlogo', 'Tournament logo', 'Shown on the tournament page, cards and exported images. Drag and zoom to fit it in the square.')}
@@ -3945,7 +3946,7 @@ function openPlayerMatches(tid, pid){
     </li>`;
   }).join('');
   openModal(`
-    <div class="modal-head"><div class="pm-head">${renderAvatar(p, 40)}<div style="min-width:0"><div class="modal-title">${esc(p.name)}</div><div class="text-sm text-muted">${esc(t.name)}</div></div></div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="pm-head">${renderAvatar(p, 40)}<div style="min-width:0"><div class="modal-title">${esc(p.name)}</div><div class="text-sm text-muted">${esc(t.name)}</div></div></div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px">
       <div class="pm-sum">${sum(done.length,'Played')}${sum(W,'W')}${sum(D,'D')}${sum(L,'L')}${sum(`${gf}–${ga}`,'Goals')}</div>
       ${list.length ? `<ul class="pm-list">${rows}</ul>` : `<div class="empty"><div class="empty-title">No matches yet</div><div class="text-sm">Matches appear when the tournament starts.</div></div>`}
@@ -4155,7 +4156,7 @@ function settingRowHTML(label='', value=''){
   return `<div class="setting-row">
     <input class="form-input" data-cl maxlength="40" value="${esc(label)}" placeholder="Setting, e.g. Server" aria-label="Setting name">
     <input class="form-input" data-cv maxlength="60" value="${esc(value)}" placeholder="Value, e.g. Asia" aria-label="Setting value">
-    <button type="button" class="btn btn-ghost btn-icon" onclick="this.parentElement.remove()" aria-label="Remove setting">✕</button>
+    <button type="button" class="btn btn-ghost btn-icon" onclick="this.parentElement.remove()" aria-label="Remove setting">${ICON_X}</button>
   </div>`;
 }
 function addSettingRow(){ document.getElementById('rs_custom').insertAdjacentHTML('beforeend', settingRowHTML()); const ins = document.querySelectorAll('[data-cl]'); ins[ins.length-1].focus() }
@@ -4168,7 +4169,7 @@ function openRulesModal(tid, key){
   const rounds = key==='ko' ? koDeadlineRounds(t) : [];
   const dl = t.rules?.roundDeadlines || {};
   openModal(`
-    <div class="modal-head"><div class="modal-title">${esc(sec.title)} · rules &amp; settings</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${esc(sec.title)} · rules &amp; settings</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:20px">
       <div class="page-sub">${key==='tb' ? `Used when a 2-leg knockout tie in <b>${esc(t.name)}</b> is level on aggregate. These settings apply to the tie-breaker match only.` : `Only for <b>${esc(t.name)}</b>. Everyone can read these on the tournament's Rules tab.`}</div>
       <fieldset class="rules-edit">
@@ -4478,7 +4479,7 @@ function openHofModal(id){
   const thisYear = new Date().getFullYear();
   const years = []; for(let y=thisYear+1; y>=2015; y--) years.push(y);
   openModal(`
-    <div class="modal-head"><div class="modal-title">${id?'Edit':'Add'} achievement</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">${id?'Edit':'Add'} achievement</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label" for="h_player">Player</label>
@@ -4718,7 +4719,7 @@ function smsLink(phone, text){ const n = telegramNumber(phone); return n ? `sms:
 async function openMessagePlayersModal(tid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
-  openModal(`<div class="modal-head"><div class="modal-title">Message players</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+  openModal(`<div class="modal-head"><div class="modal-title">Message players</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body"><div class="text-sm text-muted">Getting each player's fixtures…</div></div>`, 'lg');
   try{
     const data = await tgCall({action:'texts', tid});
@@ -5025,7 +5026,7 @@ function openCommunityLogoModal(){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const st = STORE.settings || {};
   openModal(`
-    <div class="modal-head"><div class="modal-title">Community logo</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Community logo</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       ${imageFieldHTML('clogo', 'Logo', 'PNG with a transparent background works best. Drag and zoom to fit it in the square. Remove it to go back to the default mark.')}
     </div>
@@ -5039,7 +5040,7 @@ const COVER_OPTS = {shape:'wide', fit:'cover', aspect:3, out:1500, maxChars:2300
 function openCoverModal(){
   if(!isAdmin()){ toast('Admin access required', true); return }
   openModal(`
-    <div class="modal-head"><div class="modal-title">Dashboard cover picture</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Dashboard cover picture</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       ${imageFieldHTML('cover', 'Cover picture', 'A wide photo works best, like a team shot or a match screenshot. Drag and zoom to frame it. A dark blue shade is added on the left so the title stays readable, and phones show the middle of the picture.', true)}
     </div>
@@ -5053,7 +5054,7 @@ const SIDE_OPTS = {shape:'wide', fit:'cover', aspect:1.2, out:720, maxChars:2000
 function openSideCardModal(){
   if(!isAdmin()){ toast('Admin access required', true); return }
   openModal(`
-    <div class="modal-head"><div class="modal-title">Sidebar card picture</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Sidebar card picture</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       ${imageFieldHTML('side', 'Picture behind "Play · Compete · Belong"', 'A team photo or trophy shot works well. A dark blue shade is added so the words stay readable. Remove it to go back to plain navy.', true)}
     </div>
@@ -5082,7 +5083,7 @@ function saveCoverFromModal(){
 function openNameModal(){
   if(!isAdmin()){ toast('Admin access required', true); return }
   openModal(`
-    <div class="modal-head"><div class="modal-title">Community name</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Community name</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label" for="c_name">Name</label><input class="form-input" id="c_name" maxlength="24" value="${esc(commName())}" placeholder="e.g. MG EFOOTBALL" oninput="previewName()"></div>
       <div class="form-group"><label class="form-label" for="c_tag">Line under the name (optional)</label><input class="form-input" id="c_tag" maxlength="40" value="${esc(commTag())}" placeholder="e.g. eFOOTBALL COMMUNITY" oninput="previewName()"></div>
@@ -5186,7 +5187,7 @@ function lockAdmin(){ SS.set('unlock', null); closeModal(); toast('Admin locked'
 
 function openChangePin(){
   openModal(`
-    <div class="modal-head"><div class="modal-title">Change admin PIN</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Change admin PIN</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
       <div class="form-group"><label class="form-label" for="cp_old">Current PIN</label><input class="form-input pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" id="cp_old"></div>
       <div class="form-group"><label class="form-label" for="cp_new">New PIN (4–8 digits)</label><input class="form-input pin-input" type="password" inputmode="numeric" autocomplete="off" maxlength="8" id="cp_new"></div>
@@ -5752,7 +5753,7 @@ function renderNotifPanel(){
       <div><b>Updates</b><span>${n ? n+' new' : 'You’re all caught up'}</span></div>
       <div class="flex gap-8">
         ${n ? `<button type="button" class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>` : ''}
-        <button type="button" class="btn btn-ghost btn-icon" onclick="toggleNotifPanel(false)" aria-label="Close updates">✕</button>
+        <button type="button" class="btn btn-ghost btn-icon" onclick="toggleNotifPanel(false)" aria-label="Close updates">${ICON_X}</button>
       </div>
     </div>
     <div class="notif-list">
@@ -5830,7 +5831,7 @@ function openInstallModal(tab){
   installTab = tab || installTab || detectDevice();
   const cur = INSTALL_STEPS[installTab];
   openModal(`
-    <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="seg-tabs" role="tablist">${Object.entries(INSTALL_STEPS).map(([k,v])=>`<button type="button" role="tab" aria-selected="${k===installTab}" class="${k===installTab?'on':''}" onclick="openInstallModal('${k}')">${v.label}</button>`).join('')}</div>
       <ol class="install-steps">${cur.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>

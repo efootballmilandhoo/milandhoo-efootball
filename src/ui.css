@@ -1803,3 +1803,10 @@
 .fbt-lb th{letter-spacing:.08em}
 .fb-legend.small{font-size:calc(16px*var(--z));color:var(--muted);line-height:1.7}
 .fb-legend.small b{font-weight:600;color:var(--text-2)}
+/* ---- One icon style everywhere: thin line icons ---- */
+.i-x{display:block;width:18px;height:18px}
+.dt-clear .i-x{width:15px;height:15px;margin:auto}
+.i-inline{display:inline-block;width:1.05em;height:1.05em;vertical-align:-.17em;flex:none;color:currentColor}
+.lock-note .i-inline{margin-top:2px}
+.fx-lock{display:inline-flex;align-items:center;gap:5px}
+.fbt th .i-th{display:block;margin:0 auto;width:calc(22px*var(--z));height:calc(22px*var(--z));color:var(--muted)}

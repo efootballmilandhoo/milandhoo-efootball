@@ -137,7 +137,7 @@ function renderNotifPanel(){
       <div><b>Updates</b><span>${n ? n+' new' : 'You’re all caught up'}</span></div>
       <div class="flex gap-8">
         ${n ? `<button type="button" class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>` : ''}
-        <button type="button" class="btn btn-ghost btn-icon" onclick="toggleNotifPanel(false)" aria-label="Close updates">✕</button>
+        <button type="button" class="btn btn-ghost btn-icon" onclick="toggleNotifPanel(false)" aria-label="Close updates">${ICON_X}</button>
       </div>
     </div>
     <div class="notif-list">
@@ -215,7 +215,7 @@ function openInstallModal(tab){
   installTab = tab || installTab || detectDevice();
   const cur = INSTALL_STEPS[installTab];
   openModal(`
-    <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">✕</button></div>
+    <div class="modal-head"><div class="modal-title">Install the app</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
       <div class="seg-tabs" role="tablist">${Object.entries(INSTALL_STEPS).map(([k,v])=>`<button type="button" role="tab" aria-selected="${k===installTab}" class="${k===installTab?'on':''}" onclick="openInstallModal('${k}')">${v.label}</button>`).join('')}</div>
       <ol class="install-steps">${cur.steps.map(s=>`<li><span>${s}</span></li>`).join('')}</ol>
