@@ -3150,6 +3150,7 @@ function standingsTable(t, g, highlightN){
   return `
     <div class="table-wrap">
       <table class="group-table ${full?'st-full':''}" style="--s:${hasNR?8:7}">
+        ${full ? '<colgroup><col class="sc-pos"><col class="sc-name"><col class="sc-n"><col class="sc-n"><col class="sc-n"><col class="sc-n"><col class="sc-n"><col class="sc-g"><col class="sc-g"><col class="sc-gd"><col class="sc-pts"></colgroup>' : ''}
         <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th>${hasNR?'<th scope="col" class="nr" title="No result: not played by the deadline (0-0, no points)">NR</th>':''}<th scope="col" class="c-gf">GF</th><th scope="col" class="c-ga">GA</th><th scope="col">GD</th><th scope="col">Pts</th></tr></thead>
         <tbody>
           ${rows.map((row,i)=>{
@@ -3157,7 +3158,7 @@ function standingsTable(t, g, highlightN){
             const gd = row.gf-row.ga, q = i<highlightN;
             return `<tr class="${q?'qualify':'out'} ${i===highlightN && i>0?'cut':''} tap-row" tabindex="0" role="button" aria-label="${esc(p.name)}: see matches" onclick="openPlayerMatches('${t.id}','${row.playerId}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openPlayerMatches('${t.id}','${row.playerId}')}">
               <td><span class="pos">${i+1}</span></td>
-              <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${esc(p.name)}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
+              <td><span class="who">${renderAvatar(p, 32)}<span style="min-width:0">${(()=>{ const m = /^(MG\s+)(.+)$/i.exec(p.name||''); return m ? `<span class="mg-pre">${esc(m[1])}</span>${esc(m[2])}` : esc(p.name) })()}</span>${q?`<span class="q-chip ${finished?'done':''}" title="${isLeague?'Top of the table':'In a qualifying place'}">${chip}</span>`:''}</span></td>
               <td>${row.played}</td><td>${row.wins}</td><td>${row.draws}</td><td>${row.losses}</td>${hasNR?`<td class="nr">${row.nr||'<span class="dim">0</span>'}</td>`:''}
               <td class="c-gf">${row.gf}</td><td class="c-ga">${row.ga}</td><td class="c-gd ${gd>0?'pos-gd':gd<0?'neg-gd':''}" style="color:var(--text-2)">${gd>0?'+':''}${gd}</td>
               <td>${row.points}</td>

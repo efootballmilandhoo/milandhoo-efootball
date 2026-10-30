@@ -1948,3 +1948,93 @@
   #main .group-table.st-full td:nth-child(2){min-width:92px;max-width:none;width:auto !important}
   #main .group-table.st-full{min-width:300px !important;width:300px}
 }
+
+/* ---- Standings full table: an even grid ---- */
+#main .group-table.st-full{table-layout:fixed;width:100%;font-variant-numeric:tabular-nums}
+#main .group-table.st-full col.sc-pos{width:44px}
+#main .group-table.st-full col.sc-n{width:34px}
+#main .group-table.st-full col.sc-g{width:38px}
+#main .group-table.st-full col.sc-gd{width:44px}
+#main .group-table.st-full col.sc-pts{width:48px}
+#main .group-table.st-full :is(th,td){text-align:center}
+#main .group-table.st-full :is(th,td):nth-child(2){text-align:left}
+#main .group-table.st-full th{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#main .group-table.st-full td:nth-child(n+3){color:var(--text-2)}
+#main .group-table.st-full td.nr{color:var(--muted)}
+#main .group-table.st-full :is(th,td):nth-child(8){border-left:1px solid var(--divider)}
+#main .group-table.st-full td:last-child,#main .group-table.st-full th:last-child{background:color-mix(in srgb,var(--primary) 9%,transparent);color:var(--ink);font-weight:800}
+#main .group-table.st-full th:last-child{color:var(--primary-dark)}
+#main .group-table.st-full .who > span:not(.player-avatar):not(.q-chip){white-space:normal;overflow-wrap:normal;word-break:normal;line-height:1.25}
+@media(max-width:700px){
+  #main .group-table.st-full{font-size:12.5px}
+  #main .group-table.st-full col.sc-pos{width:32px}
+  #main .group-table.st-full col.sc-n{width:22px}
+  #main .group-table.st-full col.sc-g{width:25px}
+  #main .group-table.st-full col.sc-gd{width:31px}
+  #main .group-table.st-full col.sc-pts{width:30px}
+  #main .group-table.st-full :is(th,td){padding-left:0 !important;padding-right:0 !important;width:auto !important}
+  #main .group-table.st-full td:nth-child(2){padding-left:8px !important;padding-right:4px !important}
+  #main .group-table.st-full th{font-size:9.5px;letter-spacing:.02em}
+  #main .group-table.st-full td:last-child{font-size:14px}
+  #main .group-table.st-full .pos{min-width:24px;height:24px;font-size:12px}
+  #main .group-table.st-full .q-chip{margin-left:4px}
+}
+@media(max-width:360px){
+  #main .group-table.st-full{font-size:11.5px}
+  #main .group-table.st-full col.sc-n{width:19px}
+  #main .group-table.st-full col.sc-g{width:22px}
+  #main .group-table.st-full col.sc-gd{width:27px}
+  #main .group-table.st-full col.sc-pts{width:27px}
+  #main .group-table.st-full col.sc-pos{width:28px}
+  #main .group-table.st-full .who > span:not(.player-avatar):not(.q-chip){font-size:12px}
+}
+@media(max-width:300px){
+  #main .group-table.st-full{width:310px !important;min-width:310px !important}
+}
+
+/* Phones, full table: the shared "MG " prefix is left out so names have room */
+@media(max-width:700px){ #main .group-table.st-full .mg-pre{display:none} }
+/* Small phones, full table: numbers scroll sideways while # and the player stay pinned */
+@media(max-width:380px){
+  #main .table-wrap:has(> .st-full){overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  #main .group-table.st-full{width:360px !important;min-width:360px !important}
+  #main .group-table.st-full col.sc-pos{width:30px}
+  #main .group-table.st-full col.sc-name{width:96px}
+  #main .group-table.st-full col.sc-n{width:24px}
+  #main .group-table.st-full col.sc-g{width:27px}
+  #main .group-table.st-full col.sc-gd{width:32px}
+  #main .group-table.st-full col.sc-pts{width:32px}
+  #main .group-table.st-full :is(th,td):nth-child(-n+2){position:sticky;z-index:1;background:var(--surface)}
+  #main .group-table.st-full :is(th,td):nth-child(1){left:0}
+  #main .group-table.st-full :is(th,td):nth-child(2){left:30px;box-shadow:6px 0 8px -6px rgba(4,10,28,.35)}
+  #main .group-table.st-full tr.qualify :is(td):nth-child(-n+2){background:color-mix(in srgb,var(--primary) 7%,var(--surface))}
+}
+@media(max-width:700px){
+  #main .group-table.st-full .q-chip{display:none !important}
+  #main .group-table.st-full col.sc-pos{width:30px}
+  #main .group-table.st-full col.sc-n{width:21px}
+  #main .group-table.st-full col.sc-g{width:24px}
+  #main .group-table.st-full col.sc-gd{width:29px}
+  #main .group-table.st-full col.sc-pts{width:29px}
+  #main .group-table.st-full td:nth-child(2){padding-left:6px !important;padding-right:2px !important}
+}
+
+@media(max-width:700px){
+  #main .group-table.st-full .who > span:not(.player-avatar):not(.q-chip){font-size:13px;letter-spacing:-.01em}
+}
+@media(max-width:400px){
+  #main .group-table.st-full col.sc-pos{width:28px}
+  #main .group-table.st-full col.sc-n{width:20px}
+  #main .group-table.st-full col.sc-g{width:23px}
+  #main .group-table.st-full col.sc-gd{width:27px}
+  #main .group-table.st-full col.sc-pts{width:27px}
+  #main .group-table.st-full{font-size:12px}
+  #main .group-table.st-full .who > span:not(.player-avatar):not(.q-chip){font-size:12.5px}
+  #main .group-table.st-full .pos{min-width:22px;height:22px;font-size:11px}
+}
+@media(max-width:380px){
+  #main .group-table.st-full col.sc-name{width:96px}
+}
+@media(max-width:380px){
+  #main .group-table.st-full :is(th,td):last-child{position:sticky;right:0;z-index:1;background:color-mix(in srgb,var(--primary) 12%,var(--surface)) !important;box-shadow:-6px 0 8px -6px rgba(4,10,28,.35)}
+}
