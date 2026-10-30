@@ -751,11 +751,12 @@ function fbLeaderboard(){
 }
 
 function fbHof(){
-  const list = hofFiltered();
+  const yr = /^y\d{4}$/.test(EXPORT_CTX.scope||'') ? EXPORT_CTX.scope.slice(1) : '';
+  const list = hofFiltered().filter(h=>!yr || hofYearOf(h)===yr);
   if(!list.length){ toast('Nothing to export yet', true); return }
-  const page = (part, i, n) => fbSheet(null, 'Hall of Fame', `${list.length} achievements · ${fmtDate(new Date())}`,
+  const page = (part, i, n) => fbSheet(null, yr ? `Hall of Fame ${yr}` : 'Hall of Fame', `${list.length} achievement${list.length===1?'':'s'}${yr ? ` in ${yr}` : ''} · ${fmtDate(new Date())}`,
     `<div class="fb-card fb-list">${part.map(h=>{ const ty = HOF_TYPES[h.type] || HOF_TYPES.award; return `<div class="fb-hof">${medalHTML(ty.cls, ty.medal, 48)}<div class="mid"><b>${esc(hofPlayer(h).name)}</b><span>${esc(hofTitle(h))} · ${esc(h.tournament||'')}</span></div><div class="end"><i>${esc(hofOrg(h))}</i><span>${esc(hofDate(h))||''}</span></div></div>` }).join('')}</div>`, i+1, n);
-  return renderSheets(fbPack(list, page, {even:true}), FB.w, 'hall_of_fame');
+  return renderSheets(fbPack(list, page, {even:true}), FB.w, yr ? `hall_of_fame_${yr}` : 'hall_of_fame');
 }
 
 function fbDecorated(){
@@ -4308,7 +4309,11 @@ async function importHofFromTournaments(){
   rerender(); toast(`Added ${add.length} achievement${add.length>1?'s':''}`);
 }
 const HOF_PER_PAGE = 12;
+const hofYearOf = h => String(h.date||'').slice(0,4) || '';
 function exportHofSheet(){
+  // Export choices: every year together, or one year at a time.
+  const years = [...new Set(hofFiltered().map(hofYearOf).filter(Boolean))].sort().reverse();
+  EXPORT_CTX.scopes = years.length>1 ? [{id:'all', label:'All years'}, ...years.map(y=>({id:'y'+y, label:y}))] : null;
   const list = hofFiltered();
   const parts = chunk(list, HOF_PER_PAGE);
   const pages = parts.map((part, i)=>{
