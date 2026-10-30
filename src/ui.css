@@ -1897,3 +1897,6 @@
   .hof-li-actions{grid-column:3}
   .hof-chip{padding:2px 7px}
 }
+/* Tournament names are always shown in full */
+.hof-li-t, #main .hof-li-t{display:block !important;-webkit-line-clamp:unset !important;overflow:visible !important;white-space:normal !important;text-overflow:clip !important;overflow-wrap:break-word}
+:is(#main,#modal) .lbx .who > span:not(.player-avatar):not(.mv){white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:break-word;line-height:1.2}
