@@ -1138,20 +1138,32 @@ function exportPlayerFixturesSheet(t, pid, filename){
 }
 function fbPlayerFixtures(t, pid){
   if(!t || !pid){ toast('Nothing to export', true); return }
-  const list = getPlayerFixtures(t, pid).map((f,i)=>({...f, _i:i})).sort((a,b)=> (!!b.result - !!a.result) || (a.result ? String(b.at||'').localeCompare(String(a.at||'')) : 0) || a._i-b._i);
-  if(!list.length){ toast('No fixtures yet', true); return }
-  const done = list.filter(f=>f.result), wins = done.filter(f=>f.result==='win').length;
+  // Every result of the tournament on one page, in order: group stage first, then each knockout round reached.
+  const all = getPlayerFixtures(t, pid);
+  if(!all.length){ toast('No fixtures yet', true); return }
+  const ko = all.filter(f=>!/^(Group |Matchday )/.test(f.stage||''));
+  const grp = all.filter(f=>!ko.includes(f));
+  const done = all.filter(f=>f.result && f.result!=='np');
+  const W = done.filter(f=>f.result==='win').length, L = done.filter(f=>f.result==='loss').length, D = done.filter(f=>f.result==='draw').length;
   let gf=0, ga=0; done.forEach(f=>{ if(f.goals){ gf+=f.goals[0]; ga+=f.goals[1] } });
-  const res = r => r ? `<span class="fb-res ${r}">${r==='win'?'W':r==='loss'?'L':'D'}</span>` : '<span class="fb-res p">–</span>';
-  // Every fixture on one page: two columns of compact cards; text size adapts to the number of matches.
-  const page = fbSheet(t, playerName(pid), `${esc(t.name)} · Fixtures &amp; results`,
-    `<div class="fb-nums small">
-      ${statNum('matches','blue','Played', done.length, `${list.length-done.length} to play`)}
-      ${statNum('wins','purple','Wins', wins)}
-      ${statNum('goals','green','Goals', gf, `${ga} conceded`)}
-      ${statNum('avg','gold','Win rate', done.length ? Math.round(wins/done.length*100)+'%' : '–')}
+  // Furthest stage reached.
+  const lastKo = ko.at(-1), finalM = (t.knockoutBracket||[]).at(-1)?.[0];
+  const reached = !ko.length ? (t.knockoutDrawn ? 'Group stage' : (grp[0]?.stage || '—'))
+    : (lastKo.stage==='Final' && finalM?.winner) ? (finalM.winner===pid ? 'Champion' : 'Runner-up')
+    : lastKo.result==='win' && !(t.knockoutBracket||[]).some(r=>r.some(m=>m.round!==lastKo.stage && (m.team1===pid||m.team2===pid) && !m.winner)) ? lastKo.stage : lastKo.stage;
+  const res = r => r==='np' ? '<span class="fb-res np">NP</span>' : r ? `<span class="fb-res ${r}">${r==='win'?'W':r==='loss'?'L':'D'}</span>` : '<span class="fb-res p">–</span>';
+  const grpCard = f => `<div class="fb-pfc">${res(f.result)}<div class="mid"><b>${esc(f.opponent ? playerName(f.opponent) : 'TBD')}</b></div><span class="sc ${f.score && f.result!=='np'?'':'pending'}">${f.result==='np' ? 'NP' : f.score ? esc(f.score.replace(' - ','–')) : 'Pending'}</span></div>`;
+  const koRow = f => `<div class="fb-pko">${res(f.result)}<div class="mid"><span class="rd">${esc(f.stage||'')}</span><b>vs ${esc(f.opponent ? playerName(f.opponent) : 'TBD')}</b>${f.detail?`<small>${esc(f.detail)}</small>`:''}</div><span class="sc ${f.score?'':'pending'}">${f.score ? esc(f.score.replace(' - ','–').replace(/ (agg|games)$/,'')) + (/ agg$/.test(f.score)?'<i>agg</i>':/ games$/.test(f.score)?'<i>games</i>':'') : 'Pending'}</span></div>`;
+  const grpTitle = t.format==='league' ? 'League' : (grp[0]?.stage || 'Group stage');
+  const page = fbSheet(t, playerName(pid), `${esc(t.name)} · All results`,
+    `<div class="fb-psum">
+      <div><span>Played</span><b>${done.length}</b></div>
+      <div><span>W · D · L</span><b>${W}<i>·</i>${D}<i>·</i>${L}</b></div>
+      <div><span>Goals</span><b>${gf}<i>–</i>${ga}</b></div>
+      <div class="hl"><span>Reached</span><b>${esc(reached)}</b></div>
     </div>
-    <div class="fb-pfgrid ${list.length<=12?'one':''}">${list.map(f=>`<div class="fb-pfc">${res(f.result)}<div class="mid"><b>vs ${esc(f.opponent ? playerName(f.opponent) : 'TBD')}</b><span>${esc(f.stage||'')}${f.detail?` · ${esc(f.detail)}`:''}</span></div><span class="sc ${f.score?'':'pending'}">${f.score ? esc(f.score.replace(' - ','–')) : 'Pending'}</span></div>`).join('')}</div>`, 1, 1);
+    ${grp.length ? `<div class="fb-psec"><div class="fb-psec-h"><b>${esc(grpTitle)}</b><span>${grp.filter(f=>f.result).length}/${grp.length} played</span></div><div class="fb-pfgrid">${grp.map(grpCard).join('')}</div></div>` : ''}
+    ${ko.length ? `<div class="fb-psec"><div class="fb-psec-h"><b>Knockout</b><span>${ko.length} ${ko.length===1?'round':'rounds'}</span></div><div class="fb-pkos">${ko.map(koRow).join('')}</div></div>` : ''}`, 1, 1);
   return renderSheets([page], FB.w, `${slug(playerName(pid))}_fixtures`);
 }
 
@@ -1736,9 +1748,10 @@ function bracketHTML(t, admin){
   const rounds = t.knockoutBracket || [];
   const final = rounds.at(-1)?.[0];
   const multi = koLegCount(t.knockoutFormat)>1;
+  const cur = rounds.findIndex(r=>r.some(m=>m && !m.isBye && m.team1 && m.team2 && !m.winner));
   return `<div class="bracket ${Object.values(t.rules?.roundDeadlines||{}).some(Boolean)?'has-dl':''}">
     ${rounds.map((round,ri)=>`
-      <div class="bracket-round ${multi?'multi':''}">
+      <div class="bracket-round ${multi?'multi':''} ${ri===cur?'is-current':''}">
         <div class="bracket-round-title">${esc(round[0]?.round||'Round '+(ri+1))}${(t.rules?.roundDeadlines||{})[round[0]?.round] ? `<span class="round-dl">Deadline ${fmtShort(t.rules.roundDeadlines[round[0].round])}</span>` : ''}</div>
         ${round.map(m=>`
           <div class="bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''} ${ri===rounds.length-1?'final':''}">
@@ -2767,7 +2780,8 @@ function deadlineRulesHTML(t){
 function tournamentIntro(t){
   const hasStandings = t.format==='group_knockout' || t.format==='league';
   const isDeadlinePassed = t.groupDeadline && new Date(t.groupDeadline) < new Date();
-  const showDeadline = t.groupDeadline && hasStandings && t.status!=='completed';
+  // Once the deadline has passed the notice is no longer useful, so it is only shown before it.
+  const showDeadline = t.groupDeadline && hasStandings && t.status!=='completed' && !isDeadlinePassed;
   const prize = (cls, n, label, value, winner) => `
     <div class="prize-card ${cls}">${prizeIconHTML(cls, n)}<div style="min-width:0"><div class="prize-label">${label}</div><div class="prize-value">${esc(value||'—')}</div>${winner?`<div class="prize-winner">${esc(playerName(winner))}</div>`:''}</div></div>`;
   return `
@@ -2879,7 +2893,7 @@ function nextStepText(t){
 
 function switchTab(tabId){
   // Standings and Fixtures always open on "All"; a group picked inside the tab stays until you leave it.
-  if(tabId!==currentTab && tabId==='tab-knockout') koRoundPick = {};
+  if(tabId!==currentTab && tabId==='tab-knockout'){ koRoundPick = {}; koScrolled = false }
   if(tabId!==currentTab && (tabId==='tab-standings' || tabId==='tab-fixtures') && selectedGroup && selectedGroup!=='*'){
     selectedGroup = '*';
     ['tab-standings','tab-fixtures'].forEach(id=>{ const el = document.getElementById(id); if(el){ el.innerHTML = ''; el.dataset.lazy = '1' } });
@@ -3558,7 +3572,7 @@ function renderKnockoutTab(t, admin, canEditScores){
           ${[['bracket','Bracket'],['cards','<span class="ko-x-long">Match cards</span><span class="ko-x-short">Cards</span>']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
         </div>
       </div>
-      ${koView()==='cards' ? koCardsHTML(t, admin) : bracketHTML(t, admin)}
+      ${koView()==='cards' ? koCardsHTML(t, admin) : (setTimeout(scrollKoCurrent, 0), bracketHTML(t, admin))}
       <div class="round-export-section no-export">
         <div class="round-export-title">Export</div>
         <div class="ko-exports">
@@ -3574,11 +3588,21 @@ function renderKnockoutTab(t, admin, canEditScores){
 function koView(){ try{ return localStorage.getItem('mg-ko-view') || (matchMedia('(max-width: 700px)').matches ? 'cards' : 'bracket') }catch{ return 'bracket' } }
 function setKoView(v){ try{ localStorage.setItem('mg-ko-view', v) }catch{} rerender() }
 /* Round picker for the match cards: All, RO16, QF, SF, Final. Opens on All. */
-let koRoundPick = {};
+let koRoundPick = {}, koScrolled = false;
+/* Bracket view: bring the round being played into view once, when the tab opens. */
+function scrollKoCurrent(){
+  if(koScrolled) return;
+  const b = document.querySelector('#main .bracket'), r = b && b.querySelector('.bracket-round.is-current');
+  if(!b || !r) return;
+  koScrolled = true;
+  b.scrollLeft = Math.max(0, b.scrollLeft + r.getBoundingClientRect().left - b.getBoundingClientRect().left - 8);
+}
 function setKoRound(tid, v){ koRoundPick[tid] = v; rerender() }
 function koCardsHTML(t, admin){
   const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
   const final = rounds.at(-1)?.[0];
+  // Opens on the round being played now (the first with an undecided tie); after the final, on All.
+  if(koRoundPick[t.id]===undefined){ const cur = rounds.findIndex(r=>r.some(m=>m && !m.isBye && m.team1 && m.team2 && !m.winner)); koRoundPick[t.id] = cur>=0 ? cur : '*' }
   const pick = rounds[koRoundPick[t.id]] ? koRoundPick[t.id] : '*';
   const picker = rounds.length>1 ? `<div class="segmented ko-round-pick" role="group" aria-label="Choose round">
       <button type="button" class="seg ${pick==='*'?'active':''}" aria-pressed="${pick==='*'}" onclick="setKoRound('${t.id}','*')">All</button>
