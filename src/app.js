@@ -696,14 +696,21 @@ function fbFixtures(t){
 function fbRenumber(pages){ const n = pages.length; return pages.map((h, i)=>h.replace(/(<span class="xs-fbar-date">Exported [^<]*?)( · Page \d+ of \d+)?(<\/span>)/, (m, a, b, c)=>a + (n>1 ? ` · Page ${i+1} of ${n}` : '') + c)) }
 
 function fbTie(t, m){
-  const r = koResult(t, m), fmt = t.knockoutFormat, labels = koLegLabels(fmt), legs = koLegs(t, m);
+  // Legs (or games) sit in columns on each player's row: name | L1 | L2 | AGG.
+  const r = koResult(t, m), fmt = t.knockoutFormat, labels = r.legacy ? [] : koLegLabels(fmt), legs = koLegs(t, m);
+  const multi = labels.length>0 && !m.isBye;
   const name = id => id ? esc(playerName(id)) : (m.isBye ? 'Bye' : 'TBD');
-  const row = side => { const id = side ? m.team2 : m.team1; return `<div class="fbk-row ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"><span class="nm">${name(id)}</span><span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>` };
+  const cols = multi ? ` style="--legs:${labels.length}"` : '';
+  const row = side => {
+    const id = side ? m.team2 : m.team1;
+    const cells = multi ? legs.map(l=>{ const v = l[side], o = l[1-side], has = hasScore(v) && hasScore(o); return `<span class="lg ${has && v>o?'won':''} ${has?'':'na'}">${has ? v : '–'}</span>` }).join('') : '';
+    return `<div class="fbk-row ${multi?'legs':''} ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"${cols}><span class="nm">${name(id)}</span>${cells}<span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>`;
+  };
   const bits = [];
-  if(labels.length && !r.legacy) legs.forEach((l,i)=>{ if(hasScore(l[0]) && hasScore(l[1])) bits.push(`${labels[i]} ${l[0]}–${l[1]}`) });
   if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) bits.push(`Tie-breaker ${m.tb.a}–${m.tb.b}`);
   if(m.pens && hasScore(m.pens.a) && hasScore(m.pens.b)) bits.push(`Pens ${m.pens.a}–${m.pens.b}`);
-  return `<div class="fbk ${m.isBye?'bye':''}"><div class="fbk-h">${esc(koCode(t, m))}${koTag(m) ? `<span>${esc(koTag(m))}</span>` : ''}</div>${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
+  const head = `<div class="fbk-h ${multi?'legs':''}"${cols}><span class="cd">${esc(koCode(t, m))}${koTag(m) ? `<i>${esc(koTag(m))}</i>` : ''}</span>${multi ? labels.map(l=>`<span class="lh">${l}</span>`).join('') + `<span class="lh tot">${koTotalLabel(fmt)}</span>` : ''}</div>`;
+  return `<div class="fbk ${m.isBye?'bye':''}">${head}${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
 }
 function fbBracketPages(t, rounds){
   const final = t.knockoutBracket.at(-1)?.[0];

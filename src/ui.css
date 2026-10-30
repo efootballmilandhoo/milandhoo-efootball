@@ -2038,3 +2038,16 @@
 @media(max-width:380px){
   #main .group-table.st-full :is(th,td):last-child{position:sticky;right:0;z-index:1;background:color-mix(in srgb,var(--primary) 12%,var(--surface)) !important;box-shadow:-6px 0 8px -6px rgba(4,10,28,.35)}
 }
+
+/* Knockout exports: leg scores in columns on each player's row */
+.fbk-h.legs,.fbk-row.legs{display:grid;grid-template-columns:minmax(0,1fr) repeat(var(--legs),calc(58px*var(--z))) calc(78px*var(--z));align-items:center;column-gap:calc(6px*var(--z))}
+.fbk-h .cd{display:flex;align-items:baseline;gap:calc(10px*var(--z));min-width:0}
+.fbk-h .cd i{font-style:normal;color:var(--muted);font-weight:700;letter-spacing:.04em}
+.fbk-h .lh{text-align:center;color:var(--muted);font-size:calc(14px*var(--z));letter-spacing:.08em}
+.fbk-h .lh.tot{text-align:right;color:var(--primary-dark)}
+.fbk-h.legs{padding-bottom:calc(4px*var(--z))}
+.fbk-row.legs .lg{text-align:center;font-weight:600;font-size:calc(24px*var(--z));color:var(--text-2);font-variant-numeric:tabular-nums}
+.fbk-row.legs .lg.won{color:var(--ink);font-weight:800}
+.fbk-row.legs .lg.na{color:var(--muted);opacity:.6}
+.fbk-row.legs .tot{text-align:right}
+.fbk-row.legs .lg + .tot{border-left:1px solid var(--divider);height:100%;display:flex;align-items:center;justify-content:flex-end}
