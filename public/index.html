@@ -68,11 +68,11 @@
 /* exit: the sheet's lower edge gets rounded corners and a shadow while it lifts */
 #splash.lifting{border-radius:0 0 28px 28px;overflow:hidden;box-shadow:0 30px 80px rgba(2,8,24,.55);will-change:transform}
 .sp-shade{position:fixed;inset:0;z-index:9998;pointer-events:none;background:rgba(5,12,32,.55)}</style>
-<link rel="stylesheet" href="/assets/app.ca7129222f.css">
+<link rel="stylesheet" href="/assets/app.030301d428.css">
 <link rel="preload" as="style" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" crossorigin="anonymous" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap"></noscript>
 <script id="sbjs" src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js" async crossorigin="anonymous" onerror="window.__sbFailed=1"></script>
-<script src="/assets/app.a9c4643bf7.js" defer></script>
+<script src="/assets/app.8e593bfded.js" defer></script>
 </head>
 <body>
 <div id="splash" aria-hidden="true">
@@ -187,7 +187,7 @@
   <div class="mh-actions">
     <button type="button" class="icon-btn bell-btn" data-bell onclick="toggleNotifPanel()" aria-haspopup="dialog" aria-label="Updates"></button>
     <button type="button" class="user-chip mini" data-userchip onclick="navigate('admin')" aria-label="Admin panel"></button>
-    <button type="button" class="icon-btn menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+    <button type="button" class="icon-btn menu-btn" onclick="toggleSidebar()" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
   </div>
@@ -195,7 +195,8 @@
 <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
 
 <div class="app">
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Menu">
+    <button type="button" class="sb-close" onclick="toggleSidebar(false)" aria-label="Close menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="brand-logo">
       <span data-mark="44"><span class="logo-mark" style="width:44px;height:44px"></span></span>
       <div><div class="brand-name" data-cname>MG EFOOTBALL</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>

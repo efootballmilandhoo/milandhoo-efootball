@@ -7,7 +7,7 @@
   <div class="mh-actions">
     <button type="button" class="icon-btn bell-btn" data-bell onclick="toggleNotifPanel()" aria-haspopup="dialog" aria-label="Updates"></button>
     <button type="button" class="user-chip mini" data-userchip onclick="navigate('admin')" aria-label="Admin panel"></button>
-    <button type="button" class="icon-btn menu-btn" onclick="toggleSidebar()" aria-label="Open menu">
+    <button type="button" class="icon-btn menu-btn" onclick="toggleSidebar()" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
     </button>
   </div>
@@ -15,7 +15,8 @@
 <div class="mobile-overlay" id="mobileOverlay" onclick="toggleSidebar()"></div>
 
 <div class="app">
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="Menu">
+    <button type="button" class="sb-close" onclick="toggleSidebar(false)" aria-label="Close menu"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     <div class="brand-logo">
       <span data-mark="44"><span class="logo-mark" style="width:44px;height:44px"></span></span>
       <div><div class="brand-name" data-cname>MG EFOOTBALL</div><div class="brand-sub" data-ctag>eFOOTBALL COMMUNITY</div></div>

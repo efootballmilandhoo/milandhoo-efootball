@@ -318,10 +318,16 @@ function renderLoading(){ renderSkeleton() }
 /* =========================
    MOBILE SIDEBAR
    ========================= */
-function toggleSidebar(){
-  document.getElementById('sidebar').classList.toggle('open');
-  document.getElementById('mobileOverlay').classList.toggle('show');
+/* Phone menu: a panel that slides in from the right, next to the menu button. */
+function toggleSidebar(force){
+  const sb = document.getElementById('sidebar'), ov = document.getElementById('mobileOverlay');
+  const open = typeof force==='boolean' ? force : !sb.classList.contains('open');
+  sb.classList.toggle('open', open); ov.classList.toggle('show', open);
+  document.documentElement.classList.toggle('menu-open', open);
+  document.querySelectorAll('.menu-btn').forEach(b=>b.setAttribute('aria-expanded', open));
+  if(open) setTimeout(()=>sb.querySelector('.sb-close')?.focus({preventScroll:true}), 280);
 }
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.getElementById('sidebar')?.classList.contains('open')) toggleSidebar(false) });
 
 /* =========================
    TOURNAMENT ENGINE
@@ -1013,8 +1019,7 @@ function navigate(view, param, opts={}){
     try{ history.pushState({n:NAV_STACK.length}, ''); navHistoryOK = true }catch{ navHistoryOK = false }
   }
   currentView = view;
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('mobileOverlay').classList.remove('show');
+  toggleSidebar(false);
   window.scrollTo(0,0);
   rerender();
   playEnter();

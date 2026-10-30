@@ -1900,3 +1900,19 @@
 /* Tournament names are always shown in full */
 .hof-li-t, #main .hof-li-t{display:block !important;-webkit-line-clamp:unset !important;overflow:visible !important;white-space:normal !important;text-overflow:clip !important;overflow-wrap:break-word}
 :is(#main,#modal) .lbx .who > span:not(.player-avatar):not(.mv){white-space:normal !important;overflow:visible !important;text-overflow:clip !important;overflow-wrap:break-word;line-height:1.2}
+
+/* ---- Phone menu: slides in from the right (where the menu button is) ---- */
+.sb-close{display:none}
+@media(max-width:900px){
+  .sidebar{left:auto !important;right:0;width:min(320px,86vw);border-right:0;border-left:1px solid var(--border);border-radius:22px 0 0 22px;
+    transform:translateX(105%) !important;transition:transform .32s cubic-bezier(.32,.72,0,1),box-shadow .32s ease;
+    padding-right:calc(18px + env(safe-area-inset-right, 0px)) !important;padding-left:18px !important;padding-top:calc(20px + env(safe-area-inset-top, 0px)) !important;overscroll-behavior:contain}
+  .sidebar.open{transform:none !important;box-shadow:-24px 0 60px rgba(4,10,28,.35)}
+  .sidebar .nav-item{animation:none !important}
+  .sb-close{display:flex;align-items:center;justify-content:center;align-self:flex-end;flex:none;width:40px;height:40px;margin:-4px -4px -12px 0;border-radius:12px;border:1px solid var(--border);background:var(--surface-2);color:var(--ink)}
+  .sb-close:active{transform:scale(.94)}
+  .mobile-overlay{display:block !important;opacity:0;pointer-events:none;transition:opacity .3s ease;background:rgba(4,10,28,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+  .mobile-overlay.show{opacity:1;pointer-events:auto}
+  html.menu-open, html.menu-open body{overflow:hidden}
+}
+@media(max-width:900px) and (prefers-reduced-motion:reduce){.sidebar,.mobile-overlay{transition:none}}
