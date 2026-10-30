@@ -3140,14 +3140,16 @@ function pickGroup(tid, name){
 
 function standingsTable(t, g, highlightN){
   const rows = computeStandings(t, g);
-  const hasNR = false; // NR is shown in exports only, not in the app
+  // Full view shows every column (GF, GA and NR); compact view keeps one line per player on phones.
+  const full = standView()==='full';
+  const hasNR = full;
   const groupFx = (t.fixtures||[]).filter(f=>f.group===g.name);
   const finished = groupFx.length>0 && groupFx.every(f=>hasScore(f.score1)&&hasScore(f.score2));
   const isLeague = t.format==='league';
   const chip = isLeague ? (finished ? 'Champion' : 'Leader') : (finished ? 'Qualified' : 'Q');
   return `
     <div class="table-wrap">
-      <table class="group-table" style="--s:${hasNR?8:7}">
+      <table class="group-table ${full?'st-full':''}" style="--s:${hasNR?8:7}">
         <thead><tr><th scope="col">#</th><th scope="col">Player</th><th scope="col">P</th><th scope="col">W</th><th scope="col">D</th><th scope="col">L</th>${hasNR?'<th scope="col" class="nr" title="No result: not played by the deadline (0-0, no points)">NR</th>':''}<th scope="col" class="c-gf">GF</th><th scope="col" class="c-ga">GA</th><th scope="col">GD</th><th scope="col">Pts</th></tr></thead>
         <tbody>
           ${rows.map((row,i)=>{
@@ -3166,6 +3168,8 @@ function standingsTable(t, g, highlightN){
     </div>`;
 }
 
+function standView(){ try{ return localStorage.getItem('mg-st-view') || 'compact' }catch{ return 'compact' } }
+function setStandView(v){ try{ localStorage.setItem('mg-st-view', v) }catch{} rerender() }
 function renderStandingsTab(t, admin, canEditScores){
   if(!t.groupsDrawn || !t.groupData?.length){
     return `<div class="card empty"><div class="empty-title">${t.format==='league'?'League not started':'Groups not drawn yet'}</div><div class="text-sm">${admin?'Press Start tournament above to draw and create fixtures.':'Standings appear once the organisers start the tournament.'}</div></div>`;
@@ -3179,13 +3183,16 @@ function renderStandingsTab(t, admin, canEditScores){
     <div class="tabs-wrap">
       <span class="page-sub">${t.groupDeadline?`Deadline ${fmtDateTime(t.groupDeadline)}`:'3 pts win · 1 pt draw'}${updatedAtOf(t) ? `<br><span class="upd-inline">${ICON_CLOCK_SM} Standings updated ${whenText(updatedAtOf(t))}</span>` : ''}</span>
       ${isLeague ? '' : groupSwitcher(t, 'pickGroup')}
+      <div class="segmented st-view-switch no-export" role="group" aria-label="Table view">
+        ${[['compact','Compact'],['full','Full table']].map(([v,l])=>`<button type="button" class="seg ${standView()===v?'active':''}" aria-pressed="${standView()===v}" onclick="setStandView('${v}')">${l}</button>`).join('')}
+      </div>
       <button type="button" class="export-btn no-export" onclick="exportAsJPEG('standingsExport','${slug(t.name)}_standings')">${ICON_DL} ${isLeague || t.groupData.length<2 ? 'Export standings' : cur && cur!=='*' ? `Export Group ${esc(cur)} standings` : 'Export standings · one page per group'}</button>
     </div>
     <section id="standingsExport" class="export-container" aria-label="${isLeague?'League table':'Group standings'}">
       <div class="export-header" style="margin-bottom:12px"><div class="export-title">${esc(t.name)}</div><div class="export-subtitle">${isLeague?'League table':'Group standings'} · ${fmtDate(new Date())}</div></div>
       ${content}
       <div class="section-foot" style="margin-top:14px">
-        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.${(t.fixtures||[]).some(f=>f.autoDraw) ? ' Matches not played by the deadline count as played, with no points.' : ''}</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
+        <span class="legend"><span class="q-chip">Q</span>${isLeague?'Top of the table':`Top ${q} in each group go through to the knockout stage. The dashed line is the cut-off; "Qualified" appears once the group is finished.`} Ties are split by goal difference, then goals scored.${standView()==='full' ? ' NR = not played by the deadline (0–0, no points).' : ''}${(t.fixtures||[]).some(f=>f.autoDraw) ? ' Matches not played by the deadline count as played, with no points.' : ''}</span><span class="legend no-export tap-hint">Tap a player to see their matches.</span>
 
       </div>
     </section>
