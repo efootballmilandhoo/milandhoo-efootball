@@ -1041,8 +1041,8 @@ function fbLeaderboard(){
   // Top 10 keeps everyone tied on 10th place.
   const all = top10 ? ranked.filter(x=>x.rank<=10) : ranked;
   const page = (part, i, n) => fbSheet(null, top10 ? 'Top 10 Rankings' : 'Community Leaderboard', `${top10 ? 'Community leaderboard' : 'All-time ranking'} by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
-    `<div class="fb-card"><table class="fbt fbt-lb"><colgroup><col class="c-rk"><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-gd"><col class="c-t"><col class="c-pts"></colgroup><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
-      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm"><span class="lb-cell"><span class="lb-nm">${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts ${String(x.s.pts).length>3?'long':''}">${x.s.pts}</span></td></tr>` }).join('')}
+    `<div class="fb-card"><table class="fbt fbt-lb"><colgroup><col class="c-rk"><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-pts"></colgroup><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>🏆</th><th class="pts">PTS</th></tr></thead><tbody>
+      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm"><span class="lb-cell"><span class="lb-nm">${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td class="muted">${gd>0?'+':gd<0?'−':''}${Math.abs(gd)}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts ${String(x.s.pts).length>3?'long':''}">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
     <div class="fb-legend small"><b>${ptsLegendHTML()}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
   return renderSheets(fbPack(all, page, {even:true}), FB.w, top10 ? 'milandhoo_top10' : 'milandhoo_leaderboard');
@@ -1520,13 +1520,11 @@ function renderSiteFoot(){
   const el = document.getElementById('siteFoot');
   if(!el) return;
   setHTML(el, `
-    <div class="sf2">
-      <div class="sf2-brand">${communityMark(36)}<div><div class="sf2-name">${esc(commName())}</div>${commTag() ? `<div class="sf2-tag">${esc(commTag())}</div>` : ''}</div></div>
-      <div class="sf2-links">
-        ${SOCIALS.map(x=>`<a class="sf2-link" href="${x.url}" target="_blank" rel="noopener noreferrer" aria-label="${x.network}: ${esc(x.handle)}">${x.icon}<span>${esc(x.handle)}</span></a>`).join('')}
-      </div>
-    </div>
-    <div class="sf2-motto">Play · Compete · Belong</div>`);
+    <div class="sf3">
+      <div class="sf3-brand">${communityMark(28)}<span class="sf3-name">${esc(commName())}</span></div>
+      <div class="sf3-links">${SOCIALS.map(x=>`<a class="sf3-link" href="${x.url}" target="_blank" rel="noopener noreferrer" aria-label="${x.network}: ${esc(x.handle)}" title="${x.network}">${x.icon}<span>${esc(x.handle)}</span></a>`).join('<i class="sf3-dot" aria-hidden="true"></i>')}</div>
+      <div class="sf3-motto">Play · Compete · Belong</div>
+    </div>`);
 }
 
 function buildSheet(html, width){
