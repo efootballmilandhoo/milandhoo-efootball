@@ -466,6 +466,18 @@ function propagateBracket(rounds){
 function koLegCount(fmt){ return fmt==='bo3' ? 3 : fmt==='2leg' ? 2 : 1 }
 function koLegLabels(fmt){ return fmt==='bo3' ? ['G1','G2','G3'] : fmt==='2leg' ? ['L1','L2'] : [] }
 function koTotalLabel(fmt){ return fmt==='bo3' ? 'Won' : fmt==='2leg' ? 'Agg' : 'Score' }
+/* Every match played in the app: group/league games with a real result, plus each knockout leg, game and tie-breaker that has a score. */
+function matchesPlayedAll(){
+  return STORE.tournaments.reduce((n,t)=>{
+    n += (t.fixtures||[]).filter(realResult).length;
+    (t.knockoutBracket||[]).flat().forEach(m=>{
+      if(!m || m.isBye || !m.team1 || !m.team2) return;
+      n += koLegs(t, m).filter(l=>hasScore(l[0]) && hasScore(l[1])).length;
+      if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) n++;
+    });
+    return n;
+  }, 0);
+}
 function koLegs(t, m){
   if(t.knockoutFormat==='bo3') return Array.isArray(m.games) ? [0,1,2].map(i=>[m.games[i]?.a ?? null, m.games[i]?.b ?? null]) : [[null,null],[null,null],[null,null]];
   if(t.knockoutFormat==='2leg') return [[m.score1, m.score2],[m.leg2Score1, m.leg2Score2]];
@@ -582,7 +594,7 @@ async function renderFbSheets(pages, width, base, format, ready){
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
@@ -731,8 +743,8 @@ function fbLeaderboard(){
   // Top 10 keeps everyone tied on 10th place.
   const all = top10 ? ranked.filter(x=>x.rank<=10) : ranked;
   const page = (part, i, n) => fbSheet(null, top10 ? 'Top 10 Rankings' : 'Community Leaderboard', `${top10 ? 'Community leaderboard' : 'All-time ranking'} by total points${moves.__newest ? ` · updated ${fmtDateTime(moves.__newest)}` : ` · ${fmtDate(new Date())}`}`,
-    `<div class="fb-card"><table class="fbt"><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GF</th><th>GA</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
-      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm">${esc(x.p.name)} ${moveBadge(x.move)}</td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td>${x.s.gf}</td><td>${x.s.ga}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts">${x.s.pts}</span></td></tr>` }).join('')}
+    `<div class="fb-card"><table class="fbt fbt-lb"><colgroup><col class="c-rk"><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-gd"><col class="c-t"><col class="c-pts"></colgroup><thead><tr><th>#</th><th class="l">Player</th><th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Titles</th><th class="pts">PTS</th></tr></thead><tbody>
+      ${part.map(x=>{ const gd = x.s.gf-x.s.ga; return `<tr class="${x.rank<=3 && x.s.pts>0?'top':''}"><td>${rankMark(x)}</td><td class="l nm"><span class="lb-cell"><span class="lb-nm">${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td><td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td><td class="muted">${gd>0?'+':''}${gd}</td><td>${x.s.tourneyWins||'<span class="dim">–</span>'}</td><td class="pts"><span class="fb-pts ${String(x.s.pts).length>3?'long':''}">${x.s.pts}</span></td></tr>` }).join('')}
     </tbody></table></div>
     <div class="fb-legend small"><b>${ptsLegendHTML()}</b><br>${esc(PTS_RANKING)}${Object.keys(moves).length>2 ? ' Arrows show places gained or lost since the latest results.' : ''}</div>`, i+1, n);
   return renderSheets(fbPack(all, page, {even:true}), FB.w, top10 ? 'milandhoo_top10' : 'milandhoo_leaderboard');
@@ -1210,16 +1222,13 @@ function renderSiteFoot(){
   const el = document.getElementById('siteFoot');
   if(!el) return;
   setHTML(el, `
-    <div class="sf-brand">
-      ${communityMark(44)}
-      <div class="sf-name">${esc(commName())}</div>
-      ${commTag() ? `<div class="sf-tag">${esc(commTag())}</div>` : ''}
+    <div class="sf2">
+      <div class="sf2-brand">${communityMark(36)}<div><div class="sf2-name">${esc(commName())}</div>${commTag() ? `<div class="sf2-tag">${esc(commTag())}</div>` : ''}</div></div>
+      <div class="sf2-links">
+        ${SOCIALS.map(x=>`<a class="sf2-link" href="${x.url}" target="_blank" rel="noopener noreferrer" aria-label="${x.network}: ${esc(x.handle)}">${x.icon}<span>${esc(x.handle)}</span></a>`).join('')}
+      </div>
     </div>
-    <div class="sf-rule"><span>Follow us</span></div>
-    <div class="sf-links">
-      ${SOCIALS.map(x=>`<a class="sf-link" href="${x.url}" target="_blank" rel="noopener noreferrer" aria-label="${x.network}: ${esc(x.handle)}">${x.icon}<span class="sf-net">${x.network}</span><span class="sf-handle">${esc(x.handle)}</span></a>`).join('')}
-    </div>
-    <div class="sf-motto">Play · Compete · Belong</div>`);
+    <div class="sf2-motto">Play · Compete · Belong</div>`);
 }
 
 function buildSheet(html, width){
@@ -1732,7 +1741,7 @@ function statTile(icon, tint, label, value, delta){
 function renderDashboard(){
   const tourneys = visibleTournaments();
   const stats = calculateAllStats();
-  const totalMatches = STORE.tournaments.reduce((s,t)=> s + (t.fixtures||[]).filter(realResult).length + (t.knockoutBracket||[]).flat().filter(m=>!m.isBye && m.team1 && m.team2 && (matchTotals(t,m) || m.winner)).length, 0);
+  const totalMatches = matchesPlayedAll();
   const live = tourneys.filter(t=>t.status==='active');
   const completed = tourneys.filter(t=>t.status==='completed');
   const f = featuredTournament();
@@ -3255,7 +3264,7 @@ function renderKnockoutTab(t, admin, canEditScores){
       ${koView()==='cards' ? koCardsHTML(t, admin) : bracketHTML(t, admin)}
       <div class="round-export-section no-export">
         <div class="round-export-title">Export</div>
-        <div class="action-buttons ko-exports">
+        <div class="ko-exports">
           <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Full bracket</button>
           ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(round[0]?.round||'Round '+(ri+1))}</button>`).join('')}
         </div>

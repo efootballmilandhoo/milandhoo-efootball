@@ -1736,3 +1736,44 @@
 /* desktop ongoing banner is narrow: tighter stage chip so short stage names fit */
 @media (min-width:701px){.ongoing-art .oa-top{left:10px;right:10px;gap:6px}.ongoing-art .oa-stage{padding:0 8px;letter-spacing:.04em}.ongoing-art .oa-live{padding:0 9px 0 8px;letter-spacing:.1em}}
 @supports not ((-webkit-background-clip:text) or (background-clip:text)){.sidebar-card-title{background:none !important;-webkit-text-fill-color:#FFFFFF;color:#FFFFFF}}
+
+/* ---- Site footer: compact card ---- */
+.site-foot:has(.sf2){padding:16px 18px !important;gap:12px !important}
+.sf2{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;width:100%}
+.sf2-brand{display:flex;align-items:center;gap:10px;min-width:0}
+.sf2-brand .logo-mark{border-radius:10px}
+.sf2-name{font-family:var(--font-display);font-weight:800;font-size:17px;letter-spacing:.04em;line-height:1.1;color:var(--ink)}
+.sf2-tag{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+.sf2-links{display:flex;gap:8px;flex-wrap:wrap}
+.sf2-link{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border-radius:999px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);font-size:12.5px;font-weight:600;white-space:nowrap}
+.sf2-link:hover{border-color:var(--primary);color:var(--primary-dark)}
+.sf2-link svg{width:16px;height:16px;color:var(--primary);flex:none}
+.sf2-motto{width:100%;padding-top:10px;border-top:1px solid var(--divider);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:center}
+@media (max-width:560px){.sf2{flex-direction:column;align-items:stretch;gap:12px}.sf2-brand{justify-content:center}.sf2-links{display:grid;grid-template-columns:1fr 1fr}.sf2-link{justify-content:center;padding:0 8px;min-width:0}.sf2-link span{overflow:hidden;text-overflow:ellipsis}}
+
+/* ---- Knockout export buttons: an even grid ---- */
+.ko-exports{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.ko-exports .ko-export{grid-column:1/-1;min-height:46px}
+.ko-exports .btn-soft{width:100%;min-height:42px;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){.ko-exports{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---- Rankings export: fixed, roomy columns (fit three-digit numbers), names never squeezed ---- */
+.fbt-lb{table-layout:fixed;width:100%}
+.fbt-lb col.c-rk{width:calc(70px*var(--z))}
+.fbt-lb col.c-n{width:calc(64px*var(--z))}
+.fbt-lb col.c-gd{width:calc(78px*var(--z))}
+.fbt-lb col.c-t{width:calc(78px*var(--z))}
+.fbt-lb col.c-pts{width:calc(104px*var(--z))}
+.fbt-lb td,.fbt-lb th{padding-left:calc(4px*var(--z));padding-right:calc(4px*var(--z));white-space:nowrap}
+.fbt-lb td.nm{max-width:none;overflow:visible}
+.fbt-lb td.nm{display:table-cell}
+.fbt-lb .lb-cell{display:flex;align-items:center;gap:calc(10px*var(--z));min-width:0}
+.fbt-lb .lb-nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.fbt-lb .lb-cell > :not(.lb-nm){flex:none}
+.fbt-lb .fb-pts{min-width:calc(86px*var(--z))}
+.fbt-lb th{font-size:calc(15px*var(--z))}
+.fbt-lb col.c-pts{width:calc(124px*var(--z))}
+.fbt-lb td.nm{padding-right:calc(16px*var(--z))}
+.fbt-lb .fb-pts{box-sizing:border-box;min-width:0;width:100%;max-width:calc(112px*var(--z));padding-left:calc(6px*var(--z));padding-right:calc(6px*var(--z));font-variant-numeric:tabular-nums}
+.fbt-lb .fb-pts.long{font-size:calc(26px*var(--z))}
+@media (max-width:560px){.sf2-links{grid-template-columns:1fr}.sf2-link{height:38px}}
