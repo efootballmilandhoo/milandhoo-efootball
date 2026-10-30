@@ -1842,3 +1842,30 @@
 :root[data-theme="dark"] .fb-psum > div,:root[data-theme="dark"] .fb-pko{background:var(--surface);border-color:var(--border)}
 :root[data-theme="dark"] .fb-psum .hl{background:var(--primary);border-color:var(--primary)}
 :root[data-theme="dark"] .fb-res.np{background:var(--surface-3);color:var(--muted)}
+
+/* ---- Leaderboard: every row the same height; the place-change arrow sits after the name ---- */
+.lbx .rk-wrap, #main .lbx .rk-wrap{display:inline-flex !important;grid-template-columns:none !important;justify-content:center;width:auto}
+.lbx td:first-child, #main .lbx td:first-child{width:48px}
+.lbx tbody td{height:58px;padding-top:0;padding-bottom:0}
+.lbx .who{display:flex;align-items:center;gap:10px;min-width:0}
+.lbx .who > span:not(.player-avatar):not(.mv){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lbx .who .mv{flex:none;margin-left:2px}
+@media (max-width:700px){ .lbx tbody td{height:54px} .lbx td:first-child, #main .lbx td:first-child{width:40px} }
+
+/* ---- Hall of Fame list: one layout for every row — name, tournament, then title · organiser · date ---- */
+.hof-chip-m{display:none}
+@media (max-width:700px){
+  .hof-li, .hof-list.is-admin .hof-li{grid-template-columns:30px 36px minmax(0,1fr) auto;column-gap:12px;row-gap:6px;padding:14px 14px 14px 12px;align-items:center}
+  .hof-li-av{display:block}
+  .hof-li-medal{grid-row:1 / span 2}
+  .hof-li-av{grid-row:1 / span 2}
+  .hof-li-main{grid-column:3;grid-row:1;gap:2px}
+  .hof-li-sub .hof-chip{display:none}
+  .hof-li-t{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+  .hof-li-meta{grid-column:3 / -1;grid-row:2;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:8px;text-align:left;min-width:0}
+  .hof-chip-m{display:inline-flex;flex:none}
+  .hof-li-meta .badge{flex:none}
+  .hof-li-date{margin-left:auto}
+  .hof-li-actions{grid-column:4;grid-row:1}
+}
+@media (max-width:700px){ .hof-li-t{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.35} }

@@ -4378,6 +4378,7 @@ function hofItem(h, admin){
       ${h.note ? `<span class="hof-li-note">${esc(h.note)}</span>` : ''}
     </span>
     <span class="hof-li-meta">
+      <i class="hof-chip ${t.cls} hof-chip-m">${esc(hofTitle(h))}</i>
       <span class="badge ${h.organizer==='other'?'badge-format':'badge-open'}">${esc(hofOrg(h))}</span>
       <span class="hof-li-date">${esc(hofDate(h)) || '—'}</span>
     </span>
@@ -4680,8 +4681,8 @@ function lbTable(rows, offset){
             ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
               rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = x.rank<=3 && x.s.pts>0; return `
                 <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
-                  <td><span class="rk-wrap">${rankMark(x)}${moveBadge(x.move)}</span></td>
-                  <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span></span></td>
+                  <td><span class="rk-wrap">${rankMark(x)}</span></td>
+                  <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
                   <td>${x.s.gf}</td><td>${x.s.ga}</td>
                   <td class="muted">${gd>0?'+':''}${gd}</td>
