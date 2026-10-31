@@ -171,11 +171,14 @@ function thanksText(t: Obj, pid: string, nm: Record<string, string>, html = true
 
 /* ---- Knockout helpers ---- */
 // Scores of each leg/game of a tie, from team1's side: [[a,b], ...] (tie-breaker included).
+// The Final can have its own match format.
+const fmtOf = (t: Obj, m: Obj) => (t.finalFormat && m?.round === "Final" ? t.finalFormat : t.knockoutFormat);
 function tieLegs(t: Obj, m: Obj): number[][] {
   const out: number[][] = [];
   const add = (a: unknown, b: unknown) => { if (has(a) && has(b)) out.push([Number(a), Number(b)]); };
-  if (t.knockoutFormat === "bo3" && Array.isArray(m.games)) m.games.forEach((g: Obj) => add(g?.a, g?.b));
-  else { add(m.score1, m.score2); if (t.knockoutFormat === "2leg") add(m.leg2Score1, m.leg2Score2); }
+  const f = fmtOf(t, m);
+  if (f === "bo3" && Array.isArray(m.games)) m.games.forEach((g: Obj) => add(g?.a, g?.b));
+  else { add(m.score1, m.score2); if (f === "2leg") add(m.leg2Score1, m.leg2Score2); }
   if (m.tb) add(m.tb.a, m.tb.b);
   return out;
 }
@@ -212,8 +215,9 @@ function koRemindText(t: Obj, m: Obj, pid: string, nm: Record<string, string>): 
   const dlMs = deadlineMs(dl);
   const today = Number.isFinite(dlMs) && localDay(dlMs) === localDay(Date.now());
   const me1 = m.team1 === pid, opp = me1 ? m.team2 : m.team1;
-  const labels = t.knockoutFormat === "2leg" ? ["Leg 1", "Leg 2"] : t.knockoutFormat === "bo3" ? ["Game 1", "Game 2", "Game 3"] : ["Match"];
-  const raw = t.knockoutFormat === "2leg" ? [[m.score1, m.score2], [m.leg2Score1, m.leg2Score2]] : t.knockoutFormat === "bo3" ? (m.games || [{}, {}, {}]).map((g: Obj) => [g?.a, g?.b]) : [[m.score1, m.score2]];
+  const kf = fmtOf(t, m);
+  const labels = kf === "2leg" ? ["Leg 1", "Leg 2"] : kf === "bo3" ? ["Game 1", "Game 2", "Game 3"] : ["Match"];
+  const raw = kf === "2leg" ? [[m.score1, m.score2], [m.leg2Score1, m.leg2Score2]] : kf === "bo3" ? (m.games || [{}, {}, {}]).map((g: Obj) => [g?.a, g?.b]) : [[m.score1, m.score2]];
   const legs = labels.map((l, i) => { const x = raw[i] || []; return has(x[0]) && has(x[1]) ? `• ${l}: ${b(`${me1 ? x[0] : x[1]}–${me1 ? x[1] : x[0]}`)} ✅` : `• ${l}: ${b("not played yet")}`; });
   return [
     `⏰ ${b("Reminder!")}`, "",
@@ -249,7 +253,7 @@ function fixturesText(t: Obj, pid: string, nm: Record<string, string>, html = tr
   if (koTie) {
     const opp = koTie.team1 === pid ? koTie.team2 : koTie.team1;
     const dl = t.rules?.roundDeadlines?.[koRound];
-    lines.push(`🏆 ${b(t.name || "Tournament")}`, `${e(koRound)} · ${KO_FMT[t.knockoutFormat] || KO_FMT.single}`, "");
+    lines.push(`🏆 ${b(t.name || "Tournament")}`, `${e(koRound)} · ${KO_FMT[fmtOf(t, koTie)] || KO_FMT.single}`, "");
     lines.push(`Your opponent: ${b(P(opp))}`);
     if (dl) lines.push(`⏰ Play by: ${b(when(dl))}`);
     lines.push("", `Good luck, ${e(P(pid))}!`, `See the bracket: ${link}`);

@@ -767,6 +767,12 @@ function propagateBracket(rounds){
 }
 
 /* ---- Knockout results: legs / games / penalties ---- */
+/* The Final can have its own match format (t.finalFormat); every other round uses t.knockoutFormat. */
+function isFinalMatch(t, m){ return !!m && (m.round==='Final' || ((t.knockoutBracket||[]).length>1 && (t.knockoutBracket.at(-1)||[]).includes(m))) }
+function koFmt(t, m){ return t.finalFormat && isFinalMatch(t, m) ? t.finalFormat : t.knockoutFormat }
+function finalFmt(t){ return t.finalFormat || t.knockoutFormat }
+/* "2-Leg · Aggregate", plus the Final's format when it is different. */
+function koFmtLabel(t){ return t.finalFormat && t.finalFormat!==t.knockoutFormat ? `${koLabel(t.knockoutFormat)} · Final: ${koLabel(t.finalFormat)}` : koLabel(t.knockoutFormat) }
 function koLegCount(fmt){ return fmt==='bo3' ? 3 : fmt==='2leg' ? 2 : 1 }
 function koLegLabels(fmt){ return fmt==='bo3' ? ['G1','G2','G3'] : fmt==='2leg' ? ['L1','L2'] : [] }
 function koTotalLabel(fmt){ return fmt==='bo3' ? 'Won' : fmt==='2leg' ? 'Agg' : 'Score' }
@@ -783,8 +789,9 @@ function matchesPlayedAll(){
   }, 0);
 }
 function koLegs(t, m){
-  if(t.knockoutFormat==='bo3') return Array.isArray(m.games) ? [0,1,2].map(i=>[m.games[i]?.a ?? null, m.games[i]?.b ?? null]) : [[null,null],[null,null],[null,null]];
-  if(t.knockoutFormat==='2leg') return [[m.score1, m.score2],[m.leg2Score1, m.leg2Score2]];
+  const fmt = koFmt(t, m);
+  if(fmt==='bo3') return Array.isArray(m.games) ? [0,1,2].map(i=>[m.games[i]?.a ?? null, m.games[i]?.b ?? null]) : [[null,null],[null,null],[null,null]];
+  if(fmt==='2leg') return [[m.score1, m.score2],[m.leg2Score1, m.leg2Score2]];
   return [[m.score1, m.score2]];
 }
 /* tb: [a, b] tie-breaker match scores when the tournament plays one for level 2-leg ties; undefined otherwise. */
@@ -819,13 +826,13 @@ function evalKO(fmt, legs, pens, tb){
 /* How a 2-leg tie that is level on aggregate is decided: 'MATCH' (tie-breaker match) or 'PENS'.
    Set in the Tie-breaker match section; older tournaments kept it in the knockout settings. */
 function tbMode(t){ return t.rules?.tbMatch?.tiebreak || t.rules?.koMatch?.tiebreak || '' }
-function koTieMatch(t){ return t.knockoutFormat==='2leg' && tbMode(t)==='MATCH' }
+function koTieMatch(t, m){ return (m ? koFmt(t, m) : t.knockoutFormat)==='2leg' && tbMode(t)==='MATCH' }
 function koResult(t, m){
-  if(t.knockoutFormat==='bo3' && !Array.isArray(m.games) && hasScore(m.score1) && hasScore(m.score2)){
+  if(koFmt(t, m)==='bo3' && !Array.isArray(m.games) && hasScore(m.score1) && hasScore(m.score2)){
     // older saves stored only the series score
     return {total:[m.score1, m.score2], goals:null, complete:true, played:1, level:m.score1===m.score2, byPens:false, winner: m.winner===m.team1?0:m.winner===m.team2?1:null, legacy:true};
   }
-  return evalKO(t.knockoutFormat, koLegs(t,m), m.pens ? [m.pens.a, m.pens.b] : null, koTieMatch(t) ? [m.tb?.a ?? null, m.tb?.b ?? null] : undefined);
+  return evalKO(koFmt(t, m), koLegs(t,m), m.pens ? [m.pens.a, m.pens.b] : null, koTieMatch(t, m) ? [m.tb?.a ?? null, m.tb?.b ?? null] : undefined);
 }
 function matchTotals(t, m){ const r = koResult(t, m); return r.complete ? r.total : null }
 
@@ -995,7 +1002,7 @@ function fbRenumber(pages){ const n = pages.length; return pages.map((h, i)=>h.r
 
 function fbTie(t, m){
   // Legs (or games) sit in columns on each player's row: name | L1 | L2 | AGG.
-  const r = koResult(t, m), fmt = t.knockoutFormat, labels = r.legacy ? [] : koLegLabels(fmt), legs = koLegs(t, m);
+  const r = koResult(t, m), fmt = koFmt(t, m), labels = r.legacy ? [] : koLegLabels(fmt), legs = koLegs(t, m);
   const multi = labels.length>0 && !m.isBye;
   const name = id => id ? esc(playerName(id)) : (m.isBye ? 'Bye' : 'TBD');
   const cols = multi ? ` style="--legs:${labels.length}"` : '';
@@ -1022,7 +1029,7 @@ function fbBracketPages(t, rounds){
   const blockHTML = x => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
     <div class="fb-ties ${x.set.length===1?'one':''} ${rounds.length===1 && x.set.length<=4 ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
     ${x.isFinal && final?.winner ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}</div>`;
-  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${koLabel(t.knockoutFormat)}`, set.map(blockHTML).join(''), i+1, n);
+  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, set.map(blockHTML).join(''), i+1, n);
   return fbPack(blocks, page);
 }
 function fbBracket(t){
@@ -1097,7 +1104,8 @@ function fbRules(tid, key){
     const rulesHTML = (list, start=1) => list.length ? `<div class="fb-sec"><h3>Rules</h3><ol class="fb-rules" style="counter-reset:fbr ${start-1}">${list.map(l=>`<li>${esc(l)}</li>`).join('')}</ol></div>` : '';
     const setHTML = set.length ? `<div class="fb-sec"><h3>Match settings</h3><div class="fb-set">${set.map(x=>`<div><span>${esc(x.label)}</span><b>${esc(x.value)}</b></div>`).join('')}</div></div>` : '';
     const dlHTML = rounds.length ? `<div class="fb-sec"><h3>Round deadlines</h3><div class="fb-set dl">${rounds.map(x=>`<div><span>${esc(x)}</span><b>${fmtShort(dl[x])}</b></div>`).join('')}</div></div>` : '';
-    const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>Deadline <b>${fmtDateTime(t.groupDeadline)}</b></span></div>` : '';
+    const finDl = t.rules?.roundDeadlines?.Final;
+    const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="fb-note">${ICON.calendar}<span>Deadline <b>${fmtDateTime(t.groupDeadline)}</b></span></div>` : sec.key==='final' && finDl ? `<div class="fb-note">${ICON.calendar}<span>Final deadline <b>${fmtDateTime(finDl)}</b></span></div>` : '';
     const all = groupDl + rulesHTML(lines) + setHTML + dlHTML;
     if(fits(sec, all)){ parts.push({sec, body: all}); return }
     let cur = [], start = 1;
@@ -1760,7 +1768,7 @@ function exportFixturesSheet(t){
 function bracketHTML(t, admin){
   const rounds = t.knockoutBracket || [];
   const final = rounds.at(-1)?.[0];
-  const multi = koLegCount(t.knockoutFormat)>1;
+  const multi = koLegCount(t.knockoutFormat)>1 || koLegCount(finalFmt(t))>1;
   const cur = rounds.findIndex(r=>r.some(m=>m && !m.isBye && m.team1 && m.team2 && !m.winner));
   return `<div class="bracket ${Object.values(t.rules?.roundDeadlines||{}).some(Boolean)?'has-dl':''}">
     ${rounds.map((round,ri)=>`
@@ -1782,7 +1790,7 @@ function bracketHTML(t, admin){
 }
 function exportBracketSheet(t){
   const body = `<div class="xs-card xs-bracket">${bracketHTML(t, false)}</div>`;
-  return renderSheet(sheetHeader(t, t.name, `Knockout bracket · ${koLabel(t.knockoutFormat)}`) + body + sheetFoot(), null, `${slug(t.name)}_bracket`);
+  return renderSheet(sheetHeader(t, t.name, `Knockout bracket · ${koFmtLabel(t)}`) + body + sheetFoot(), null, `${slug(t.name)}_bracket`);
 }
 
 function exportRoundAsJPEG(tid, roundIndex){
@@ -1797,7 +1805,7 @@ function exportRoundAsJPEG(tid, roundIndex){
     </div>`).join('')}
   </div>`;
   const rdl = (t.rules?.roundDeadlines||{})[round[0]?.round];
-  return renderSheet(sheetHeader(t, t.name, `${esc(round[0]?.round || 'Round '+(roundIndex+1))} · ${koLabel(t.knockoutFormat)}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(round[0]?.round)}`);
+  return renderSheet(sheetHeader(t, t.name, `${esc(round[0]?.round || 'Round '+(roundIndex+1))} · ${koLabel(koFmt(t, round[0]))}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(round[0]?.round)}`);
 }
 
 function exportGenericSheet(el, t, title, subtitle, filename){
@@ -2550,6 +2558,17 @@ function openCreateTournament(){
             </select>
           </div>
           <div class="form-group">
+            <label class="form-label" for="t_final">Final Match Format</label>
+            <select class="form-select" id="t_final">
+              <option value="">Same as other rounds</option>
+              <option value="single">1 Leg (single match)</option>
+              <option value="2leg">2 Legs (aggregate)</option>
+              <option value="bo3">Best of 3</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
             <label class="form-label" for="t_seeding">Knockout Seeding</label>
             <select class="form-select" id="t_seeding">
               <option value="dynamic">Seeded by group finish (winners meet runners-up)</option>
@@ -2678,7 +2697,7 @@ function saveTournament(){
     t.qualifyPerGroup = Math.max(1, parseInt(document.getElementById('t_qualify').value)||1);
     t.seeding = document.getElementById('t_seeding').value;
   }
-  if(format!=='league') t.knockoutFormat = document.getElementById('t_ko').value;
+  if(format!=='league'){ t.knockoutFormat = document.getElementById('t_ko').value; const ff = document.getElementById('t_final')?.value || ''; if(ff && ff!==t.knockoutFormat) t.finalFormat = ff }
   if(format==='league') t.leagueRounds = parseInt(document.getElementById('t_league_rounds').value);
   const tourneys = DB.get('tournaments');
   tourneys.unshift(t);
@@ -2995,7 +3014,7 @@ function renderTournamentOverview(t){
   const koDone = ko.filter(m=>m.winner).length;
   const tiles = [
     statTile('users','tint-blue','Participants', (t.registrations||[]).length, t.format==='group_knockout'?`${t.groups} groups · top ${t.qualifyPerGroup} qualify`:'players'),
-    statTile('trophy','tint-gold','Format', `<span style="font-size:22px">${formatLabel(t.format)}</span>`, t.format==='league'?(t.leagueRounds===2?'Double round-robin':'Single round-robin'):koLabel(t.knockoutFormat))
+    statTile('trophy','tint-gold','Format', `<span style="font-size:22px">${formatLabel(t.format)}</span>`, t.format==='league'?(t.leagueRounds===2?'Double round-robin':'Single round-robin'):koFmtLabel(t))
   ];
   if(t.format!=='single_elimination') tiles.push(statTile('check','tint-green', t.format==='league'?'League matches':'Group matches', `${played}/${fx.length}`, 'played'));
   if(t.format!=='league') tiles.push(statTile('clock','tint-orange','Knockout', t.knockoutDrawn?`${koDone}/${ko.length}`:'—', t.knockoutDrawn?'ties decided':'not drawn yet'));
@@ -3293,7 +3312,7 @@ function tournamentMatches(t){
   (t.fixtures||[]).forEach(f=>{ if(realResult(f)) out.push({a:f.team1, b:f.team2, ga:+f.score1, gb:+f.score2, stage: t.format==='league' ? `Matchday ${f.matchday}` : `Group ${f.group} · MD ${f.matchday}`}) });
   (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
     if(!m || m.isBye || !m.team1 || !m.team2) return;
-    const labels = koLegLabels(t.knockoutFormat);
+    const labels = koLegLabels(koFmt(t, m));
     koLegs(t, m).forEach((l,i)=>{ if(hasScore(l[0]) && hasScore(l[1])) out.push({a:m.team1, b:m.team2, ga:+l[0], gb:+l[1], stage: `${m.round||'Knockout'}${labels[i]?' · '+labels[i]:''}`}) });
     if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) out.push({a:m.team1, b:m.team2, ga:+m.tb.a, gb:+m.tb.b, stage:`${m.round||'Knockout'} · Tie-breaker`});
   }));
@@ -3587,7 +3606,7 @@ function renderKnockoutTab(t, admin, canEditScores){
   const nameFn = id => playerName(id);
   return `
     <section id="bracketExport" class="export-container" aria-label="Knockout bracket" style="display:flex;flex-direction:column;gap:16px">
-      <div class="export-header"><div class="export-title">${esc(t.name)} · Knockout</div><div class="export-subtitle">${koLabel(t.knockoutFormat)}</div></div>
+      <div class="export-header"><div class="export-title">${esc(t.name)} · Knockout</div><div class="export-subtitle">${koFmtLabel(t)}</div></div>
       <div class="ko-bar no-export">
         <div class="segmented ko-view-switch" role="group" aria-label="Knockout view">
           ${[['bracket','Bracket'],['cards','<span class="ko-x-long">Match cards</span><span class="ko-x-short">Cards</span>']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
@@ -3652,7 +3671,7 @@ function koCardsHTML(t, admin){
 }
 
 function koMatchBody(t, m, nameFn){
-  const fmt = t.knockoutFormat, r = koResult(t, m), labels = r.legacy ? [] : koLegLabels(fmt), legs = koLegs(t, m);
+  const fmt = koFmt(t, m), r = koResult(t, m), labels = r.legacy ? [] : koLegLabels(fmt), legs = koLegs(t, m);
   const multi = labels.length>0;
   const cols = `minmax(0,1fr) ${labels.map(()=>'22px').join(' ')} 34px`;
   const name = id => id ? esc(nameFn(id)) : (m.isBye ? 'Bye' : 'TBD');
@@ -3680,7 +3699,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
   const m = t.knockoutBracket[roundIdx].find(x=>x.id===matchId);
-  const fmt = t.knockoutFormat, labels = koFieldLabels(fmt), legs = koLegs(t, m);
+  const fmt = koFmt(t, m), labels = koFieldLabels(fmt), legs = koLegs(t, m);
   const p = [m.team1, m.team2].map(id=>STORE.players.find(x=>x.id===id) || {name:'Unknown player'});
   const v = x => hasScore(x) ? x : '';
   const cols = `minmax(0,1fr) repeat(${labels.length}, minmax(42px,62px))${labels.length>1?' minmax(48px,70px)':''}`;
@@ -3688,7 +3707,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
   openModal(`
     <div class="modal-head"><div class="modal-title">${esc(koCode(t, m))}${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:16px">
-      <div class="page-sub">${fmt==='bo3'?'Best of 3: enter the goals in each game. First to win 2 games goes through; game 3 is only needed at 1–1.':fmt==='2leg'?'Two legs: enter the goals in each leg. The aggregate score decides who goes through.':'Single match: enter the final score.'} ${koTieMatch(t) ? 'If the aggregate is level, enter the tie-breaker match; if that is level too, the penalty shoot-out.' : 'If it ends level, enter the penalty shoot-out.'}</div>
+      <div class="page-sub">${fmt==='bo3'?'Best of 3: enter the goals in each game. First to win 2 games goes through; game 3 is only needed at 1–1.':fmt==='2leg'?'Two legs: enter the goals in each leg. The aggregate score decides who goes through.':'Single match: enter the final score.'} ${koTieMatch(t, m) ? 'If the aggregate is level, enter the tie-breaker match; if that is level too, the penalty shoot-out.' : 'If it ends level, enter the penalty shoot-out.'}</div>
       <div class="ko-entry-wrap">
         <div class="ko-entry" style="grid-template-columns:${cols}">
           <span></span>${labels.map(l=>`<span class="ko-th">${l}</span>`).join('')}${totalHead}
@@ -3699,7 +3718,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
           `).join('')}
         </div>
       </div>
-      ${koTieMatch(t) ? `<div class="ko-pens hidden" id="km_tb">
+      ${koTieMatch(t, m) ? `<div class="ko-pens hidden" id="km_tb">
         <div class="form-label" style="margin:0">Tie-breaker match</div>
         <div class="ko-pens-row">
           <label class="ko-pen">${esc(p[0].name)}<input class="form-input ko-input" type="number" inputmode="numeric" min="0" max="99" id="km_tb_0" value="${v(m.tb?.a)}" oninput="koPreview('${tid}',${roundIdx},'${matchId}')"></label>
@@ -3739,7 +3758,7 @@ function koReadInputs(fmt){
 function koPreview(tid, roundIdx, matchId){
   const t = STORE.tournaments.find(x=>x.id===tid);
   const m = t.knockoutBracket[roundIdx].find(x=>x.id===matchId);
-  const fmt = t.knockoutFormat;
+  const fmt = koFmt(t, m);
   const pensBox = document.getElementById('km_pens');
   const n = koLegCount(fmt), legs = [];
   for(let i=0;i<n;i++) legs.push([readScore(`km_${i}_0`), readScore(`km_${i}_1`)]);
@@ -3781,7 +3800,7 @@ async function clearKnockoutResult(tid, roundIdx, matchId){
 }
 function saveKnockoutMatch(tid, roundIdx, matchId, clear=false){
   const t0 = STORE.tournaments.find(x=>x.id===tid);
-  const fmt = t0.knockoutFormat;
+  const fmt = koFmt(t0, t0.knockoutBracket[roundIdx].find(x=>x.id===matchId));
   let legs = [], pens = null, tb;
   if(!clear){
     ({legs, pens, tb} = koReadInputs(fmt));
@@ -3921,6 +3940,12 @@ function editTournament(tid){
           <select class="form-select" id="e_ko">
             ${[['single','Single Match'],['bo3','Best of 3'],['2leg','2-Leg']].map(([v,l])=>`<option value="${v}" ${t.knockoutFormat===v?'selected':''}>${l}</option>`).join('')}
           </select>
+        </div>
+        <div class="form-group"><label class="form-label" for="e_final">Final Match Format</label>
+          <select class="form-select" id="e_final">
+            ${[['','Same as other rounds'],['single','1 Leg (single match)'],['2leg','2 Legs (aggregate)'],['bo3','Best of 3']].map(([v,l])=>`<option value="${v}" ${(t.finalFormat||'')===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+          <div class="text-xs text-muted" style="margin-top:6px">The Final can be played differently from the other rounds, for example best of 3 when the rest are 2 legs.</div>
         </div>`:''}
       <div class="card" style="background:var(--surface-2);padding:16px">
         <div class="card-title" style="margin-bottom:12px">Prize Pool</div>
@@ -3961,6 +3986,12 @@ function saveTournamentEdit(tid){
     const ko = document.getElementById('e_ko').value;
     if(ko!==t.knockoutFormat && (t.knockoutBracket||[]).flat().some(m=>!m.isBye && m.winner)){ toast('Knockout results exist, so the match format stays as it is. Redraw the bracket to change it.', true) }
     else t.knockoutFormat = ko;
+    let ff = document.getElementById('e_final')?.value || '';
+    if(ff===t.knockoutFormat) ff = '';
+    const finalM = (t.knockoutBracket||[]).at(-1)?.[0];
+    const finalPlayed = finalM && (finalM.winner || koLegs(t, finalM).some(l=>hasScore(l[0])||hasScore(l[1])));
+    if((ff||'')!==(t.finalFormat||'') && finalPlayed) toast('The Final already has scores, so its format stays as it is. Clear its result first to change it.', true);
+    else { if(ff) t.finalFormat = ff; else delete t.finalFormat }
   }
   applyImage(t, 'logo', imageFieldValue('tlogo'));
   DB.set('tournaments', all);
@@ -4019,7 +4050,7 @@ function getPlayerFixtures(t, pid){
   });
   (t.knockoutBracket||[]).forEach(round=>round.forEach(m=>{
     if(m.isBye || (m.team1!==pid && m.team2!==pid)) return;
-    const me = m.team1===pid ? 0 : 1, r = koResult(t, m), fmt = t.knockoutFormat;
+    const me = m.team1===pid ? 0 : 1, r = koResult(t, m), fmt = koFmt(t, m);
     const legs = koLegs(t, m).filter(l=>hasScore(l[0])&&hasScore(l[1]));
     const names = koFieldLabels(fmt);
     let detail = fmt!=='single' && !r.legacy ? legs.map((l,i)=>`${names[i]} ${l[me]}–${l[1-me]}`).join(' · ') : '';
@@ -4104,7 +4135,8 @@ function ruleSections(t){
   if(t.format==='league') s.push({key:'group', title:'League', short:'League'});
   if(t.format==='group_knockout') s.push({key:'group', title:'Group stage', short:'Group stage'});
   if(t.format!=='league') s.push({key:'ko', title: t.format==='single_elimination' ? 'Knockout' : 'Knockout stage', short:'Knockout'});
-  if(t.format!=='league' && t.knockoutFormat==='2leg') s.push({key:'tb', title:'Tie-breaker match', short:'Tie-breaker'});
+  if(t.format!=='league') s.push({key:'final', title:'Final', short:'Final'});
+  if(t.format!=='league' && (t.knockoutFormat==='2leg' || finalFmt(t)==='2leg')) s.push({key:'tb', title:'Tie-breaker match', short:'Tie-breaker'});
   return s;
 }
 function expectedKoRounds(t){
@@ -4127,14 +4159,15 @@ function koDeadlineRounds(t){
 }
 function stageData(t, key){
   const r = t.rules || {};
-  const pre = key==='group' ? 'group' : key==='tb' ? 'tb' : 'ko';
+  const pre = key==='group' ? 'group' : key==='tb' ? 'tb' : key==='final' ? 'final' : 'ko';
   const match = {...(r[pre+'Match'] || {})};
   if(key==='tb'){ const mode = tbMode(t); if(mode) match.tiebreak = mode }
-  if(key==='ko') delete match.tiebreak;
+  if(key==='ko' || key==='final') delete match.tiebreak;
   return { rules: r[pre+'Rules'] || '', match, custom: r[pre+'Settings'] || [] };
 }
 function settingsList(t, key){
   const d = stageData(t, key), m = d.match, out = [];
+  if(key==='final') out.push({label:'Format', value: koLabel(finalFmt(t))});
   if(m.time) out.push({label:'Match time', value:`${m.time} min`});
   if(m.extra) out.push({label:'Extra time', value:m.extra});
   if(m.pens) out.push({label:'Penalties', value:m.pens});
@@ -4142,6 +4175,7 @@ function settingsList(t, key){
   if(m.condition) out.push({label:'Player condition', value:m.condition});
   if(m.injuries) out.push({label:'Injuries', value:m.injuries});
   if(key==='tb' && m.tiebreak) out.unshift({label:'Level on aggregate', value: m.tiebreak==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
+  if(key==='final' && finalFmt(t)==='2leg' && tbMode(t)) out.push({label:'Level on aggregate', value: tbMode(t)==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
   if(key==='ko' && t.knockoutFormat==='2leg' && tbMode(t)) out.push({label:'Level on aggregate', value: tbMode(t)==='MATCH' ? 'Tie-breaker match' : 'Penalties'});
   return out.concat(d.custom.filter(x=>x.label && x.value));
 }
@@ -4159,7 +4193,9 @@ function rulesSectionHTML(t, sec, admin){
   const dl = t.rules?.roundDeadlines || {};
   const rounds = sec.key==='ko' ? koDeadlineRounds(t) : [];
   const hasDl = rounds.some(x=>dl[x]);
-  const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="rules-deadline"><span>${ICON.calendar}</span><div><small>${t.format==='league'?'League deadline':'Group stage deadline'}</small><b>${fmtDateTime(t.groupDeadline)}</b></div></div>` : '';
+  const finDl = t.rules?.roundDeadlines?.Final;
+  const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="rules-deadline"><span>${ICON.calendar}</span><div><small>${t.format==='league'?'League deadline':'Group stage deadline'}</small><b>${fmtDateTime(t.groupDeadline)}</b></div></div>`
+    : sec.key==='final' && finDl ? `<div class="rules-deadline"><span>${ICON.calendar}</span><div><small>Final deadline</small><b>${fmtDateTime(finDl)}</b></div></div>` : '';
   const has = stageHasContent(t, sec.key);
   return `<section class="rules-card" id="rules-${sec.key}">
     <div class="rules-card-head">
@@ -4216,7 +4252,7 @@ function openRulesModal(tid, key){
   openModal(`
     <div class="modal-head"><div class="modal-title">${esc(sec.title)} · rules &amp; settings</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:20px">
-      <div class="page-sub">${key==='tb' ? `Used when a 2-leg knockout tie in <b>${esc(t.name)}</b> is level on aggregate. These settings apply to the tie-breaker match only.` : `Only for <b>${esc(t.name)}</b>. Everyone can read these on the tournament's Rules tab.`}</div>
+      <div class="page-sub">${key==='final' ? `Rules and match settings for the <b>Final</b> of <b>${esc(t.name)}</b>. Format: <b>${koLabel(finalFmt(t))}</b> (change it in Edit tournament).` : key==='tb' ? `Used when a 2-leg knockout tie in <b>${esc(t.name)}</b> is level on aggregate. These settings apply to the tie-breaker match only.` : `Only for <b>${esc(t.name)}</b>. Everyone can read these on the tournament's Rules tab.`}</div>
       <fieldset class="rules-edit">
         <legend>Match settings</legend>
         <div class="match-fields">
@@ -4284,11 +4320,28 @@ function generateRules(tid, key){
       L.push('Play the tie-breaker as soon as possible after the second leg, and before the round deadline.');
       L.push('Send the final score screenshot of the tie-breaker to the organisers straight after the match.');
     }
+  } else if(key==='final'){
+    const fmt = finalFmt(t);
+    if(fmt==='2leg') L.push('The Final is played over two legs. The aggregate score decides the champion.');
+    else if(fmt==='bo3') L.push('The Final is best of 3 games. The first player to win 2 games is the champion.');
+    else L.push('The Final is a single match. The winner is the champion.');
+    if(fmt==='2leg' && tbMode(t)==='MATCH') L.push('If the aggregate score is level after the second leg, the two players play a tie-breaker match (see the Tie-breaker match rules).');
+    else {
+      const lvl = fmt==='2leg' ? 'If the aggregate score is level after the second leg' : fmt==='bo3' ? 'If a game is level after full time' : 'If the score is level after full time';
+      if(m.extra==='ON' && m.pens==='ON') L.push(`${lvl}, it goes to extra time and then penalties.`);
+      else if(m.extra==='ON') L.push(`${lvl}, it goes to extra time.`);
+      else if(m.pens==='ON') L.push(`${lvl}, penalties decide it.`);
+    }
+    if(m.time) L.push(`Each match is ${m.time} minutes.`);
+    const fdl = t.rules?.roundDeadlines?.Final;
+    if(fdl) L.push(`The Final must be finished by ${fmtDateTime(fdl)}.`);
+    L.push('Send the final score screenshot to the organisers straight after every match.');
   } else {
     const fmt = t.knockoutFormat;
     if(fmt==='2leg') L.push('Every tie is played over two legs. The aggregate score decides who goes through.');
     else if(fmt==='bo3') L.push('Every tie is best of 3 games. The first player to win 2 games goes through.');
     else L.push('Every tie is a single match. The winner goes through.');
+    if(t.finalFormat && t.finalFormat!==fmt) L.push(`The Final is played as ${koLabel(t.finalFormat).toLowerCase()} (see the Final rules).`);
     let lvl = fmt==='2leg' ? 'If the aggregate score is level after the second leg' : fmt==='bo3' ? 'If a game is level after full time' : 'If the score is level after full time';
     if(fmt==='2leg' && tbMode(t)==='MATCH'){
       L.push('If the aggregate score is level after the second leg, the two players play a tie-breaker match. The winner of the tie-breaker goes through (see the Tie-breaker match rules).');
@@ -4312,6 +4365,7 @@ function saveRules(tid, key){
   const {all, t} = getT(tid);
   const r = {...(t.rules||{})};
   if(key==='group'){ r.groupRules = text; r.groupMatch = match; r.groupSettings = custom }
+  else if(key==='final'){ r.finalRules = text; r.finalMatch = match; r.finalSettings = custom }
   else if(key==='tb'){
     r.tbRules = text; r.tbMatch = match; r.tbSettings = custom;
     if(r.koMatch && r.koMatch.tiebreak){ r.koMatch = {...r.koMatch}; delete r.koMatch.tiebreak }
@@ -4342,6 +4396,7 @@ function exportRulesSheet(tid, key){
     if(sec.key==='group' && t.groupDeadline) dlBits.push(`${t.format==='league'?'League':'Group stage'} deadline ${fmtDateTime(t.groupDeadline)}`);
     if(sec.key==='ko'){ const fin = (t.rules?.roundDeadlines||{})['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
     if(sec.key==='tb') dlBits.push('Used when a 2-leg tie is level on aggregate');
+    if(sec.key==='final'){ const fin = (t.rules?.roundDeadlines||{})['Final']; dlBits.push(koLabel(finalFmt(t))); if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
     return `<div class="x54 x54-rules">${sheetHeader(t, t.name, [`${sec.title} · Rules &amp; match settings`, ...dlBits].join(' · '))}${rulesSectionHTML(t, sec, false)}${sheetFoot(i+1, secs.length)}</div>`;
   });
   return renderSheets(pages, X54.w, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);

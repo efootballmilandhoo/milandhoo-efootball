@@ -138,7 +138,7 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
     const p = oldKo.get(m.id) as Obj | undefined;
     if (p && p.winner === m.winner) return;
     const loser = m.winner === m.team1 ? m.team2 : m.team1;
-    results.push({ title: `${P(m.winner)} beat ${P(loser)}${koScore(n.knockoutFormat, m)}`, body: `${tn} · ${m.round || "Knockout"}` });
+    results.push({ title: `${P(m.winner)} beat ${P(loser)}${koScore(n.finalFormat && m.round === "Final" ? n.finalFormat : n.knockoutFormat, m)}`, body: `${tn} · ${m.round || "Knockout"}` });
     eliminated.push(loser);
   });
   // Knocked-out players get a certificate of participation with their tournament stats (one per call, sent once each).
