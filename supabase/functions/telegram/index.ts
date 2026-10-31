@@ -171,8 +171,26 @@ function thanksText(t: Obj, pid: string, nm: Record<string, string>, html = true
 
 /* ---- Knockout helpers ---- */
 // Scores of each leg/game of a tie, from team1's side: [[a,b], ...] (tie-breaker included).
-// The Final can have its own match format.
-const fmtOf = (t: Obj, m: Obj) => (t.finalFormat && m?.round === "Final" ? t.finalFormat : t.knockoutFormat);
+// The Final (and the 3rd place match, which follows the Final's rules) can have its own match format.
+const THIRD = "Third Place";
+const isLastRound = (m: Obj) => m?.round === "Final" || m?.round === THIRD;
+const fmtOf = (t: Obj, m: Obj) => (t.finalFormat && isLastRound(m) ? t.finalFormat : t.knockoutFormat);
+// Round deadlines are stored by round name; the 3rd place match shares the Final's deadline.
+const dlRound = (r: string) => (r === THIRD ? "Final" : r);
+// Losers who are out of the tournament. Semi-final losers still have the 3rd place match to play, so they
+// only count once it is decided, and then both of its players (3rd and 4th) are done.
+function knockedOut(t: Obj): string[] {
+  const kb: Obj[][] = t.knockoutBracket || [];
+  const third = (kb.at(-1) || []).find((m: Obj) => m?.round === THIRD);
+  const semis = new Set(third && kb.length >= 2 ? (kb.at(-2) || []).map((m: Obj) => m?.id) : []);
+  const out = new Set<string>();
+  kb.flat().forEach((m: Obj) => {
+    if (!m || m.isBye || !m.winner || !m.team1 || !m.team2 || semis.has(m.id)) return;
+    if (m.round === THIRD) { out.add(m.team1); out.add(m.team2); return; }
+    out.add(m.winner === m.team1 ? m.team2 : m.team1);
+  });
+  return [...out];
+}
 function tieLegs(t: Obj, m: Obj): number[][] {
   const out: number[][] = [];
   const add = (a: unknown, b: unknown) => { if (has(a) && has(b)) out.push([Number(a), Number(b)]); };
@@ -200,6 +218,7 @@ function playerRecord(t: Obj, pid: string) {
 function stageReached(t: Obj, pid: string): string {
   let last = "";
   (t.knockoutBracket || []).forEach((round: Obj[]) => round.forEach((m: Obj) => { if (m && !m.isBye && (m.team1 === pid || m.team2 === pid)) last = m.round || last; }));
+  if (last === THIRD) { const m = (t.knockoutBracket || []).flat().find((x: Obj) => x?.round === THIRD); return m?.winner ? (m.winner === pid ? "3rd place" : "4th place") : "Semi Finals"; }
   if (last === "Final") { const f = (t.knockoutBracket || []).flat().find((m: Obj) => m?.round === "Final"); if (f?.winner) return f.winner === pid ? "Champion" : "Runner-up"; }
   return last || "Group stage";
 }
@@ -211,7 +230,7 @@ function currentKoRound(t: Obj): Obj[] {
 function koRemindText(t: Obj, m: Obj, pid: string, nm: Record<string, string>): string {
   const b = (s: string) => `<b>${esc(s)}</b>`;
   const round = m.round || "Knockout";
-  const dl = t.rules?.roundDeadlines?.[round];
+  const dl = t.rules?.roundDeadlines?.[dlRound(round)];
   const dlMs = deadlineMs(dl);
   const today = Number.isFinite(dlMs) && localDay(dlMs) === localDay(Date.now());
   const me1 = m.team1 === pid, opp = me1 ? m.team2 : m.team1;
@@ -252,7 +271,7 @@ function fixturesText(t: Obj, pid: string, nm: Record<string, string>, html = tr
   }
   if (koTie) {
     const opp = koTie.team1 === pid ? koTie.team2 : koTie.team1;
-    const dl = t.rules?.roundDeadlines?.[koRound];
+    const dl = t.rules?.roundDeadlines?.[dlRound(koRound)];
     lines.push(`🏆 ${b(t.name || "Tournament")}`, `${e(koRound)} · ${KO_FMT[fmtOf(t, koTie)] || KO_FMT.single}`, "");
     lines.push(`Your opponent: ${b(P(opp))}`);
     if (dl) lines.push(`⏰ Play by: ${b(when(dl))}`);
@@ -434,8 +453,7 @@ Deno.serve(async (req) => {
       // Certificate of participation with tournament stats for players knocked out of the knockout stage.
       // body.pids: who to send to; without it, everyone already eliminated. cert_log makes it once per player.
       const nm = await names();
-      const losers = new Set<string>();
-      (t.knockoutBracket || []).flat().forEach((m: Obj) => { if (m && !m.isBye && m.winner && m.team1 && m.team2) losers.add(m.winner === m.team1 ? m.team2 : m.team1); });
+      const losers = new Set<string>(knockedOut(t));
       const targets: string[] = (Array.isArray(body.pids) ? body.pids : [...losers]).filter((p: string) => losers.has(p));
       const { data: done } = await sb.from("cert_log").select("pid").eq("tid", t.id);
       const already = new Set((done || []).map((r: Obj) => r.pid));
@@ -472,7 +490,7 @@ Deno.serve(async (req) => {
         fd.append("chat_id", String(chat));
         fd.append("caption", [
           `🎖️ <b>Certificate of Participation</b>`, `🏆 ${esc(t.name)}`, "",
-          `Thank you for taking part, <b>${esc(nm[pid] || "player")}</b>! You reached the <b>${esc(stage)}</b> — well played.`,
+          `Thank you for taking part, <b>${esc(nm[pid] || "player")}</b>! ${/place$/.test(stage) ? `You finished in <b>${esc(stage)}</b>` : `You reached the <b>${esc(stage)}</b>`} — well played.`,
           `Your record: ${r.p} played · ${r.w}W ${r.d}D ${r.l}L · ${r.gf}–${r.ga} goals.`, "",
           `We hope to see you in the next tournament too. More great news and opportunities are coming!`, "",
           `<b>— From Team MG</b>`,

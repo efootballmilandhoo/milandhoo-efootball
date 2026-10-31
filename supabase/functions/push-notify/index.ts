@@ -132,14 +132,19 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
     });
   }
   const eliminated: string[] = [];
+  // With a 3rd place match, semi-final losers are not out yet; both 3rd place players are, once it is decided.
+  const kbN: Obj[][] = n.knockoutBracket || [];
+  const hasThird = (kbN.at(-1) || []).some((m: Obj) => m?.round === "Third Place");
+  const semiIds = new Set(hasThird && kbN.length >= 2 ? (kbN.at(-2) || []).map((m: Obj) => m?.id) : []);
   const oldKo = new Map(((o.knockoutBracket || []).flat()).map((m: Obj) => [m.id, m]));
   ((n.knockoutBracket || []).flat()).forEach((m: Obj) => {
     if (m.isBye || !m.winner || !m.team1 || !m.team2) return;
     const p = oldKo.get(m.id) as Obj | undefined;
     if (p && p.winner === m.winner) return;
     const loser = m.winner === m.team1 ? m.team2 : m.team1;
-    results.push({ title: `${P(m.winner)} beat ${P(loser)}${koScore(n.finalFormat && m.round === "Final" ? n.finalFormat : n.knockoutFormat, m)}`, body: `${tn} · ${m.round || "Knockout"}` });
-    eliminated.push(loser);
+    results.push({ title: `${P(m.winner)} beat ${P(loser)}${koScore(n.finalFormat && (m.round === "Final" || m.round === "Third Place") ? n.finalFormat : n.knockoutFormat, m)}`, body: `${tn} · ${m.round || "Knockout"}` });
+    if (m.round === "Third Place") eliminated.push(m.team1, m.team2);
+    else if (!semiIds.has(m.id)) eliminated.push(loser);
   });
   // Knocked-out players get a certificate of participation with their tournament stats (one per call, sent once each).
   if (n.status !== "draft") eliminated.forEach((pid) => telegramLater({ action: "eliminated", tid: id, pids: [pid] }));
