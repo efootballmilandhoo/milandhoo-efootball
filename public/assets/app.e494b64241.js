@@ -1877,7 +1877,7 @@ function bracketHTML(t, admin){
       <div class="bracket-round ${multi?'multi':''} ${ri===cur?'is-current':''}">
         <div class="bracket-round-title">${esc(roundTitle(round, ri))}${(t.rules?.roundDeadlines||{})[round[0]?.round] ? `<span class="round-dl">Deadline ${fmtShort(t.rules.roundDeadlines[round[0].round])}</span>` : ''}</div>
         ${round.map(m=>`
-          <div class="bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''} ${ri===rounds.length-1?'final':''}">
+          <div class="bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''} ${koLastCls(t, m, ri)}">
             <div class="bracket-match-title"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div>
             ${koMatchBody(t, m, playerName)}
             ${admin && t.status==='active' && !m.isBye && m.team1 && m.team2 ? `<button type="button" class="btn btn-sm" onclick="openKnockoutMatchModal('${t.id}',${ri},'${m.id}')">${m.winner?'Edit result':'Enter result'}</button>`:''}
@@ -1887,6 +1887,7 @@ function bracketHTML(t, admin){
       <div class="trophy-disc">${ICON.cup.replace('width="36" height="36"','width="56" height="56"')}</div>
       <b>CHAMPION</b>
       <span>${final?.winner ? esc(playerName(final.winner)) : 'TBD'}</span>
+      ${thirdMatchOf(t) ? `<div class="bc-third">${medalHTML('bronze','3',26)}<div><small>3rd place</small><b>${thirdMatchOf(t).winner ? esc(playerName(thirdMatchOf(t).winner)) : 'TBD'}</b></div></div>` : ''}
     </div>
   </div>`;
 }
@@ -3749,6 +3750,22 @@ function scrollKoCurrent(){
   b.scrollLeft = Math.max(0, b.scrollLeft + r.getBoundingClientRect().left - b.getBoundingClientRect().left - 8);
 }
 function setKoRound(tid, v){ koRoundPick[tid] = v; rerender() }
+/* Final-round summary: champion on top, then runner-up, 3rd and 4th as they are decided. */
+function koPodiumHTML(t){
+  const pl = decidedPlacings(t) || resultPlacings(t);
+  if(!pl || (!pl.champion && !pl.third)) return '';
+  const tile = (k, medal, label) => `<div class="kp kp-${k}">${medal}<div class="kp-txt"><small>${label}</small><b>${pl[k] ? esc(playerName(pl[k])) : 'TBD'}</b></div></div>`;
+  const hasThird = !!thirdMatchOf(t) || pl.third;
+  return `<div class="ko-podium" aria-label="Final placings">
+    ${tile('champion', `<span class="kp-cup">${ICON.cup}</span>`, 'Champion')}
+    <div class="kp-row ${hasThird?'':'two'}">
+      ${tile('runner_up', medalHTML('silver','2',30), 'Runner-up')}
+      ${hasThird ? tile('third', medalHTML('bronze','3',30), '3rd place') + tile('fourth', `<span class="rk rk-sz kp-4n" style="--s:30px">4</span>`, '4th place') : ''}
+    </div>
+  </div>`;
+}
+/* Extra class for the last round's matches: gold for the Final, bronze for the 3rd place match. */
+const koLastCls = (t, m, ri) => ri===(t.knockoutBracket||[]).length-1 ? (isThirdMatch(m) ? 'final is-third' : 'final is-final') : '';
 function koCardsHTML(t, admin){
   const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
   const final = rounds.at(-1)?.[0];
@@ -3769,15 +3786,15 @@ function koCardsHTML(t, admin){
         <h3>${esc(roundTitle(round, ri))}</h3>
         <span class="ko-round-meta">${real.length ? `${decided}/${real.length} decided` : 'Waiting for the previous round'}${dl ? ` · <b>Deadline ${fmtShort(dl)}</b>` : ''}</span>
       </div>
+      ${ri===rounds.length-1 ? koPodiumHTML(t) : ''}
       <div class="ko-grid ${ties.length===1?'one':''}">${ties.map(m=>{
         const legs = koLegs(t, m), played = legs.filter(l=>hasScore(l[0]) && hasScore(l[1])).length;
         const st = m.isBye ? ['bye','Bye'] : m.winner ? ['done','Full time'] : !m.team1 || !m.team2 ? ['tbd','Waiting'] : played ? ['live', `${played}/${legs.length} played`] : ['todo','Not played'];
-        return `<div class="ko-card bracket-match ${st[0]} ${ri===rounds.length-1?'final':''}">
-          <div class="ko-card-h"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? `<span class="ko-tag">${esc(koTag(m))}</span>` : ''}<span class="ko-st ${st[0]}">${st[1]}</span></div>
+        return `<div class="ko-card bracket-match ${st[0]} ${koLastCls(t, m, ri)}">
+          <div class="ko-card-h">${ri===rounds.length-1 && rounds.length>1 ? (isThirdMatch(m) ? medalHTML('bronze','3',22) : `<span class="ko-cup">${ICON.cup}</span>`) : ''}<b class="ko-code">${esc(isThirdMatch(m) ? '3rd Place Match' : koCode(t, m))}</b>${koTag(m) ? `<span class="ko-tag">${esc(koTag(m))}</span>` : ''}<span class="ko-st ${st[0]}">${st[1]}</span></div>
           ${koMatchBody(t, m, playerName)}
           ${admin && t.status==='active' && !m.isBye && m.team1 && m.team2 ? `<button type="button" class="btn btn-sm" onclick="openKnockoutMatchModal('${t.id}',${ri},'${m.id}')">${m.winner?'Edit result':'Enter result'}</button>`:''}
         </div>`}).join('')}</div>
-      ${ri===rounds.length-1 && final?.winner ? `<div class="ko-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
     </section>`}).join('')}</div>`;
 }
 

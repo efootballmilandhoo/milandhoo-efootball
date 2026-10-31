@@ -312,8 +312,8 @@
   .bracket-match .btn{border-radius:0;border-top:1px solid var(--border);width:100%;min-height:34px;color:var(--primary-dark);background:var(--surface)}
   .bracket-champion{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:160px;flex-shrink:0}
   .bracket-champion .trophy-disc{width:100px;height:100px}
-  .bracket-champion b{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:.1em;color:var(--ink)}
-  .bracket-champion span{font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--primary-dark);text-align:center;word-break:break-word}
+  .bracket-champion > b{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:.1em;color:var(--ink)}
+  .bracket-champion > span{font-family:var(--font-display);font-weight:700;font-size:20px;color:var(--primary-dark);text-align:center;word-break:break-word}
 
   /* ---------- Forms ---------- */
   .form-group{margin-bottom:15px}

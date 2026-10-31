@@ -108,3 +108,6 @@
 :root[data-theme="dark"] .xs-fbar{border-top-color:#2A3A5C}
 :root[data-theme="dark"] .q-chip.done{background:#178A52}
 :root[data-theme="dark"] .dec-0{opacity:.8}
+:root[data-theme="dark"] .ko-card.is-third .ko-code{color:#F2B48A}
+:root[data-theme="dark"] .ko-card.is-third,:root[data-theme="dark"] .bracket-match.is-third,:root[data-theme="dark"] .kp-third,:root[data-theme="dark"] .bc-third{border-color:#9A5B33}
+:root[data-theme="dark"] .kp-champion{background:linear-gradient(180deg,#2C2410,#121B2E)}
