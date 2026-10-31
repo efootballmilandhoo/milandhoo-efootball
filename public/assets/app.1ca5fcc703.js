@@ -305,7 +305,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const slug = s => (String(s || 'export').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,'') || 'export');
 const hasScore = v => v !== null && v !== undefined && v !== '' && !Number.isNaN(v);
 /* A real result: both scores in and not an automatic 0-0 recorded at the deadline (those give no points). */
-const realResult = f => !!f && hasScore(f.score1) && hasScore(f.score2) && !f.autoDraw;
+/* A match that was really played: not an automatic 0-0 at the deadline and not a forfeit (3-0 walkover). */
+const realResult = f => !!f && hasScore(f.score1) && hasScore(f.score2) && !f.autoDraw && !f.forfeit;
 /* Group-stage deadline (saved in Maldives time, UTC+5). Scores can be edited up to 30 minutes after it, then they lock. */
 function deadlineMsOf(v){ if(!v) return NaN; const s = String(v); return Date.parse(/([zZ]|[+-]\d\d:?\d\d)$/.test(s) ? s : (s.length===16 ? s+':00' : s) + '+05:00') }
 const GROUP_EDIT_GRACE = 30*60*1000;
@@ -987,7 +988,7 @@ function fbStandings(t){
 function fbFixtureRow(f){
   const done = fbDone(f), w1 = done && f.score1>f.score2, w2 = done && f.score2>f.score1;
   const np = done && f.autoDraw && EXPORT_CTX.scope !== 'pending';
-  return `<div class="fbf"><span class="a ${w1?'w':''}">${esc(playerName(f.team1))}</span><span class="sc ${!done || EXPORT_CTX.scope==='pending' ? 'pending' : ''} ${np?'np':''}">${np ? 'NP' : done && EXPORT_CTX.scope!=='pending' ? `${f.score1} – ${f.score2}` : 'vs'}</span><span class="b ${w2?'w':''}">${esc(playerName(f.team2))}</span></div>`;
+  return `<div class="fbf"><span class="a ${w1?'w':''}">${esc(playerName(f.team1))}</span><span class="sc ${!done || EXPORT_CTX.scope==='pending' ? 'pending' : ''} ${np?'np':''}">${np ? 'NP' : done && EXPORT_CTX.scope!=='pending' ? `${f.score1} – ${f.score2}${f.forfeit?'<i class="ff">FF</i>':''}` : 'vs'}</span><span class="b ${w2?'w':''}">${esc(playerName(f.team2))}</span></div>`;
 }
 function fbFixtures(t){
   // "Not played" export: only matches without a real result (still to play, or recorded 0-0 at the deadline).
@@ -1153,7 +1154,7 @@ function fbRules(tid, key){
 function fbStatCard(d, rows){
   const fmt = d.fmt || (v=>v);
   const groups = statGroups(rows, d, 3);
-  const names = (g, max) => { const n = g.rows.map(r=>esc(statPlayer(r.id).name)); return n.length>max ? n.slice(0,max).join(', ') + ` +${n.length-max} more` : n.join(', ') };
+  const names = (g, max) => { const n = g.rows.map(r=>esc(statPlayer(r.id).name) + (d.short ? ` <small class="fsc-sub">(${esc(d.short(r))})</small>` : '')); return n.length>max ? n.slice(0,max).join(', ') + ` +${n.length-max} more` : n.join(', ') };
   return `<div class="fsc">
     <div class="fsc-h">${statIco(d.icon, d.c)}<div><b>${d.title}</b>${d.hint?`<small>${d.hint}</small>`:''}</div></div>
     ${groups.length ? groups.map(g=>`<div class="fsc-row ${g.rk===1?'top':''}"><span class="fsc-rk">${g.rk}</span><span class="fsc-nm">${names(g, g.rk===1?3:2)}</span><b>${fmt(g.v)}</b></div>`).join('') : '<div class="fsc-empty">No results yet</div>'}
@@ -3156,11 +3157,13 @@ function renderRegistrationTab(t, admin){
                 const p = STORE.players.find(x=>x.id===r.playerId) || {name:'Unknown player'};
                 return `<tr>
                   <td class="rg-n" style="font-weight:700">${i+1}</td>
-                  <td class="rg-p"><span class="who">${renderAvatar(p, 32)}<span class="rg-name">${esc(p.name)}</span></span></td>
+                  <td class="rg-p"><span class="who">${renderAvatar(p, 32)}${hasForfeited(t, r.playerId) ? `<span class="rg-nm2"><span class="rg-name">${esc(p.name)}</span><span class="badge badge-ff">Forfeited</span></span>` : `<span class="rg-name">${esc(p.name)}</span>`}</span></td>
                   ${admin?`<td class="rg-ph text-sm${STORE.phones[r.playerId]?'':' rg-empty'}" style="white-space:nowrap">${STORE.phones[r.playerId] ? telegramLink(STORE.phones[r.playerId]) : '<span class="text-muted">—</span>'}</td>`:''}
                   <td class="rg-a text-muted text-sm">${esc(p.achievements||'—')}</td>
                   <td class="rg-d text-muted text-sm${r.date?'':' rg-empty'}">${fmtDate(r.date)}</td>
-                  ${admin && t.status!=='completed'?`<td class="rg-x t-right"><button type="button" class="btn btn-ghost btn-sm" onclick="unregisterPlayer('${t.id}','${r.playerId}')" style="color:var(--danger-ink)">Remove</button></td>`:''}
+                  ${admin && t.status!=='completed'?`<td class="rg-x t-right"><span class="rg-acts">${t.groupsDrawn && t.status==='active' && (t.fixtures||[]).some(f=>isGroupFx(t, f) && (f.team1===r.playerId || f.team2===r.playerId))
+                    ? (hasForfeited(t, r.playerId) ? `<button type="button" class="btn btn-ghost btn-sm" onclick="undoForfeit('${t.id}','${r.playerId}')">Undo forfeit</button>` : `<button type="button" class="btn btn-ghost btn-sm" onclick="forfeitPlayer('${t.id}','${r.playerId}')" style="color:var(--orange-ink)">Forfeit</button>`)
+                    : ''}<button type="button" class="btn btn-ghost btn-sm" onclick="unregisterPlayer('${t.id}','${r.playerId}')" style="color:var(--danger-ink)">Remove</button></span></td>`:''}
                 </tr>`;
               }).join('')}
           </tbody>
@@ -3233,6 +3236,56 @@ function saveCheckboxRegistration(tid){
   closeModal();
   rerender();
   toast(`Saved ${checked.length} player${checked.length!==1?'s':''}`);
+}
+
+/* ---- Forfeit: a player who leaves the tournament. Each of their group-stage matches becomes a 3-0 win for the opponent
+   (if both players forfeited, the match counts as not played: 0-0, no points). Undo puts the old scores back. ---- */
+const isGroupFx = (t, f) => t.format==='league' || !!f.group;
+const hasForfeited = (t, pid) => (t.forfeits||[]).includes(pid);
+function applyForfeits(t){
+  const out = new Set(t.forfeits||[]), now = new Date().toISOString();
+  (t.fixtures||[]).forEach(f=>{
+    if(!isGroupFx(t, f)) return;
+    const a = out.has(f.team1), b = out.has(f.team2);
+    if(!a && !b){
+      if(f.forfeit){ const p = f.preForfeit || {}; f.score1 = p.score1 ?? null; f.score2 = p.score2 ?? null;
+        if(p.autoDraw) f.autoDraw = true; else delete f.autoDraw; if(p.scoredAt) f.scoredAt = p.scoredAt; else delete f.scoredAt;
+        delete f.forfeit; delete f.preForfeit }
+      return;
+    }
+    const want = a && b ? 'both' : a ? f.team1 : f.team2;
+    if(f.forfeit===want) return;
+    if(!f.forfeit) f.preForfeit = {score1:f.score1 ?? null, score2:f.score2 ?? null, autoDraw:!!f.autoDraw, scoredAt:f.scoredAt || null};
+    f.forfeit = want; f.scoredAt = now;
+    if(want==='both'){ f.score1 = 0; f.score2 = 0; f.autoDraw = true }
+    else { delete f.autoDraw; f.score1 = a ? 0 : 3; f.score2 = a ? 3 : 0 }
+  });
+  t.resultsAt = now;
+}
+async function forfeitPlayer(tid, pid){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  const t0 = STORE.tournaments.find(x=>x.id===tid); if(!t0) return;
+  const fx = (t0.fixtures||[]).filter(f=>isGroupFx(t0, f) && (f.team1===pid || f.team2===pid));
+  if(!fx.length){ toast('This player has no group-stage matches', true); return }
+  const played = fx.filter(realResult).length;
+  const ok = await confirmDialog('Forfeit player', `${playerName(pid)} forfeits the tournament. All ${fx.length} of their ${t0.format==='league'?'league':'group-stage'} matches become 3–0 wins for their opponents${played?`, including the ${played} already played`:''}. You can undo this later.`, 'Forfeit');
+  if(!ok) return;
+  const {all, t} = getT(tid);
+  t.forfeits = [...new Set([...(t.forfeits||[]), pid])];
+  applyForfeits(t);
+  DB.set('tournaments', all); rerender();
+  toast(`${playerName(pid)} forfeited · ${fx.length} matches given 3–0 to the opponents`);
+}
+async function undoForfeit(tid, pid){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  const ok = await confirmDialog('Undo forfeit', `Bring ${playerName(pid)} back? Their matches get the scores they had before the forfeit.`, 'Undo forfeit');
+  if(!ok) return;
+  const {all, t} = getT(tid);
+  t.forfeits = (t.forfeits||[]).filter(x=>x!==pid);
+  if(!t.forfeits.length) delete t.forfeits;
+  applyForfeits(t);
+  DB.set('tournaments', all); rerender();
+  toast('Forfeit undone');
 }
 
 async function unregisterPlayer(tid, playerId){
@@ -3369,8 +3422,8 @@ function fixtureRows(t, admin, canEdit){
       <td class="t-right"><span class="who right" style="${done&&f.score1>f.score2?'color:var(--primary-dark)':''}">${esc(p1.name)}${renderAvatar(p1,30)}</span></td>
       <td class="t-center"><span class="result-pill ${done?'':'pending'}">${done?`${f.score1} – ${f.score2}`:'vs'}</span></td>
       <td><span class="who" style="${done&&f.score2>f.score1?'color:var(--primary-dark)':''}">${renderAvatar(p2,30)}${esc(p2.name)}</span></td>
-      <td class="t-right">${done ? `${f.autoDraw ? '<span class="badge badge-np" title="Not played by the deadline: recorded 0-0, no points">Not played · 0 pts</span>' : '<span class="badge badge-completed">Completed</span>'}` : `<span class="badge badge-pending">Pending</span>`}</td>
-      ${admin && canEdit ? `<td class="t-right no-export">${locked && (t.format==='league' || f.group) ? '<span class="fx-lock" title="Group results are locked">'+ICON_LOCK+' Locked</span>' : `<span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span>`}</td>`:''}
+      <td class="t-right">${done ? `${f.forfeit ? `<span class="badge badge-ff" title="${f.forfeit==='both' ? 'Both players forfeited: no points' : esc(playerName(f.forfeit))+' forfeited the tournament: 3-0 to the opponent'}">Forfeit${f.forfeit==='both'?' · 0 pts':''}</span>` : f.autoDraw ? '<span class="badge badge-np" title="Not played by the deadline: recorded 0-0, no points">Not played · 0 pts</span>' : '<span class="badge badge-completed">Completed</span>'}` : `<span class="badge badge-pending">Pending</span>`}</td>
+      ${admin && canEdit ? `<td class="t-right no-export">${f.forfeit ? '<span class="fx-lock" title="Undo the forfeit in the Players tab to change it">Forfeit</span>' : locked && (t.format==='league' || f.group) ? '<span class="fx-lock" title="Group results are locked">'+ICON_LOCK+' Locked</span>' : `<span class="fx-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="editFixtureScore('${t.id}','${f.id}')">${done?'Edit':'Enter score'}</button>${done ? `<button type="button" class="btn btn-ghost btn-sm fx-clear" onclick="clearFixtureResult('${t.id}','${f.id}')" aria-label="Clear result" title="Clear result">${ICON_CLEAR}</button>` : ''}</span>`}</td>`:''}
     </tr>`;
   }).join('');
 }
@@ -3477,7 +3530,7 @@ const STAT_DEFS = rows => {
   const dec1 = v => (Math.round(v*10)/10).toFixed(1), sgn = v => (v>0?'+':'') + v;
   return {min, minNote, list: [
     {icon:'goals', c:'green', title:'Most goals scored', val:r=>r.gf, unit:'goals'},
-    {icon:'shield', c:'blue', title:'Fewest goals conceded', hint:minNote, val:r=>r.ga, desc:false, unit:'conceded', min},
+    {icon:'shield', c:'blue', title:'Fewest conceded per match', hint: minNote || 'Goals conceded ÷ matches played', val:r=>r.cpg, desc:false, fmt:v=>(Math.round(v*100)/100).toFixed(2), unit:'per match', sub:r=>`${r.ga} conceded in ${r.p}`, short:r=>`${r.ga} in ${r.p}`, min},
     {icon:'plusminus', c:'gold', title:'Best goal difference', val:r=>r.gd, fmt:sgn, unit:'goal diff'},
     {icon:'wins', c:'purple', title:'Most wins', val:r=>r.w, unit:'wins'},
     {icon:'glove', c:'teal', title:'Most clean sheets', hint:'Matches without conceding', val:r=>r.cs, unit:'clean sheets'},
@@ -3492,7 +3545,7 @@ function statGroups(rows, d, maxPos){
   list.forEach(r=>{ const g = groups.at(-1); if(g && g.rk===r._rk) g.rows.push(r); else groups.push({rk:r._rk, v:r._v, rows:[r]}) });
   return groups.filter(g=>g.rk<=maxPos);
 }
-const namesOf = rows => rows.map(r=>esc(statPlayer(r.id).name));
+const namesOf = (rows, d) => rows.map(r=>esc(statPlayer(r.id).name) + (d?.short ? ` <small class="st-sub">(${esc(d.short(r))})</small>` : ''));
 function statCard(d, rows, opts={}){
   const fmt = d.fmt || (v=>v);
   const groups = statGroups(rows, d, opts.maxPos || 5);
@@ -3505,11 +3558,11 @@ function statCard(d, rows, opts={}){
     <div class="st-lead ${shared?'shared':''}">
       <div class="st-lead-top"><span class="st-lead-tag">${shared ? `1st · shared by ${lead.rows.length}` : 'Leader'}</span><div class="st-lead-val">${fmt(lead.v)}<small>${d.unit||''}</small></div></div>
       ${shared
-        ? `<div class="st-lead-many">${lead.rows.map(r=>`<span class="st-pchip">${renderAvatar(statPlayer(r.id), 22)}${esc(statPlayer(r.id).name)}</span>`).join('')}</div>`
-        : `<div class="st-lead-one">${renderAvatar(statPlayer(lead.rows[0].id), 40)}<b>${esc(statPlayer(lead.rows[0].id).name)}</b></div>`}
+        ? `<div class="st-lead-many">${lead.rows.map(r=>`<span class="st-pchip">${renderAvatar(statPlayer(r.id), 22)}${esc(statPlayer(r.id).name)}${d.sub?` <small class="st-sub">${esc(d.sub(r))}</small>`:''}</span>`).join('')}</div>`
+        : `<div class="st-lead-one">${renderAvatar(statPlayer(lead.rows[0].id), 40)}<div class="st-lead-who"><b>${esc(statPlayer(lead.rows[0].id).name)}</b>${d.sub?`<small class="st-sub">${esc(d.sub(lead.rows[0]))}</small>`:''}</div></div>`}
     </div>
     ${rest.length ? `<ol class="st-list">${rest.map(g=>`<li><span class="st-rk">${g.rk}${g.rows.length>1?'<small>=</small>':''}</span>
-        <span class="st-nm ${g.rows.length>4?'many':''}">${(opts.maxNames && g.rows.length>opts.maxNames ? namesOf(g.rows.slice(0,opts.maxNames)).concat(`+${g.rows.length-opts.maxNames} more`) : namesOf(g.rows)).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
+        <span class="st-nm ${g.rows.length>4?'many':''}">${(opts.maxNames && g.rows.length>opts.maxNames ? namesOf(g.rows.slice(0,opts.maxNames), d).concat(`+${g.rows.length-opts.maxNames} more`) : namesOf(g.rows, d)).join(', ')}</span><b>${fmt(g.v)}</b></li>`).join('')}</ol>` : ''}
   </div>`;
 }
 /* One record match on a single compact line; winner in blue. */
@@ -3639,6 +3692,7 @@ function saveFixtureScore(tid, fid, clear=false){
   const {all, t} = getT(tid);
   if(groupLocked(t)){ closeModal(); toast('Group stage results are locked (30 minutes after the deadline)', true); rerender(); return }
   const f = t.fixtures.find(x=>x.id===fid);
+  if(f.forfeit){ closeModal(); toast('This match is a forfeit. Undo the forfeit in the Players tab to change it.', true); return }
   delete f.autoDraw;   // an organiser's score replaces an automatic 0-0
   if(clear){ f.score1 = null; f.score2 = null; delete f.scoredAt }
   else {
@@ -3770,23 +3824,28 @@ function koCardsHTML(t, admin){
   const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
   const final = rounds.at(-1)?.[0];
   // Opens on the round being played now (the first with an undecided tie); after the final, on All.
-  if(koRoundPick[t.id]===undefined){ const cur = rounds.findIndex(r=>r.some(m=>m && !m.isBye && m.team1 && m.team2 && !m.winner)); koRoundPick[t.id] = cur>=0 ? cur : '*' }
-  const pick = rounds[koRoundPick[t.id]] ? koRoundPick[t.id] : '*';
+  // The last round's 3rd place match has its own choice ('third'); the last round's index then shows the Final only.
+  const third = thirdMatchOf(t), last = rounds.length-1;
+  const open = m => m && !m.isBye && m.team1 && m.team2 && !m.winner;
+  if(koRoundPick[t.id]===undefined){ const cur = rounds.findIndex(r=>r.some(open)); koRoundPick[t.id] = cur<0 ? '*' : cur===last && third && !open(rounds[last][0]) && open(third) ? 'third' : cur }
+  const pick = (koRoundPick[t.id]==='third' && third) || rounds[koRoundPick[t.id]] ? koRoundPick[t.id] : '*';
+  const seg = (v, label, title) => `<button type="button" class="seg ${pick===v?'active':''}" aria-pressed="${pick===v}" title="${esc(title)}" onclick="setKoRound('${t.id}',${typeof v==='number'?v:`'${v}'`})">${esc(label)}</button>`;
   const picker = rounds.length>1 ? `<div class="segmented ko-round-pick" role="group" aria-label="Choose round">
-      <button type="button" class="seg ${pick==='*'?'active':''}" aria-pressed="${pick==='*'}" onclick="setKoRound('${t.id}','*')">All</button>
-      ${rounds.map((r,ri)=>{ const sh = koRoundShort(r[0]?.round) || 'Round '+(ri+1); return `<button type="button" class="seg ${pick===ri?'active':''}" aria-pressed="${pick===ri}" title="${esc(r[0]?.round||'')}" onclick="setKoRound('${t.id}',${ri})">${esc(sh)}</button>` }).join('')}
+      ${seg('*', 'All', 'All rounds')}
+      ${rounds.map((r,ri)=>(ri===last && third ? seg('third', '3rd', '3rd place match') : '') + seg(ri, koRoundShort(r[0]?.round) || 'Round '+(ri+1), r[0]?.round||'')).join('')}
     </div>` : '';
   return picker + `<div class="ko-cards">${rounds.map((round, ri)=>{
-    if(pick!=='*' && pick!==ri) return '';
-    const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
+    if(pick!=='*' && pick!==ri && !(pick==='third' && ri===last)) return '';
+    const only = ri===last && third ? (pick==='third' ? 'third' : pick===ri ? 'final' : null) : null;
+    const ties = roundPart(round, only).filter(m=>!m.isBye || m.team1 || m.team2);
     const real = ties.filter(m=>!m.isBye), decided = real.filter(m=>m.winner).length;
     const dl = dls[round[0]?.round];
     return `<section class="ko-round" aria-label="${esc(round[0]?.round||'Round '+(ri+1))}">
       <div class="ko-round-h">
-        <h3>${esc(roundTitle(round, ri))}</h3>
+        <h3>${esc(only==='third' ? '3rd Place Match' : only==='final' ? 'Final' : roundTitle(round, ri))}</h3>
         <span class="ko-round-meta">${real.length ? `${decided}/${real.length} decided` : 'Waiting for the previous round'}${dl ? ` · <b>Deadline ${fmtShort(dl)}</b>` : ''}</span>
       </div>
-      ${ri===rounds.length-1 ? koPodiumHTML(t) : ''}
+      ${ri===last && only!=='third' ? koPodiumHTML(t) : ''}
       <div class="ko-grid ${ties.length===1?'one':''}">${ties.map(m=>{
         const legs = koLegs(t, m), played = legs.filter(l=>hasScore(l[0]) && hasScore(l[1])).length;
         const st = m.isBye ? ['bye','Bye'] : m.winner ? ['done','Full time'] : !m.team1 || !m.team2 ? ['tbd','Waiting'] : played ? ['live', `${played}/${legs.length} played`] : ['todo','Not played'];
@@ -4187,7 +4246,8 @@ function getPlayerFixtures(t, pid){
   (t.fixtures||[]).forEach(f=>{
     if(f.team1!==pid && f.team2!==pid) return;
     const me1 = f.team1===pid, played = realResult(f);
-    if(f.autoDraw && hasScore(f.score1)){ list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score:'0 - 0', goals:null, result:'np', detail:'Not played · no points', at: f.scoredAt||''}); return }
+    if(f.forfeit && f.forfeit!=='both'){ const won = f.forfeit!==pid; list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score: won?'3 - 0':'0 - 3', goals:null, result: won?'win':'loss', detail: won ? 'Opponent forfeited' : 'Forfeited', at: f.scoredAt||''}); return }
+    if(f.autoDraw && hasScore(f.score1)){ list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score:'0 - 0', goals:null, result:'np', detail: f.forfeit ? 'Both forfeited · no points' : 'Not played · no points', at: f.scoredAt||''}); return }
     const my = me1?f.score1:f.score2, opp = me1?f.score2:f.score1;
     list.push({stage: t.format==='league'?`Matchday ${f.matchday}`:`Group ${f.group}`, opponent: me1?f.team2:f.team1, score: played?`${my} - ${opp}`:null, goals: played?[my,opp]:null, result: !played?null: my>opp?'win':my<opp?'loss':'draw', at: f.scoredAt||''});
   });

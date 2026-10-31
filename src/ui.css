@@ -2089,3 +2089,15 @@
 .bc-third{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 14px;border-radius:12px;border:1.5px solid #C98452;background:var(--surface)}
 .bc-third small{display:block;font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .bc-third b{font-family:var(--font-display);font-size:17px;color:var(--ink)}
+/* Forfeits */
+.badge-ff{background:rgba(255,166,0,.14);color:var(--orange-ink);border:1px solid rgba(255,166,0,.35)}
+.rg-nm2{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.rg-nm2 .badge-ff{font-size:10px;padding:2px 7px;white-space:nowrap}
+.rg-acts{display:inline-flex;gap:2px;justify-content:flex-end;flex-wrap:wrap}
+.fbf .sc .ff{display:block;font-style:normal;font-family:var(--font-body,inherit);font-size:calc(11px*var(--z));letter-spacing:.12em;line-height:1;margin:-6px 0 6px;opacity:.75}
+/* Stats: the extra line under a value (e.g. goals conceded in N matches) */
+.st-lead-who{display:flex;flex-direction:column;min-width:0}
+.st-sub{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.st-lead-one .st-sub{font-size:12.5px;margin-top:2px}
+.st-pchip .st-sub{margin-left:4px}
+.fsc-sub{font-size:.62em;font-weight:600;color:var(--muted);white-space:nowrap}
