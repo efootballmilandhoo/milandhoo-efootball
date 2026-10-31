@@ -395,11 +395,12 @@ function roundLabel(matches){ return matches===1 ? 'Final' : matches===2 ? 'Semi
 /* Short match codes: RO16 M1, QF M2, SF M1, Final. */
 function koRoundShort(name){ return name==='Final' ? 'Final' : name==='Semi Finals' ? 'SF' : name==='Quarter Finals' ? 'QF' : /^Round of (\d+)$/.test(name||'') ? 'RO'+RegExp.$1 : (name||'') }
 function koCode(t, m){
+  if(isThirdMatch(m)) return '3rd Place';
   for(const round of t.knockoutBracket||[]){ const i = round.indexOf(m); if(i>=0){ const s = koRoundShort(round[0]?.round); return s==='Final' ? 'Final' : `${s} M${i+1}` } }
   return m.round || '';
 }
 /* The seeding tag of a first-round tie ("A1 vs B2"), when there is one. */
-const koTag = m => m.label && !/^(Final|Winners advance|Match)$/.test(m.label) ? m.label : '';
+const koTag = m => m.label && !/^(Final|Third place|Winners advance|Match)$/.test(m.label) ? m.label : '';
 function emptyMatch(){ return {id:uid(), team1:null, team2:null, score1:null, score2:null, leg2Score1:null, leg2Score2:null, games:null, pens:null, winner:null} }
 
 const sameGroup = (a,b) => !!(a && b && a.group && a.group===b.group);
@@ -454,10 +455,28 @@ function buildBracket(seeds){
   return rounds;
 }
 
+/* Optional 3rd place match: played by the two semi-final losers, in the last round next to the Final,
+   with the Final's format, rules and match settings. */
+const THIRD = 'Third Place';
+const isThirdMatch = m => !!m && m.round===THIRD;
+/* Display name of a round: the last one reads "Final & 3rd Place" when it holds both matches. */
+const roundTitle = (round, ri) => round?.some?.(isThirdMatch) ? 'Final & 3rd Place' : (round?.[0]?.round || `Round ${(ri||0)+1}`);
+const loserOf = m => m && m.winner && m.team1 && m.team2 ? (m.winner===m.team1 ? m.team2 : m.team1) : null;
+function thirdMatchOf(t){ return (t.knockoutBracket||[]).at(-1)?.find(isThirdMatch) || null }
+/* Adds or removes the 3rd place match to match the tournament setting (never removes one that has scores). */
+function ensureThirdMatch(t){
+  const kb = t.knockoutBracket; if(!kb || kb.length<2) return;
+  const last = kb.at(-1), i = last.findIndex(isThirdMatch);
+  if(t.thirdPlaceMatch && i<0){ const m = emptyMatch(); m.round = THIRD; last.push(m) }
+  if(!t.thirdPlaceMatch && i>=0){ const m = last[i]; if(!m.winner && !koLegsAny(m)) last.splice(i,1) }
+  propagateBracket(kb);
+}
+const koLegsAny = m => [m.score1, m.score2, m.leg2Score1, m.leg2Score2].some(hasScore) || (Array.isArray(m.games) && m.games.some(g=>hasScore(g?.a)||hasScore(g?.b)));
 function propagateBracket(rounds){
   for(let r=1; r<rounds.length; r++){
     rounds[r].forEach((m,i)=>{
-      const a = rounds[r-1][2*i]?.winner || null, b = rounds[r-1][2*i+1]?.winner || null;
+      const prev = rounds[r-1];
+      const a = isThirdMatch(m) ? loserOf(prev[0]) : prev[2*i]?.winner || null, b = isThirdMatch(m) ? loserOf(prev[1]) : prev[2*i+1]?.winner || null;
       if(m.team1!==a || m.team2!==b){
         m.team1 = a; m.team2 = b;
         m.score1 = m.score2 = m.leg2Score1 = m.leg2Score2 = null;
@@ -724,7 +743,7 @@ function fbBracketPages(t, rounds){
   // Each round is a block (split into 8-tie parts when large); blocks share pages when they fit.
   const blocks = [];
   rounds.forEach(ri=>{
-    const round = t.knockoutBracket[ri], title = round[0]?.round || `Round ${ri+1}`, dl = (t.rules?.roundDeadlines||{})[round[0]?.round];
+    const round = t.knockoutBracket[ri], title = roundTitle(round, ri), dl = (t.rules?.roundDeadlines||{})[round[0]?.round];
     const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
     chunk(ties, 8).forEach((set, k, all)=>blocks.push({title, dl, set, part: all.length>1 ? ` (${k+1}/${all.length})` : '', isFinal: ri===t.knockoutBracket.length-1}));
   });
@@ -874,6 +893,7 @@ function fbPlayerFixtures(t, pid){
   const lastKo = ko.at(-1), finalM = (t.knockoutBracket||[]).at(-1)?.[0];
   const reached = !ko.length ? (t.knockoutDrawn ? 'Group stage' : (grp[0]?.stage || '—'))
     : (lastKo.stage==='Final' && finalM?.winner) ? (finalM.winner===pid ? 'Champion' : 'Runner-up')
+    : (lastKo.stage===THIRD && thirdMatchOf(t)?.winner) ? (thirdMatchOf(t).winner===pid ? '3rd place' : '4th place')
     : lastKo.result==='win' && !(t.knockoutBracket||[]).some(r=>r.some(m=>m.round!==lastKo.stage && (m.team1===pid||m.team2===pid) && !m.winner)) ? lastKo.stage : lastKo.stage;
   const res = r => r==='np' ? '<span class="fb-res np">NP</span>' : r ? `<span class="fb-res ${r}">${r==='win'?'W':r==='loss'?'L':'D'}</span>` : '<span class="fb-res p">–</span>';
   const grpCard = f => `<div class="fb-pfc">${res(f.result)}<div class="mid"><b>${esc(f.opponent ? playerName(f.opponent) : 'TBD')}</b></div><span class="sc ${f.score && f.result!=='np'?'':'pending'}">${f.result==='np' ? 'NP' : f.score ? esc(f.score.replace(' - ','–')) : 'Pending'}</span></div>`;
@@ -1475,7 +1495,7 @@ function bracketHTML(t, admin){
   return `<div class="bracket ${Object.values(t.rules?.roundDeadlines||{}).some(Boolean)?'has-dl':''}">
     ${rounds.map((round,ri)=>`
       <div class="bracket-round ${multi?'multi':''} ${ri===cur?'is-current':''}">
-        <div class="bracket-round-title">${esc(round[0]?.round||'Round '+(ri+1))}${(t.rules?.roundDeadlines||{})[round[0]?.round] ? `<span class="round-dl">Deadline ${fmtShort(t.rules.roundDeadlines[round[0].round])}</span>` : ''}</div>
+        <div class="bracket-round-title">${esc(roundTitle(round, ri))}${(t.rules?.roundDeadlines||{})[round[0]?.round] ? `<span class="round-dl">Deadline ${fmtShort(t.rules.roundDeadlines[round[0].round])}</span>` : ''}</div>
         ${round.map(m=>`
           <div class="bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''} ${ri===rounds.length-1?'final':''}">
             <div class="bracket-match-title"><b class="ko-code">${esc(koCode(t, m))}</b>${koTag(m) ? ` · ${esc(koTag(m))}` : ''}</div>
@@ -1507,7 +1527,7 @@ function exportRoundAsJPEG(tid, roundIndex){
     </div>`).join('')}
   </div>`;
   const rdl = (t.rules?.roundDeadlines||{})[round[0]?.round];
-  return renderSheet(sheetHeader(t, t.name, `${esc(round[0]?.round || 'Round '+(roundIndex+1))} · ${koLabel(koFmt(t, round[0]))}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(round[0]?.round)}`);
+  return renderSheet(sheetHeader(t, t.name, `${esc(roundTitle(round, roundIndex))} · ${koLabel(koFmt(t, round[0]))}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(round[0]?.round)}`);
 }
 
 function exportGenericSheet(el, t, title, subtitle, filename){
@@ -2260,6 +2280,10 @@ function openCreateTournament(){
             </select>
           </div>
           <div class="form-group">
+            <label class="form-label" for="t_third">3rd Place Match</label>
+            <select class="form-select" id="t_third"><option value="">No</option><option value="1">Yes, the semi-final losers play for 3rd place</option></select>
+          </div>
+          <div class="form-group">
             <label class="form-label" for="t_final">Final Match Format</label>
             <select class="form-select" id="t_final">
               <option value="">Same as other rounds</option>
@@ -2399,7 +2423,7 @@ function saveTournament(){
     t.qualifyPerGroup = Math.max(1, parseInt(document.getElementById('t_qualify').value)||1);
     t.seeding = document.getElementById('t_seeding').value;
   }
-  if(format!=='league'){ t.knockoutFormat = document.getElementById('t_ko').value; const ff = document.getElementById('t_final')?.value || ''; if(ff && ff!==t.knockoutFormat) t.finalFormat = ff }
+  if(format!=='league'){ t.knockoutFormat = document.getElementById('t_ko').value; const ff = document.getElementById('t_final')?.value || ''; if(ff && ff!==t.knockoutFormat) t.finalFormat = ff; if(document.getElementById('t_third')?.value) t.thirdPlaceMatch = true }
   if(format==='league') t.leagueRounds = parseInt(document.getElementById('t_league_rounds').value);
   const tourneys = DB.get('tournaments');
   tourneys.unshift(t);
@@ -2665,6 +2689,7 @@ function drawTournament(t){
     t.groupsDrawn = true;
   } else {
     t.knockoutBracket = buildBracket(shuffle(regs).map(r=>({playerId:r.playerId, tag:''})));
+    ensureThirdMatch(t);
     t.knockoutDrawn = true;
   }
   t.deadlineProcessed = false;
@@ -3281,6 +3306,7 @@ async function drawKnockout(tid){
   if(t.seeding==='random') q = shuffle(q);
   else q.sort((a,b)=> a.pos-b.pos || b.points-a.points || (b.gf-b.ga)-(a.gf-a.ga) || b.gf-a.gf);
   t.knockoutBracket = buildBracket(q.map(x=>({playerId:x.playerId, tag:`${x.group}${x.pos}`, group:x.group, pos:x.pos})));
+  ensureThirdMatch(t);
   t.knockoutDrawn = true;
   DB.set('tournaments', all);
   rerender();
@@ -3319,7 +3345,7 @@ function renderKnockoutTab(t, admin, canEditScores){
         <div class="round-export-title">Export</div>
         <div class="ko-exports">
           <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Full bracket</button>
-          ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(round[0]?.round||'Round '+(ri+1))}</button>`).join('')}
+          ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(roundTitle(round, ri).replace('Final & 3rd Place','Final & 3rd'))}</button>`).join('')}
         </div>
         ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-ghost ko-redraw" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}
       </div>
@@ -3357,7 +3383,7 @@ function koCardsHTML(t, admin){
     const dl = dls[round[0]?.round];
     return `<section class="ko-round" aria-label="${esc(round[0]?.round||'Round '+(ri+1))}">
       <div class="ko-round-h">
-        <h3>${esc(round[0]?.round||'Round '+(ri+1))}</h3>
+        <h3>${esc(roundTitle(round, ri))}</h3>
         <span class="ko-round-meta">${real.length ? `${decided}/${real.length} decided` : 'Waiting for the previous round'}${dl ? ` · <b>Deadline ${fmtShort(dl)}</b>` : ''}</span>
       </div>
       <div class="ko-grid ${ties.length===1?'one':''}">${ties.map(m=>{
@@ -3546,7 +3572,9 @@ function openCompleteTournamentModal(tid){
   if(t.format!=='league' && t.knockoutBracket?.length){
     const final = t.knockoutBracket[t.knockoutBracket.length-1][0];
     if(final?.winner){ champ = final.winner; runner = final.winner===final.team1 ? final.team2 : final.team1 }
-    if(t.knockoutBracket.length>=2){
+    const tm = thirdMatchOf(t);
+    if(tm?.winner){ third = tm.winner; fourth = loserOf(tm) }
+    else if(t.knockoutBracket.length>=2){
       const semis = t.knockoutBracket[t.knockoutBracket.length-2].filter(m=>m.winner && !m.isBye).map(m=>m.winner===m.team1?m.team2:m.team1).filter(x=>x && x!==champ && x!==runner && x!==final?.team1 && x!==final?.team2);
       if(semis.length===1) third = semis[0];
       else if(semis.length===2){
@@ -3648,7 +3676,11 @@ function editTournament(tid){
             ${[['','Same as other rounds'],['single','1 Leg (single match)'],['2leg','2 Legs (aggregate)'],['bo3','Best of 3']].map(([v,l])=>`<option value="${v}" ${(t.finalFormat||'')===v?'selected':''}>${l}</option>`).join('')}
           </select>
           <div class="text-xs text-muted" style="margin-top:6px">The Final can be played differently from the other rounds, for example best of 3 when the rest are 2 legs.</div>
-        </div>`:''}
+        </div>
+        <label class="check-row" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:16px;cursor:pointer">
+          <input type="checkbox" id="e_third" ${t.thirdPlaceMatch?'checked':''} style="width:20px;height:20px;margin-top:2px;flex:none">
+          <span><b>3rd place match</b><br><span class="text-xs text-muted">The two semi-final losers play for 3rd place, with the same format, rules and match settings as the Final.</span></span>
+        </label>`:''}
       <div class="card" style="background:var(--surface-2);padding:16px">
         <div class="card-title" style="margin-bottom:12px">Prize Pool</div>
         <div class="form-row-3">
@@ -3694,6 +3726,9 @@ function saveTournamentEdit(tid){
     const finalPlayed = finalM && (finalM.winner || koLegs(t, finalM).some(l=>hasScore(l[0])||hasScore(l[1])));
     if((ff||'')!==(t.finalFormat||'') && finalPlayed) toast('The Final already has scores, so its format stays as it is. Clear its result first to change it.', true);
     else { if(ff) t.finalFormat = ff; else delete t.finalFormat }
+    const wantThird = !!document.getElementById('e_third')?.checked, tm = thirdMatchOf(t);
+    if(!wantThird && tm && (tm.winner || koLegsAny(tm))) toast('The 3rd place match already has scores, so it stays. Clear its result first to remove it.', true);
+    else { if(wantThird) t.thirdPlaceMatch = true; else delete t.thirdPlaceMatch; ensureThirdMatch(t) }
   }
   applyImage(t, 'logo', imageFieldValue('tlogo'));
   DB.set('tournaments', all);
@@ -3837,7 +3872,7 @@ function ruleSections(t){
   if(t.format==='league') s.push({key:'group', title:'League', short:'League'});
   if(t.format==='group_knockout') s.push({key:'group', title:'Group stage', short:'Group stage'});
   if(t.format!=='league') s.push({key:'ko', title: t.format==='single_elimination' ? 'Knockout' : 'Knockout stage', short:'Knockout'});
-  if(t.format!=='league') s.push({key:'final', title:'Final', short:'Final'});
+  if(t.format!=='league') s.push({key:'final', title: t.thirdPlaceMatch ? 'Final & 3rd place' : 'Final', short:'Final'});
   if(t.format!=='league' && (t.knockoutFormat==='2leg' || finalFmt(t)==='2leg')) s.push({key:'tb', title:'Tie-breaker match', short:'Tie-breaker'});
   return s;
 }
@@ -4027,6 +4062,7 @@ function generateRules(tid, key){
     if(fmt==='2leg') L.push('The Final is played over two legs. The aggregate score decides the champion.');
     else if(fmt==='bo3') L.push('The Final is best of 3 games. The first player to win 2 games is the champion.');
     else L.push('The Final is a single match. The winner is the champion.');
+    if(t.thirdPlaceMatch) L.push('The two semi-final losers play a 3rd place match with the same format and match settings as the Final.');
     if(fmt==='2leg' && tbMode(t)==='MATCH') L.push('If the aggregate score is level after the second leg, the two players play a tie-breaker match (see the Tie-breaker match rules).');
     else {
       const lvl = fmt==='2leg' ? 'If the aggregate score is level after the second leg' : fmt==='bo3' ? 'If a game is level after full time' : 'If the score is level after full time';
