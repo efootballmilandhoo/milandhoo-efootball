@@ -786,6 +786,9 @@
   .fb-champ{display:flex;align-items:center;gap:20px;justify-content:center;background:linear-gradient(180deg,#FFF6D6,#FFFFFF);border:2px solid #F3D27A;border-radius:24px;padding:calc(20px*var(--z))}
   .fb-champ svg{width:calc(72px*var(--z));height:calc(72px*var(--z))}
   .fb-champ small{display:block;font-size:calc(18px*var(--z));font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#7A5300}
+  .fb-champ.bronze{background:linear-gradient(180deg,#FBE8DA,#FFFFFF);border-color:#E2A77C}
+  .fb-champ.bronze small{color:#8A4A1C}
+  .fb-champ.bronze .rk{--s:calc(64px*var(--z)) !important}
   .fb-champ b{font-family:var(--font-display);font-size:calc(48px*var(--z));color:var(--ink)}
   .fb-round{display:flex;flex-direction:column;gap:calc(12px*var(--z))}
   .fb-round-h{display:flex;align-items:baseline;justify-content:space-between;gap:12px}

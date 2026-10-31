@@ -1037,18 +1037,22 @@ function fbTie(t, m){
   const head = `<div class="fbk-h ${multi?'legs':''}"${cols}><span class="cd">${esc(koCode(t, m))}${koTag(m) ? `<i>${esc(koTag(m))}</i>` : ''}</span>${multi ? labels.map(l=>`<span class="lh">${l}</span>`).join('') + `<span class="lh tot">${koTotalLabel(fmt)}</span>` : ''}</div>`;
   return `<div class="fbk ${m.isBye?'bye':''}">${head}${row(0)}${row(1)}${bits.length?`<div class="fbk-note">${bits.join(' · ')}</div>`:''}</div>`;
 }
-function fbBracketPages(t, rounds){
+/* The last round can be exported whole, or just the Final ('final') or just the 3rd place match ('third'). */
+const ONLY_TITLE = {final:'Final', third:'3rd Place Match'};
+function roundPart(round, only){ return only==='final' ? round.filter(m=>!isThirdMatch(m)) : only==='third' ? round.filter(isThirdMatch) : round }
+function fbBracketPages(t, rounds, only){
   const final = t.knockoutBracket.at(-1)?.[0];
   // Each round is a block (split into 8-tie parts when large); blocks share pages when they fit.
   const blocks = [];
   rounds.forEach(ri=>{
-    const round = t.knockoutBracket[ri], title = roundTitle(round, ri), dl = (t.rules?.roundDeadlines||{})[round[0]?.round];
+    const full = t.knockoutBracket[ri], round = roundPart(full, only), title = ONLY_TITLE[only] || roundTitle(full, ri), dl = (t.rules?.roundDeadlines||{})[full[0]?.round];
     const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
     chunk(ties, 8).forEach((set, k, all)=>blocks.push({title, dl, set, part: all.length>1 ? ` (${k+1}/${all.length})` : '', isFinal: ri===t.knockoutBracket.length-1}));
   });
   const blockHTML = x => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
     <div class="fb-ties ${x.set.length===1?'one':''} ${rounds.length===1 && x.set.length<=4 ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
-    ${x.isFinal && final?.winner ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}</div>`;
+    ${x.isFinal && only!=='third' && final?.winner ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
+    ${x.isFinal && only==='third' && thirdMatchOf(t)?.winner ? `<div class="fb-champ bronze">${medalHTML('bronze','3',56)}<div><small>Third place</small><b>${esc(playerName(thirdMatchOf(t).winner))}</b></div></div>` : ''}</div>`;
   const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, set.map(blockHTML).join(''), i+1, n);
   return fbPack(blocks, page);
 }
@@ -1057,11 +1061,12 @@ function fbBracket(t){
   EXPORT_CTX.zMax = 3.4;
   return renderSheets(fbBracketPages(t, t.knockoutBracket.map((_,i)=>i)), FB.w, `${slug(t.name)}_bracket`);
 }
-function fbRound(tid, ri){
+function fbRound(tid, ri, only){
   const t = STORE.tournaments.find(x=>x.id===tid);
   if(!t?.knockoutBracket?.[ri]){ toast('Round not found', true); return }
+  if(only && !roundPart(t.knockoutBracket[ri], only).length){ toast('Match not found', true); return }
   EXPORT_CTX.zMax = 3.4;
-  return renderSheets(fbBracketPages(t, [ri]), FB.w, `${slug(t.name)}_${slug(t.knockoutBracket[ri][0]?.round)}`);
+  return renderSheets(fbBracketPages(t, [ri], only), FB.w, `${slug(t.name)}_${slug(ONLY_TITLE[only] || roundTitle(t.knockoutBracket[ri], ri))}`);
 }
 
 function fbParticipants(tid){
@@ -1890,10 +1895,12 @@ function exportBracketSheet(t){
   return renderSheet(sheetHeader(t, t.name, `Knockout bracket · ${koFmtLabel(t)}`) + body + sheetFoot(), null, `${slug(t.name)}_bracket`);
 }
 
-function exportRoundAsJPEG(tid, roundIndex){
+function exportRoundAsJPEG(tid, roundIndex, only){
   const t = STORE.tournaments.find(x=>x.id===tid);
-  const round = t?.knockoutBracket?.[roundIndex];
-  if(!round){ toast('Round not found', true); return }
+  const full = t?.knockoutBracket?.[roundIndex];
+  if(!full){ toast('Round not found', true); return }
+  const round = roundPart(full, only);
+  if(!round.length){ toast('Match not found', true); return }
   const cols = round.length>1 ? 2 : 1;
   const body = `<div class="xs-grid" style="grid-template-columns:repeat(${cols}, 400px)">
     ${round.map(m=>`<div class="xs-card bracket-match ${m.isBye?'bye':''} ${!m.team1||!m.team2?'pending':''}" style="padding:0">
@@ -1901,8 +1908,8 @@ function exportRoundAsJPEG(tid, roundIndex){
       ${koMatchBody(t, m, playerName)}
     </div>`).join('')}
   </div>`;
-  const rdl = (t.rules?.roundDeadlines||{})[round[0]?.round];
-  return renderSheet(sheetHeader(t, t.name, `${esc(roundTitle(round, roundIndex))} · ${koLabel(koFmt(t, round[0]))}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(round[0]?.round)}`);
+  const rdl = (t.rules?.roundDeadlines||{})[full[0]?.round];
+  return renderSheet(sheetHeader(t, t.name, `${esc(ONLY_TITLE[only] || roundTitle(full, roundIndex))} · ${koLabel(koFmt(t, round[0]))}${rdl?` · Deadline ${fmtDateTime(rdl)}`:''}`) + body + sheetFoot(), null, `${slug(t.name)}_${slug(ONLY_TITLE[only] || roundTitle(full, roundIndex))}`);
 }
 
 function exportGenericSheet(el, t, title, subtitle, filename){
@@ -3720,7 +3727,8 @@ function renderKnockoutTab(t, admin, canEditScores){
         <div class="round-export-title">Export</div>
         <div class="ko-exports">
           <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Full bracket</button>
-          ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(roundTitle(round, ri).replace('Final & 3rd Place','Final & 3rd'))}</button>`).join('')}
+          ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(roundTitle(round, ri).replace('Final & 3rd Place','Final & 3rd'))}</button>`
+            + (round.some(isThirdMatch) ? `<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri},'final')">Final</button><button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri},'third')">3rd Place</button>` : '')).join('')}
         </div>
         ${admin && t.format==='group_knockout' && t.status==='active' ? `<button type="button" class="btn btn-ghost ko-redraw" onclick="drawKnockout('${t.id}')">Redraw bracket</button>`:''}
       </div>

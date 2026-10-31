@@ -97,6 +97,8 @@
 :root[data-theme="dark"] .fbk-row.w{background:#1A2D55}
 :root[data-theme="dark"] .fb-champ{background:linear-gradient(180deg,#3A2F0E,#1B2742);border-color:#8A6A12}
 :root[data-theme="dark"] .fb-champ small{color:#FFD465}
+:root[data-theme="dark"] .fb-champ.bronze{background:linear-gradient(180deg,#3A2416,#1B2742);border-color:#9A5B33}
+:root[data-theme="dark"] .fb-champ.bronze small{color:#F2B48A}
 :root[data-theme="dark"] .fb-res.win{background:#123526;color:#6EE0A6}
 :root[data-theme="dark"] .fb-res.loss{background:#3A1719;color:#FF8A8E}
 :root[data-theme="dark"] .fb-res.draw{background:#2A3346;color:#C3CCDD}
