@@ -1434,8 +1434,23 @@ function searchKey(e){
 }
 document.addEventListener('click', e=>{ if(!e.target.closest('.search-box')) closeSearchDrop() });
 
+/* The 3rd place match is always played by the two semi-final losers. If it got out of step (for example a phone on an
+   older app version saved a result), it is put right here: on screen for everyone, and saved when an organiser is signed in. */
+function healThirdMatches(){
+  let fixed = false;
+  const check = t => {
+    const kb = t.knockoutBracket, m = thirdMatchOf(t);
+    if(!m || !kb || kb.length<2 || m.winner || koLegsAny(m)) return false;
+    const a = loserOf(kb.at(-2)[0]), b = loserOf(kb.at(-2)[1]);
+    if(m.team1===a && m.team2===b) return false;
+    m.team1 = a; m.team2 = b; return true;
+  };
+  STORE.tournaments.forEach(t=>{ if(check(t)) fixed = true });
+  if(fixed && isAdmin() && STORE.mode==='shared'){ const all = DB.get('tournaments'); all.forEach(check); DB.set('tournaments', all) }
+}
 function rerender(){
   if(STORE.mode==='pending') return;
+  try{ healThirdMatches() }catch(e){ console.warn(e) }
   const view = currentView;
   if(view==='dashboard') renderDashboard();
   else if(view==='halloffame') renderHallOfFame();
