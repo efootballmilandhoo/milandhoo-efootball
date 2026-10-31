@@ -2051,3 +2051,6 @@
 .fbk-row.legs .lg.na{color:var(--muted);opacity:.6}
 .fbk-row.legs .tot{text-align:right}
 .fbk-row.legs .lg + .tot{border-left:1px solid var(--divider);height:100%;display:flex;align-items:center;justify-content:flex-end}
+/* Hall of Fame: a placing decided in a tournament that is still being played */
+.hof-live{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--success-ink)}
+.hof-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--success);box-shadow:0 0 0 3px rgba(124,240,178,.22);animation:livePulse 1.6s ease-in-out infinite}

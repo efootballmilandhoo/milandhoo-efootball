@@ -502,6 +502,7 @@ function attachShared(db){
     const arr = snap.docs.map(d=>({...clone(d.data()), id:d.id})).sort(hofSort);
     const same = JSON.stringify(arr)===JSON.stringify(STORE.hof);
     if(!same) STORE.hof = arr;
+    STORE.loaded.hof = true;
     markLive('halloffame');
     if(same) return;
     if(STORE.loaded.players && STORE.loaded.tournaments) scheduleRender();
@@ -1097,7 +1098,7 @@ function fbHof(){
 }
 
 function fbDecorated(){
-  const ranked = hofRanked(hofTally([...STORE.hof]));
+  const ranked = hofRanked(hofTally(hofAll()));
   if(!ranked.length){ toast('Nothing to export yet', true); return }
   const cell = n => n ? `<b>${n}</b>` : '<span class="dim">–</span>';
   const page = (part, i, n) => fbSheet(null, 'Most Decorated Players', `Hall of Fame · ${ranked.length} players`,
@@ -1262,13 +1263,12 @@ function calculateAllStats(cutoff){
         if(m.winner===pid){ s.wins++; s.koWins++; s.ptsMatch+=PTS.win; s.ptsKo+=PTS.koBonus } else s.losses++;
       });
     }));
-    // Placing bonuses only once the tournament is completed (results finalised).
-    if(t.status==='completed' && !after(t.completedAt)){
+    // Placing bonuses count as soon as each placing is decided (the Final, the 3rd place match, a finished league);
+    // once the tournament is completed, the organisers' picks are used.
+    const pl = decidedPlacings(t);
+    if(pl){
       const key = 't:'+t.id;
-      if(t.champion) addPlace(key, t.champion, 'champion');
-      if(t.runnerUp) addPlace(key, t.runnerUp, 'runner_up');
-      if(t.thirdPlace) addPlace(key, t.thirdPlace, 'third');
-      if(t.fourthPlace) addPlace(key, t.fourthPlace, 'fourth');
+      ['champion','runner_up','third','fourth'].forEach(k=>{ if(pl[k] && !after(pl.at[k])) addPlace(key, pl[k], k) });
     }
   });
   // Historical placings from the Hall of Fame. Entries for a tournament already in the app are skipped,
@@ -1291,6 +1291,67 @@ function calculateAllStats(cutoff){
   });
   Object.values(stats).forEach(s=>{ s.winPct = s.matches ? ((s.wins/s.matches)*100).toFixed(1) : '0.0'; s.pts = s.ptsMatch + s.ptsKo + s.ptsPlace });
   return stats;
+}
+
+/* Placings decided by results so far, as {champion, runner_up, third, fourth, at:{kind: ISO time}}:
+   Final → champion and runner-up, 3rd place match → 3rd and 4th, a league once every match is played. */
+function resultPlacings(t){
+  const out = {at:{}};
+  const set = (k, pid, at) => { if(pid){ out[k] = pid; out.at[k] = String(at || '') } };
+  if(t.format==='league'){
+    const g = t.groupData?.[0], fx = t.fixtures || [];
+    if(!g || !fx.length || !fx.every(f=>hasScore(f.score1) && hasScore(f.score2))) return out;
+    const at = fx.reduce((a,f)=> String(f.scoredAt||'') > a ? String(f.scoredAt) : a, '');
+    const st = computeStandings(t, g);
+    ['champion','runner_up','third','fourth'].forEach((k,i)=>set(k, st[i]?.playerId, at));
+    return out;
+  }
+  const kb = t.knockoutBracket; if(!kb?.length || (t.format==='group_knockout' && !t.knockoutDrawn)) return out;
+  const fin = kb.at(-1)?.[0];
+  if(fin && !fin.isBye && fin.winner && fin.team1 && fin.team2){ set('champion', fin.winner, fin.scoredAt); set('runner_up', loserOf(fin), fin.scoredAt) }
+  const tm = thirdMatchOf(t);
+  if(tm?.winner){ set('third', tm.winner, tm.scoredAt); set('fourth', loserOf(tm), tm.scoredAt) }
+  return out;
+}
+/* Placings that count for a tournament: live ones while it is being played, the organisers' picks once completed. */
+function decidedPlacings(t){
+  if(!t || (t.status!=='active' && t.status!=='completed')) return null;
+  if(t.status==='completed'){
+    const pick = {champion:t.champion, runner_up:t.runnerUp, third:t.thirdPlace, fourth:t.fourthPlace};
+    const src = Object.values(pick).some(Boolean) ? pick : resultPlacings(t);
+    const out = {at:{}}, at = String(t.completedAt||'');
+    ['champion','runner_up','third','fourth'].forEach(k=>{ if(src[k]){ out[k] = src[k]; out.at[k] = at } });
+    return out.champion || out.runner_up || out.third ? out : null;
+  }
+  const r = resultPlacings(t);
+  return r.champion || r.third ? r : null;
+}
+/* Hall of Fame entries that come straight from the app's tournaments (champion, runner-up, 3rd place).
+   Whatever the Hall of Fame already holds for that tournament and placing (saved automatically or added by hand) wins. */
+function hofFromTournaments(){
+  const have = new Set();
+  (STORE.hof||[]).forEach(h=>{ if(h.sourceId) have.add(h.sourceId+':'+h.type); have.add('n:'+String(h.tournament||'').trim().toLowerCase()+':'+h.type) });
+  const out = [];
+  STORE.tournaments.forEach(t=>{
+    const pl = decidedPlacings(t); if(!pl) return;
+    const nm = String(t.name||'').trim().toLowerCase();
+    ['champion','runner_up','third'].forEach(type=>{
+      const pid = pl[type]; if(!pid || have.has(t.id+':'+type) || have.has('n:'+nm+':'+type)) return;
+      // One time for the whole tournament, so its placings stay together in order (champion, runner-up, 3rd).
+      const when = Object.values(pl.at).reduce((x,y)=> y > x ? y : x, '') || String(t.completedAt||'') || new Date().toISOString();
+      out.push({id:'auto-'+t.id+'-'+type, auto:true, live:t.status!=='completed', playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:when.slice(0,7), when, note:'', sourceId:t.id});
+    });
+  });
+  return out;
+}
+/* The Hall of Fame as shown everywhere: saved entries plus placings already decided in the app's tournaments. */
+function hofAll(){ return (STORE.hof||[]).concat(hofFromTournaments()).sort(hofSort) }
+/* Completed tournaments are saved into the Hall of Fame automatically, once per placing,
+   by the first organiser's app that has the live data. */
+function syncHofCompleted(){
+  if(!isAdmin() || STORE.mode!=='shared' || !STORE.loaded.hof || !STORE.loaded.tournaments) return;
+  const add = hofFromTournaments().filter(h=>!h.live).map(({auto, live, ...h})=>({...h, id:uid(), createdAt:new Date().toISOString()}));
+  if(add.length) DB.set('hof', DB.get('hof').concat(add).sort(hofSort));
 }
 
 function visibleTournaments(){ return isAdmin() ? STORE.tournaments : STORE.tournaments.filter(t=>t.status!=='draft') }
@@ -1451,6 +1512,7 @@ function healThirdMatches(){
 function rerender(){
   if(STORE.mode==='pending') return;
   try{ healThirdMatches() }catch(e){ console.warn(e) }
+  try{ syncHofCompleted() }catch(e){ console.warn(e) }
   const view = currentView;
   if(view==='dashboard') renderDashboard();
   else if(view==='halloffame') renderHallOfFame();
@@ -2174,7 +2236,7 @@ function renderDashboard(){
   const ranked = rankPlayers(stats), cutRank = ranked[4]?.rank ?? Infinity;
   const topRows = ranked.filter(x=>x.rank<=cutRank).map(x=>`
       <div class="row-grid top-row">${rankMark(x)}${renderAvatar(x.p,30)}<span class="row-name">${esc(x.p.name)}</span><span class="row-num muted">${x.s.tourneyWins ? `<span class="lbx-title">${x.s.tourneyWins}</span>` : '–'}</span><span class="row-num"><b>${x.s.pts}</b></span></div>`).join('') || `<div class="text-sm text-muted">No players yet.</div>`;
-  const hofLatest = [...STORE.hof].sort(hofSort).slice(0,4);
+  const hofLatest = hofAll().slice(0,4);
   const hofHtml = hofLatest.length ? hofLatest.map(h=>hofRow(h)).join('') : `<div class="empty" style="padding:24px 10px"><div class="empty-title" style="font-size:20px">No achievements yet</div><div class="text-sm">${admin?'Add titles and awards from the Hall of Fame page.':'Titles and awards will be listed here.'}</div></div>`;
 
   document.getElementById('main').innerHTML = `
@@ -3907,7 +3969,7 @@ function openCompleteTournamentModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league'?'Third place defaults to the losing semi-finalist with more wins; change it if you play a third-place match.':''} Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) are added to the leaderboard when you complete the tournament.</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) count on the leaderboard as soon as each placing is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
@@ -3939,10 +4001,16 @@ function completeTournament(tid){
   t.completedAt = new Date().toISOString();
   t.resultsAt = t.completedAt;
   DB.set('tournaments', all);
+  // Hall of Fame: this tournament's champion, runner-up and 3rd place are replaced with the ones just picked.
+  const nm = String(t.name||'').trim().toLowerCase(), PL = {champion:1, runner_up:1, third:1};
+  const mine = h => h.type in PL && (h.sourceId ? h.sourceId===t.id : String(h.tournament||'').trim().toLowerCase()===nm);
+  const day = t.completedAt;
+  const add = [['champion',c],['runner_up',r],['third',th]].filter(([,pid])=>pid).map(([type,pid])=>({id:uid(), playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:day.slice(0,7), when:day, note:'', sourceId:t.id, createdAt:day}));
+  DB.set('hof', DB.get('hof').filter(h=>!mine(h)).concat(add).sort(hofSort));
   closeModal();
   currentTab = 'tab-overview';
   rerender();
-  toast('Tournament completed · Leaderboard updated');
+  toast('Tournament completed · Leaderboard and Hall of Fame updated');
 }
 
 function editTournament(tid){
@@ -4507,9 +4575,9 @@ function hofItem(h, admin){
     <span class="hof-li-meta">
       <i class="hof-chip ${t.cls} hof-chip-m">${esc(hofTitle(h))}</i>
       <span class="badge ${h.organizer==='other'?'badge-format':'badge-open'}">${esc(hofOrg(h))}</span>
-      <span class="hof-li-date">${esc(hofDate(h)) || '—'}</span>
+      <span class="hof-li-date">${h.live ? '<span class="hof-live">Live</span>' : (esc(hofDate(h)) || '—')}</span>
     </span>
-    ${admin ? `<span class="hof-li-actions no-export">
+    ${admin && !h.auto ? `<span class="hof-li-actions no-export">
       <button type="button" class="btn btn-ghost btn-icon" onclick="openHofModal('${h.id}')" aria-label="Edit achievement">${EDIT_SVG}</button>
       <button type="button" class="btn btn-ghost btn-icon" style="color:var(--danger-ink)" onclick="deleteHof('${h.id}')" aria-label="Delete achievement">${TRASH_SVG}</button>
     </span>` : ''}
@@ -4517,7 +4585,7 @@ function hofItem(h, admin){
 }
 
 function hofFiltered(){
-  return [...STORE.hof].sort(hofSort).filter(h=>
+  return hofAll().filter(h=>
     (hofFilter.org==='all' || (hofFilter.org==='other' ? h.organizer==='other' : h.organizer!=='other')) &&
     (hofFilter.player==='all' || hofKey(h)===hofFilter.player));
 }
@@ -4525,7 +4593,7 @@ function hofFiltered(){
 function renderHallOfFame(){
   setHeader('Community', 'Hall of Fame');
   const admin = isAdmin();
-  const all = [...STORE.hof].sort(hofSort);
+  const all = hofAll();
   const tally = hofTally(all);
   const ranked = hofRanked(tally);
   const playerOpts = Object.values(tally).map(t=>({key:t.key, name:hofPlayer(t.h).name})).sort((a,b)=>a.name.localeCompare(b.name));
@@ -4603,7 +4671,7 @@ function decoratedCounts(t){
 }
 const DEC_PER_PAGE = 14;
 function exportDecoratedSheet(){
-  const ranked = hofRanked(hofTally([...STORE.hof]));
+  const ranked = hofRanked(hofTally(hofAll()));
   if(!ranked.length){ toast('Nothing to export yet', true); return }
   const parts = chunk(ranked, DEC_PER_PAGE);
   const cell = (n, cls) => n ? `<span class="dec-n ${cls}">${n}</span>` : `<span class="dec-0">–</span>`;
