@@ -3493,7 +3493,8 @@ function tournamentStats(t){
       if(a===0) r.cs++; if(f===0) r.blank++;
     });
   });
-  const rows = Object.values(S).map(r=>({...r, gd:r.gf-r.ga, gpg:r.p ? r.gf/r.p : 0, cpg:r.p ? r.ga/r.p : 0, pts:r.w*3+r.d}));
+  // Players who forfeited the tournament are left out of the stat rankings (their opponents' results still count).
+  const rows = Object.values(S).filter(r=>!hasForfeited(t, r.id)).map(r=>({...r, gd:r.gf-r.ga, gpg:r.p ? r.gf/r.p : 0, cpg:r.p ? r.ga/r.p : 0, pts:r.w*3+r.d}));
   return {matches, rows};
 }
 function statPlayer(id){ return STORE.players.find(p=>p.id===id) || {name: playerName(id)} }
