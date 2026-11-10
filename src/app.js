@@ -398,6 +398,7 @@ function roundLabel(matches){ return matches===1 ? 'Final' : matches===2 ? 'Semi
 function koRoundShort(name){ return name==='Final' ? 'Final' : name==='Semi Finals' ? 'SF' : name==='Quarter Finals' ? 'QF' : /^Round of (\d+)$/.test(name||'') ? 'RO'+RegExp.$1 : (name||'') }
 function koCode(t, m){
   if(isThirdMatch(m)) return '3rd Place';
+  if(frMode(t)==='vs'){ const i = (t.knockoutBracket?.[0]||[]).indexOf(m); return i>=0 ? `Tie ${i+1}` : 'Tie' }
   for(const round of t.knockoutBracket||[]){ const i = round.indexOf(m); if(i>=0){ const s = koRoundShort(round[0]?.round); return s==='Final' ? 'Final' : `${s} M${i+1}` } }
   return m.round || '';
 }
@@ -502,6 +503,7 @@ function koTotalLabel(fmt){ return fmt==='bo3' ? 'Won' : fmt==='2leg' ? 'Agg' : 
 /* Every match played in the app: group/league games with a real result, plus each knockout leg, game and tie-breaker that has a score. */
 function matchesPlayedAll(){
   return STORE.tournaments.reduce((n,t)=>{
+    if(isFriendly(t)) return n;
     n += (t.fixtures||[]).filter(realResult).length;
     (t.knockoutBracket||[]).flat().forEach(m=>{
       if(!m || m.isBye || !m.team1 || !m.team2) return;
@@ -732,7 +734,7 @@ function fbTie(t, m){
   const row = side => {
     const id = side ? m.team2 : m.team1;
     const cells = multi ? legs.map(l=>{ const v = l[side], o = l[1-side], has = hasScore(v) && hasScore(o); return `<span class="lg ${has && v>o?'won':''} ${has?'':'na'}">${has ? v : '–'}</span>` }).join('') : '';
-    return `<div class="fbk-row ${multi?'legs':''} ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"${cols}><span class="nm">${name(id)}</span>${cells}<span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>`;
+    return `<div class="fbk-row ${multi?'legs':''} ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"${cols}><span class="nm">${frDot(t, id)}${name(id)}</span>${cells}<span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>`;
   };
   const bits = [];
   if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) bits.push(`Tie-breaker ${m.tb.a}–${m.tb.b}`);
@@ -754,9 +756,10 @@ function fbBracketPages(t, rounds, only){
   });
   const blockHTML = x => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
     <div class="fb-ties ${x.set.length===1?'one':''} ${rounds.length===1 && x.set.length<=4 ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
-    ${x.isFinal && only!=='third' && final?.winner ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
+    ${x.isFinal && only!=='third' && final?.winner && frMode(t)!=='vs' ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
     ${x.isFinal && only==='third' && thirdMatchOf(t)?.winner ? `<div class="fb-champ bronze">${medalHTML('bronze','3',56)}<div><small>Third place</small><b>${esc(playerName(thirdMatchOf(t).winner))}</b></div></div>` : ''}</div>`;
-  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, set.map(blockHTML).join(''), i+1, n);
+  const board = frMode(t)==='vs' ? frBoardHTML(t, true) : isFriendly(t) ? frLegendHTML(t) : '';
+  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, (i===0 ? board : '') + set.map(blockHTML).join(''), i+1, n);
   return fbPack(blocks, page);
 }
 function fbBracket(t){
@@ -874,7 +877,7 @@ function fbStats(tid){
       <div><span>Draws</span><b>${draws}</b></div>
     </div>`;
   const unb = `<div class="fsr"><div class="fsr-h"><b>Still unbeaten</b><span>${defs.minNote ? defs.minNote.toLowerCase() : 'no defeats'}</span></div><div class="fb-unb">${unbeaten.length ? unbeaten.slice(0,10).map(r=>`<span>${esc(statPlayer(r.id).name)} <i>${r.w}W ${r.d}D</i></span>`).join('') + (unbeaten.length>10?`<span>+${unbeaten.length-10} more</span>`:'') : '<span>Nobody yet</span>'}</div></div>`;
-  const p1 = fbSheet(t, t.name, `Tournament stats · ${matches.length} matches played`, nums + `<div class="fsg">${defs.list.map(d=>fbStatCard(d, rows)).join('')}</div>`, 1, 2);
+  const p1 = fbSheet(t, t.name, `Tournament stats · ${matches.length} matches played`, (isFriendly(t) ? frStatsHTML(t) : '') + nums + `<div class="fsg">${defs.list.map(d=>fbStatCard(d, rows)).join('')}</div>`, 1, 2);
   const p2 = fbSheet(t, t.name, `Tournament stats · Match records`, recBlock(biggestAll, 'Biggest win', `${maxMargin} goal margin`) + recBlock(highestAll, 'Highest-scoring match', `${maxGoals} goals`) + unb, 2, 2);
   EXPORT_CTX.zPerPage = true;
   return renderSheets([p1, p2], FB.w, `${slug(t.name)}_stats`);
@@ -949,6 +952,7 @@ function calculateAllStats(cutoff){
   const place = {};
   const addPlace = (key, pid, kind) => { if(!stats[pid]) return; const k = key+'|'+pid; if(!place[k] || PTS.place[kind] > PTS.place[place[k].kind]) place[k] = {pid, kind} };
   tournaments.forEach(t=>{
+    if(isFriendly(t)) return;   // friendlies don't count on the leaderboard
     const tWhen = String(t.completedAt || t.startedAt || t.createdAt || '');
     const touch = pid => { const s = stats[pid]; if(s && tWhen > s.lastAt) s.lastAt = tWhen };
     (t.fixtures||[]).forEach(f=>{
@@ -1023,7 +1027,7 @@ function resultPlacings(t){
 }
 /* Placings that count for a tournament: live ones while it is being played, the organisers' picks once completed. */
 function decidedPlacings(t){
-  if(!t || (t.status!=='active' && t.status!=='completed')) return null;
+  if(!t || isFriendly(t) || (t.status!=='active' && t.status!=='completed')) return null;
   if(t.status==='completed'){
     const pick = {champion:t.champion, runner_up:t.runnerUp, third:t.thirdPlace, fourth:t.fourthPlace};
     const src = Object.values(pick).some(Boolean) ? pick : resultPlacings(t);
@@ -1184,7 +1188,7 @@ function onGlobalSearch(v){
   const ps = STORE.players.filter(p=>String(p.name||'').toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,6);
   let d = document.getElementById('searchDrop');
   if(!d){ d = document.createElement('div'); d.id = 'searchDrop'; d.className = 'search-drop'; d.setAttribute('role','listbox'); document.querySelector('.search-box')?.appendChild(d) }
-  d.innerHTML = (ts.length ? `<div class="sd-h">Tournaments</div>${ts.map(t=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="pickSearch('t','${t.id}')">${t.logo ? tournamentLogo(t, 30) : `<span class="sd-code" style="background:${tColor(t)}">${esc(tCode(t))}</span>`}<span class="sd-txt"><b>${esc(t.name)}</b><small>${esc(STATUS_LABEL[t.status]||t.status)} · ${formatLabel(t.format)}</small></span></button>`).join('')}` : '')
+  d.innerHTML = (ts.length ? `<div class="sd-h">Tournaments</div>${ts.map(t=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="pickSearch('t','${t.id}')">${t.logo ? tournamentLogo(t, 30) : `<span class="sd-code" style="background:${tColor(t)}">${esc(tCode(t))}</span>`}<span class="sd-txt"><b>${esc(t.name)}</b><small>${esc(STATUS_LABEL[t.status]||t.status)} · ${tFormat(t)}</small></span></button>`).join('')}` : '')
     + (ps.length ? `<div class="sd-h">Players</div>${ps.map(p=>`<button type="button" class="sd-item" onmousedown="event.preventDefault()" onclick="pickSearch('p','${p.id}')">${renderAvatar(p, 30)}<span class="sd-txt"><b>${esc(p.name)}</b></span></button>`).join('')}` : '')
     + (!ts.length && !ps.length ? `<div class="sd-empty">No players or tournaments match “${esc(v)}”</div>` : `<button type="button" class="sd-all" onmousedown="event.preventDefault()" onclick="pickSearch('all')">See all players matching “${esc(v)}”</button>`);
   d.classList.add('show');
@@ -1832,7 +1836,7 @@ function imageFieldValue(key){
   return cropOutput(key);
 }
 
-function playerName(id){ if(!id) return 'TBD'; return STORE.players.find(p=>p.id===id)?.name || 'Unknown player' }
+function playerName(id){ if(!id) return 'TBD'; return STORE.players.find(p=>p.id===id)?.name || (isGuest(id) && guestName(id)) || 'Unknown player' }
 const AV_PALETTE = ['#1463FF','#0B1B3F','#7C3AED','#B45309','#0F7A4A','#BE185D','#0E7490','#4338CA'];
 function avColor(name){ let h=0; for(const c of String(name||'?')) h=(h*31+c.charCodeAt(0))%997; return AV_PALETTE[h%AV_PALETTE.length] }
 function initials(name){ const s = String(name||'?').replace(/[^A-Za-z0-9]/g,''); return (s || '?').slice(0,2).toUpperCase() }
@@ -1895,10 +1899,10 @@ function renderDashboard(){
   } else {
     const fx = f.fixtures||[];
     const played = fx.filter(x=>hasScore(x.score1)&&hasScore(x.score2)).length;
-    const stage = f.status==='open' ? 'Registration open' : f.format==='single_elimination' ? 'Knockout in progress' : (f.knockoutDrawn ? 'Knockout stage' : (f.format==='league' ? 'League in progress' : 'Group stage in progress'));
+    const stage = f.status==='open' ? (isFriendly(f) ? 'Teams announced' : 'Registration open') : isFriendly(f) ? (frMode(f)==='vs' ? 'Ties in progress' : 'Knockout in progress') : f.format==='single_elimination' ? 'Knockout in progress' : (f.knockoutDrawn ? 'Knockout stage' : (f.format==='league' ? 'League in progress' : 'Group stage in progress'));
     const facts = [`${(f.registrations||[]).length} players`];
     if(f.format==='group_knockout') facts.push(`${f.groups} groups`, `Top ${f.qualifyPerGroup} qualify`);
-    else facts.push(formatLabel(f.format));
+    else facts.push(tFormat(f));
     if(fx.length) facts.push(`${played}/${fx.length} played`);
     if(f.groupDeadline && f.format!=='single_elimination') facts.push(`Ends ${fmtDate(f.groupDeadline)}`);
     else facts.push(`${tDateInfo(f).label} ${fmtDate(tDateInfo(f).when)}`);
@@ -2030,10 +2034,11 @@ function updatedLine(parts){ const p = parts.filter(Boolean); return p.length ? 
    (everything entered within 3 hours of the newest result counts as one batch). */
 function latestBatchCutoff(){
   let newest = '';
-  STORE.tournaments.forEach(t=>{ const u = updatedAtOf(t); if(u > newest) newest = u; if(t.status==='completed' && t.completedAt > newest) newest = t.completedAt });
+  STORE.tournaments.forEach(t=>{ if(isFriendly(t)) return; const u = updatedAtOf(t); if(u > newest) newest = u; if(t.status==='completed' && t.completedAt > newest) newest = t.completedAt });
   if(!newest) return null;
   const all = [];
   STORE.tournaments.forEach(t=>{
+    if(isFriendly(t)) return;
     (t.fixtures||[]).forEach(f=>{ if(f.scoredAt) all.push(f.scoredAt) });
     (t.knockoutBracket||[]).flat().forEach(m=>{ if(m && m.scoredAt) all.push(m.scoredAt) });
     if(t.status==='completed' && t.completedAt) all.push(t.completedAt);
@@ -2254,7 +2259,7 @@ function renderTournaments(){
       <div class="segmented" role="group" aria-label="Filter tournaments">
         ${opts.map(([v,l])=>`<button type="button" class="seg ${tourneyFilter===v?'active':''}" aria-pressed="${tourneyFilter===v}" data-filter="${v}" onclick="filterTournaments('${v}')">${l}</button>`).join('')}
       </div>
-      ${isAdmin() ? `<button type="button" class="btn btn-primary" onclick="openCreateTournament()">${ICON.plus} New Tournament</button>` : ''}
+      ${isAdmin() ? `<div class="t-new"><button type="button" class="btn btn-secondary" onclick="openFriendlyModal()">${ICON.plus} New friendly</button><button type="button" class="btn btn-primary" onclick="openCreateTournament()">${ICON.plus} New Tournament</button></div>` : ''}
     </div>
     <div class="grid grid-3" id="tourneyGrid"></div>`;
   filterTournaments(tourneyFilter);
@@ -2276,7 +2281,7 @@ function renderTournamentCards(list){
     <button type="button" class="t-card" onclick="navigate('tournament-detail','${t.id}')">
       ${tCardHead(t)}
       <div class="t-card-body">
-        <div><div class="t-card-name">${esc(t.name)}</div><div class="t-card-meta">${formatLabel(t.format)}${t.prize?.champion?` · Prize ${esc(t.prize.champion)}`:''}</div></div>
+        <div><div class="t-card-name">${esc(t.name)}</div><div class="t-card-meta">${tFormat(t)}${t.prize?.champion?` · Prize ${esc(t.prize.champion)}`:''}</div></div>
         ${champ}
         <div class="t-card-foot"><span>${n} player${n===1?'':'s'}</span><b>View ${t.status==='completed'?'results':'tournament'} →</b></div>
       </div>
@@ -2520,11 +2525,337 @@ function saveTournament(){
 }
 
 /* =========================
+   FRIENDLY TOURNAMENTS
+   Two teams play each other.
+   · Team vs Team ('vs'): every player is drawn against a player of the other team. Each tie is 2 legs and every
+     tie won is 1 point for the team, so the final score reads e.g. Team MG 8–7 Team X.
+   · Knockout ('ko'): 4v4, 8v8 or 16v16. The first round always pairs players from different teams.
+   Players come from the player profiles or are typed in (guests, stored on the tournament).
+   Friendlies don't count on the leaderboard, in the Hall of Fame or in head-to-head.
+   ========================= */
+const FR_ROUND = 'Ties';
+const isFriendly = t => !!t?.friendly;
+const frMode = t => t?.friendly?.mode || '';
+const isGuest = id => typeof id==='string' && id.startsWith('gx-');
+function guestName(id){ for(const t of STORE.tournaments){ const n = t.guests?.[id]; if(n) return n } return '' }
+const frTeams = t => t?.friendly?.teams || [];
+function frTeamOf(t, pid){ return frTeams(t).findIndex(tm=>(tm.players||[]).includes(pid)) }
+function frTeamName(t, i){ return frTeams(t)[i]?.name || (i ? 'Team B' : 'Team A') }
+const frDot = (t, pid) => { if(!isFriendly(t)) return ''; const i = frTeamOf(t, pid); return i<0 ? '' : `<i class="tm-dot tm-${i}" aria-hidden="true"></i>` };
+function tFormat(t){
+  if(!isFriendly(t)) return formatLabel(t.format);
+  const n = t.friendly.size;
+  return frMode(t)==='vs' ? `Friendly · ${n}v${n}` : `Friendly · ${n}v${n} Knockout`;
+}
+/* Ties won by each team (Team vs Team), goals per team (every leg and tie-breaker), and progress. */
+function frScore(t){
+  const s = {ties:[0,0], goals:[0,0], decided:0, total:0};
+  (t.knockoutBracket||[]).flat().forEach(m=>{
+    if(!m || m.isBye || !m.team1 || !m.team2) return;
+    const a = frTeamOf(t, m.team1), b = frTeamOf(t, m.team2);
+    if(a<0 || b<0) return;
+    s.total++;
+    if(m.winner){ s.decided++; if(frMode(t)==='vs') s.ties[m.winner===m.team1 ? a : b]++ }
+    koLegs(t, m).forEach(l=>{ if(hasScore(l[0]) && hasScore(l[1])){ s.goals[a] += +l[0]; s.goals[b] += +l[1] } });
+    if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)){ s.goals[a] += +m.tb.a; s.goals[b] += +m.tb.b }
+  });
+  return s;
+}
+const frLead = s => s.ties[0]===s.ties[1] ? -1 : s.ties[0] > s.ties[1] ? 0 : 1;
+
+/* The draw. Team vs Team: one round of ties, Team A's player always listed first. Knockout: a full bracket whose
+   first round is all cross-team ties, in random order. */
+function drawFriendly(t){
+  const [A, B] = frTeams(t).map(tm=>shuffle(tm.players||[]));
+  const pairs = shuffle(A.map((a,i)=>[a, B[i]]));
+  if(frMode(t)==='vs'){
+    t.knockoutBracket = [pairs.map(([a,b])=>{ const m = emptyMatch(); m.team1 = a; m.team2 = b; m.round = FR_ROUND; m.label = ''; return m })];
+  } else {
+    const r1 = pairs.map(([a,b])=>{ const m = emptyMatch(); const flip = Math.random()<.5; m.team1 = flip ? b : a; m.team2 = flip ? a : b; m.label = 'Match'; return m });
+    const rounds = [r1]; let c = r1.length;
+    while(c>1){ c /= 2; rounds.push(Array.from({length:c}, emptyMatch)) }
+    rounds.forEach(r=>{ const l = roundLabel(r.length); r.forEach(m=>{ m.round = l; if(!m.label) m.label = l==='Final' ? 'Final' : 'Winners advance' }) });
+    propagateBracket(rounds);
+    t.knockoutBracket = rounds;
+    ensureThirdMatch(t);
+  }
+  t.knockoutDrawn = true;
+}
+
+/* ---- Create / edit the teams ---- */
+let FR_FORM = null;
+function openFriendlyModal(tid){
+  if(!isAdmin()){ toast('Admin access required', true); return }
+  const t = tid ? STORE.tournaments.find(x=>x.id===tid) : null;
+  if(t && t.knockoutDrawn){ toast('The draw is made, so the teams are fixed. Team names can be changed in Edit settings.', true); return }
+  const f = t?.friendly || {mode:'vs', size:15, teams:[{name:'Team MG', source:'profiles', players:[]}, {name:'', source:'names', players:[]}]};
+  FR_FORM = {mode: f.mode};
+  const dl = t ? (t.rules?.roundDeadlines||{})[frFirstRound(f.mode, f.size)] || '' : localDT(new Date(Date.now()+3*864e5)).slice(0,10)+'T23:59';
+  const team = i => {
+    const tm = f.teams[i] || {}, src = tm.source || (i ? 'names' : 'profiles');
+    const picked = new Set(src==='profiles' ? tm.players||[] : []);
+    const names = src==='names' ? (tm.players||[]).map(id=>t?.guests?.[id] || guestName(id)).join('\n') : '';
+    return `<fieldset class="fr-tf">
+      <legend><i class="tm-dot tm-${i}" aria-hidden="true"></i>Team ${i ? 'B' : 'A'}</legend>
+      <div class="form-group"><label class="form-label" for="fr_n${i}">Team name</label><input class="form-input" id="fr_n${i}" maxlength="40" value="${esc(tm.name||'')}" placeholder="${i ? 'e.g. Team Faafu' : 'Team MG'}"></div>
+      <div class="segmented fr-src" role="group" aria-label="Team ${i?'B':'A'} players">
+        <button type="button" class="seg ${src==='profiles'?'active':''}" aria-pressed="${src==='profiles'}" onclick="frSource(${i},'profiles')">From player profiles</button>
+        <button type="button" class="seg ${src==='names'?'active':''}" aria-pressed="${src==='names'}" onclick="frSource(${i},'names')">Type names</button>
+      </div>
+      <input type="hidden" id="fr_src${i}" value="${src}">
+      <div id="fr_pp${i}" class="${src==='profiles'?'':'hidden'}">
+        <input class="form-input fr-search" type="search" placeholder="Search players" aria-label="Search players" oninput="frFilter(${i}, this.value)">
+        <div class="player-check-list fr-list" id="fr_list${i}">
+          ${STORE.players.map(p=>`<label class="player-check-item ${picked.has(p.id)?'selected':''}" data-nm="${esc(p.name.toLowerCase())}">
+            <input type="checkbox" value="${p.id}" ${picked.has(p.id)?'checked':''} onchange="this.closest('.player-check-item').classList.toggle('selected', this.checked); frCount()">
+            ${renderAvatar(p, 30)}<div class="info"><div class="name">${esc(p.name)}</div></div></label>`).join('')}
+        </div>
+      </div>
+      <div id="fr_tx${i}" class="${src==='names'?'':'hidden'}">
+        <textarea class="form-textarea fr-names" id="fr_names${i}" rows="7" placeholder="One player per line" oninput="frCount()">${esc(names)}</textarea>
+      </div>
+      <div class="fr-count" id="fr_c${i}" role="status"></div>
+    </fieldset>`;
+  };
+  openModal(`
+    <div class="modal-head"><div class="modal-title">${t ? 'Edit friendly teams' : 'New friendly'}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label" for="fr_name">Name</label><input class="form-input" id="fr_name" maxlength="80" value="${esc(t?.name||'')}" placeholder="e.g. MG vs Faafu Friendly"></div>
+      ${t ? '' : imageFieldHTML('tlogo', 'Logo (optional)', 'Shown on the page and on exported images.')}
+      <div class="form-group">
+        <span class="form-label">Format</span>
+        <div class="segmented fr-mode" role="group" aria-label="Format">
+          <button type="button" class="seg ${f.mode==='vs'?'active':''}" aria-pressed="${f.mode==='vs'}" onclick="frSetMode('vs')">Team vs Team</button>
+          <button type="button" class="seg ${f.mode==='ko'?'active':''}" aria-pressed="${f.mode==='ko'}" onclick="frSetMode('ko')">Knockout</button>
+        </div>
+        <div class="text-xs text-muted fr-mode-note" id="fr_note"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group fr-vs-only"><label class="form-label" for="fr_size">Players per team</label><input class="form-input" type="number" id="fr_size" min="1" max="40" value="${f.mode==='vs' ? f.size : 15}" oninput="frCount()"></div>
+        <div class="form-group fr-ko-only"><label class="form-label" for="fr_ksize">Players per team</label>
+          <select class="form-select" id="fr_ksize" onchange="frCount()">${[4,8,16].map(n=>`<option value="${n}" ${f.mode==='ko' && f.size===n?'selected':''}>${n}v${n} · ${n*2} players</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label" for="fr_dl_d">${'Deadline (optional)'}</label>${dtField('fr_dl', dl)}</div>
+      </div>
+      <div class="form-row fr-ko-only">
+        <div class="form-group"><label class="form-label" for="fr_ko">Match format</label>
+          <select class="form-select" id="fr_ko">${[['2leg','2 Legs (aggregate)'],['single','1 Leg (single match)'],['bo3','Best of 3']].map(([v,l])=>`<option value="${v}" ${(t?.knockoutFormat||'2leg')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label" for="fr_final">Final format</label>
+          <select class="form-select" id="fr_final">${[['','Same as other rounds'],['single','1 Leg (single match)'],['2leg','2 Legs (aggregate)'],['bo3','Best of 3']].map(([v,l])=>`<option value="${v}" ${(t?.finalFormat||'')===v?'selected':''}>${l}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label" for="fr_third">3rd place match</label>
+          <select class="form-select" id="fr_third"><option value="">No</option><option value="1" ${t?.thirdPlaceMatch?'selected':''}>Yes</option></select></div>
+      </div>
+      <div class="fr-tgrid">${team(0)}${team(1)}</div>
+      ${t ? '' : `<div class="form-row mt-16">
+        <div class="form-group"><label class="form-label" for="fr_status">Visibility</label><select class="form-select" id="fr_status"><option value="open">Open (visible to everyone)</option><option value="draft">Draft (admins only)</option></select></div>
+        <div class="form-group"><label class="form-label" for="fr_game">Game</label><input class="form-input" id="fr_game" value="eFootball 2026"></div>
+      </div>
+      <div class="form-group"><label class="form-label" for="fr_desc">Description (optional)</label><textarea class="form-textarea" id="fr_desc" rows="3"></textarea></div>`}
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="saveFriendly(${t ? `'${t.id}'` : ''})">${t ? 'Save teams' : 'Create friendly'}</button>
+    </div>`, 'xl');
+  if(!t) initImageField('tlogo', LOGO_OPTS, null);
+  frSetMode(f.mode);
+}
+const frFirstRound = (mode, n) => mode==='vs' ? FR_ROUND : roundLabel(n);
+const frSize = () => FR_FORM?.mode==='ko' ? +document.getElementById('fr_ksize').value : Math.max(1, Math.min(40, parseInt(document.getElementById('fr_size').value)||0));
+function frSetMode(m){
+  FR_FORM = {...(FR_FORM||{}), mode:m};
+  document.querySelectorAll('.fr-mode .seg').forEach((b,i)=>{ const on = (i===0) === (m==='vs'); b.classList.toggle('active', on); b.setAttribute('aria-pressed', on) });
+  document.querySelectorAll('.fr-vs-only').forEach(e=>e.classList.toggle('hidden', m!=='vs'));
+  document.querySelectorAll('.fr-ko-only').forEach(e=>e.classList.toggle('hidden', m!=='ko'));
+  const note = document.getElementById('fr_note');
+  if(note) note.textContent = m==='vs'
+    ? 'Every player is drawn against a player from the other team. Each tie is 2 legs; a level tie goes to a tie-breaker or penalties. Every tie won is 1 point for the team.'
+    : 'A knockout bracket for both teams. In the first round every player faces a player from the other team.';
+  frCount();
+}
+function frSource(i, src){
+  document.getElementById('fr_src'+i).value = src;
+  document.querySelectorAll(`#fr_pp${i}, #fr_tx${i}`).forEach(e=>e.classList.toggle('hidden', (e.id===`fr_pp${i}`) !== (src==='profiles')));
+  document.querySelectorAll('.fr-src')[i].querySelectorAll('.seg').forEach((b,k)=>{ const on = (k===0) === (src==='profiles'); b.classList.toggle('active', on); b.setAttribute('aria-pressed', on) });
+  frCount();
+}
+function frFilter(i, q){ q = q.trim().toLowerCase(); document.querySelectorAll(`#fr_list${i} .player-check-item`).forEach(el=>el.classList.toggle('hidden', !!q && !el.dataset.nm.includes(q))) }
+/* Players picked for a team in the form: profile ids, or typed names. */
+function frPicked(i){
+  if(document.getElementById('fr_src'+i).value==='profiles') return {ids:[...document.querySelectorAll(`#fr_list${i} input:checked`)].map(c=>c.value), names:[]};
+  return {ids:[], names: document.getElementById('fr_names'+i).value.split('\n').map(s=>s.trim().replace(/\s+/g,' ')).filter(Boolean)};
+}
+function frCount(){
+  if(!document.getElementById('fr_c0')) return;
+  const n = frSize();
+  [0,1].forEach(i=>{ const p = frPicked(i), k = p.ids.length + p.names.length, el = document.getElementById('fr_c'+i);
+    el.className = 'fr-count ' + (k===n ? 'ok' : k>n ? 'over' : '');
+    el.textContent = `${k} of ${n} players${k>n ? ` · remove ${k-n}` : k<n ? ` · add ${n-k} more` : ''}` });
+}
+function saveFriendly(tid){
+  const name = document.getElementById('fr_name').value.trim();
+  if(!name){ toast('Enter a name', true); return }
+  const mode = FR_FORM?.mode || 'vs', n = frSize();
+  const tnames = [0,1].map(i=>document.getElementById('fr_n'+i).value.trim());
+  if(!tnames[0] || !tnames[1]){ toast('Enter both team names', true); return }
+  if(tnames[0].toLowerCase()===tnames[1].toLowerCase()){ toast('The two teams need different names', true); return }
+  const picks = [0,1].map(frPicked);
+  for(const i of [0,1]){ const k = picks[i].ids.length + picks[i].names.length; if(k!==n){ toast(`${tnames[i]} needs exactly ${n} players (now ${k})`, true); return } }
+  const both = picks[0].ids.filter(id=>picks[1].ids.includes(id));
+  if(both.length){ toast(`${playerName(both[0])} is in both teams`, true); return }
+  for(const i of [0,1]){ const low = picks[i].names.map(s=>s.toLowerCase()); const d = low.find((s,k)=>low.indexOf(s)!==k); if(d){ toast(`"${picks[i].names[low.indexOf(d)]}" is listed twice in ${tnames[i]}`, true); return } }
+  const all = DB.get('tournaments');
+  const t = tid ? all.find(x=>x.id===tid) : {id:uid(), createdAt:new Date().toISOString()};
+  // Typed players keep their id when the same name is kept, so nothing else has to change.
+  const oldIds = {}; Object.entries(t.guests||{}).forEach(([id,nm])=>{ oldIds[nm.toLowerCase()] = id });
+  const guests = {};
+  const teams = [0,1].map(i=>{
+    const src = document.getElementById('fr_src'+i).value;
+    const players = src==='profiles' ? picks[i].ids : picks[i].names.map(nm=>{ const id = oldIds[nm.toLowerCase()] && !guests[oldIds[nm.toLowerCase()]] ? oldIds[nm.toLowerCase()] : 'gx-'+uid(); guests[id] = nm; return id });
+    return {name: tnames[i], source: src, players};
+  });
+  const dl = readDT('fr_dl');
+  Object.assign(t, {
+    name, format: mode==='vs' ? 'friendly' : 'single_elimination',
+    friendly: {mode, size:n, teams}, guests,
+    registrations: teams.flatMap(tm=>tm.players).map(pid=>({playerId:pid, date:new Date().toISOString()})),
+    knockoutFormat: mode==='vs' ? '2leg' : document.getElementById('fr_ko').value,
+  });
+  if(!Object.keys(guests).length) delete t.guests;
+  if(mode==='ko'){ const ff = document.getElementById('fr_final').value; if(ff && ff!==t.knockoutFormat) t.finalFormat = ff; else delete t.finalFormat; if(document.getElementById('fr_third').value) t.thirdPlaceMatch = true; else delete t.thirdPlaceMatch }
+  else { delete t.finalFormat; delete t.thirdPlaceMatch }
+  t.rules = {...(t.rules||{}), roundDeadlines: dl ? {[frFirstRound(mode, n)]: dl} : {}};
+  if(!tid){
+    const st = new Date(); st.setMinutes(0,0,0);
+    Object.assign(t, {date: localDT(st).slice(0,10), startDateTime: localDT(st), groupDeadline:'', status: document.getElementById('fr_status').value,
+      game: document.getElementById('fr_game').value.trim(), description: document.getElementById('fr_desc').value.trim(), prize:{}});
+    applyImage(t, 'logo', imageFieldValue('tlogo'));
+    all.unshift(t);
+  }
+  DB.set('tournaments', all);
+  closeModal();
+  if(tid) rerender(); else navigate('tournament-detail', t.id);
+  toast(tid ? 'Teams saved' : `Friendly created · ${teams[0].name} vs ${teams[1].name}`);
+}
+
+/* ---- Views ---- */
+function frBoardHTML(t, big){
+  const s = frScore(t), lead = frLead(s), done = t.status==='completed' || (s.total && s.decided===s.total);
+  // Each team's name sits above its own score.
+  const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}"><div class="fr-nm"><i class="tm-dot tm-${i}" aria-hidden="true"></i><b>${esc(frTeamName(t, i))}</b></div><span class="fr-num">${s.ties[i]}</span></div>`;
+  return `<section class="fr-board ${big?'big':''}" aria-label="Score">
+    <div class="fr-board-row">${side(0)}<em class="fr-dash">–</em>${side(1)}</div>
+    <div class="fr-board-sub">${s.total ? `${done ? (lead<0 ? 'Level' : `${esc(frTeamName(t, lead))} win`) : `${s.decided} of ${s.total} ties decided`} · Goals ${s.goals[0]}–${s.goals[1]}` : 'Ties are drawn when the friendly starts'}</div>
+  </section>`;
+}
+function frLegendHTML(t){ return `<div class="fr-legend">${frTeams(t).map((tm,i)=>`<span><i class="tm-dot tm-${i}" aria-hidden="true"></i>${esc(tm.name)} <small>${(tm.players||[]).length}</small></span>`).join('')}</div>` }
+function renderTeamsTab(t, admin){
+  return `${admin && (t.status==='open' || t.status==='draft') && !t.knockoutDrawn ? `<div class="hof-bar"><div><h2 class="card-title">Teams</h2><div class="page-sub">The draw is made when you start the friendly.</div></div><div class="hof-bar-actions"><button type="button" class="btn btn-secondary" onclick="openFriendlyModal('${t.id}')">Edit teams</button></div></div>` : ''}
+  <div class="fr-teams">${frTeams(t).map((tm,i)=>`<section class="card fr-team">
+    <div class="fr-team-h"><i class="tm-dot tm-${i}" aria-hidden="true"></i><h3>${esc(tm.name)}</h3><span class="page-sub">${(tm.players||[]).length} players</span></div>
+    <ol class="fr-roster">${(tm.players||[]).map((pid,k)=>`<li><span class="n">${k+1}</span>${renderAvatar(statPlayer(pid), 30)}<span class="nm">${esc(playerName(pid))}</span></li>`).join('')}</ol>
+  </section>`).join('')}</div>`;
+}
+function renderTiesTab(t, admin){
+  if(!t.knockoutDrawn) return frBoardHTML(t) + `<div class="card empty"><div class="empty-title">Ties not drawn yet</div><div class="text-sm">${admin ? 'Press Start friendly above. Every player is drawn against a player from the other team.' : 'The ties appear once the friendly starts.'}</div></div>`;
+  return `${frBoardHTML(t)}
+    ${koCardsHTML(t, admin)}
+    <div class="round-export-section no-export">
+      <div class="round-export-title">Export</div>
+      <div class="ko-exports">
+        <button type="button" class="btn btn-primary ko-export" onclick="exportRoundAsJPEG('${t.id}',0)">${ICON_DL} Fixtures &amp; results</button>
+        ${t.status==='completed' ? `<button type="button" class="btn-soft" onclick="exportFriendlyPoster('${t.id}')">Result poster</button>` : ''}
+      </div>
+    </div>`;
+}
+function friendlyOverview(t){
+  const vs = frMode(t)==='vs', n = t.friendly.size, s = frScore(t);
+  const tiles = [
+    statTile('users','tint-blue','Teams', `${n}v${n}`, `${frTeamName(t,0)} · ${frTeamName(t,1)}`),
+    statTile('trophy','tint-gold','Format', `<span style="font-size:22px">${vs ? 'Team vs Team' : 'Knockout'}</span>`, vs ? '2 legs a tie · 1 point per tie won' : koFmtLabel(t)),
+    statTile('check','tint-green', vs ? 'Ties decided' : 'Matches decided', s.total ? `${s.decided}/${s.total}` : '—', !s.total ? 'drawn at the start' : t.status==='completed' ? 'final' : 'so far'),
+    statTile('ball','tint-purple','Goals', `${s.goals[0]}–${s.goals[1]}`, `${frTeamName(t,0)} – ${frTeamName(t,1)}`),
+  ];
+  const dl = (t.rules?.roundDeadlines||{})[frFirstRound(frMode(t), n)];
+  return `${vs ? frBoardHTML(t, true) : (t.knockoutDrawn ? koPodiumHTML(t) : '')}
+    <div class="grid grid-4">${tiles.join('')}</div>
+    ${dl ? `<div class="deadline-notice"><div class="deadline-notice-icon">${ICON.calendar}</div><div class="deadline-notice-content"><div class="deadline-notice-title">Deadline</div><div class="deadline-notice-text">${fmtDateTime(dl)}</div></div></div>` : ''}
+    ${t.status==='completed' ? `<div class="fr-poster-cta card"><div><b>Final result</b><div class="page-sub">${vs ? 'The final score as a poster, ready to share.' : 'The podium with each player\'s team, ready to share.'}</div></div><button type="button" class="btn btn-primary" onclick="exportFriendlyPoster('${t.id}')">${ICON_DL} Result poster</button></div>` : ''}`;
+}
+/* Team totals for the Stats tab and its export. */
+function frStatsHTML(t){
+  const s = frScore(t);
+  const bar = (label, a, b) => { const tot = a+b || 1; return `<div class="fr-sbar"><div class="fr-sbar-h"><b>${a}</b><span>${label}</span><b>${b}</b></div><div class="fr-sbar-t"><i class="tm-0" style="width:${a/tot*100}%"></i><i class="tm-1" style="width:${b/tot*100}%"></i></div></div>` };
+  return `<div class="st-card fr-stats">
+    <div class="fr-stats-h"><span><i class="tm-dot tm-0" aria-hidden="true"></i>${esc(frTeamName(t,0))}</span><span>${esc(frTeamName(t,1))}<i class="tm-dot tm-1" aria-hidden="true"></i></span></div>
+    ${bar('Goals scored', s.goals[0], s.goals[1])}
+    ${frMode(t)==='vs' ? bar('Ties won', s.ties[0], s.ties[1]) : ''}
+  </div>`;
+}
+
+/* ---- Completing ---- */
+async function completeFriendlyVs(tid){
+  const t0 = STORE.tournaments.find(x=>x.id===tid), s = frScore(t0), left = s.total - s.decided;
+  const ok = await confirmDialog('Complete friendly', `Final score: ${frTeamName(t0,0)} ${s.ties[0]}–${s.ties[1]} ${frTeamName(t0,1)}.${left ? ` ${left} tie${left>1?'s are':' is'} still undecided and won't count.` : ''}`, 'Complete');
+  if(!ok) return;
+  const {all, t} = getT(tid);
+  t.status = 'completed'; t.completedAt = new Date().toISOString(); t.resultsAt = t.completedAt;
+  t.friendly.result = s.ties;
+  DB.set('tournaments', all); rerender();
+  toast('Friendly completed');
+}
+
+/* ---- Result poster (1080 × 1350) ---- */
+function exportFriendlyPoster(tid){
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  const s = frScore(t), vs = frMode(t)==='vs';
+  let body;
+  if(vs){
+    const lead = frLead(s);
+    const side = i => `<div class="fpo-team ${lead===i?'w':''}"><div class="fpo-nm"><i class="tm-dot tm-${i}"></i><b>${esc(frTeamName(t, i))}</b></div><span class="fpo-num">${s.ties[i]}</span></div>`;
+    body = `<div class="fpo">
+      <div class="fpo-kick">Final result</div>
+      <div class="fpo-board">${side(0)}<i class="fpo-dash">–</i>${side(1)}</div>
+      <div class="fpo-win">${lead<0 ? 'All square' : `${esc(frTeamName(t, lead))} win`}</div>
+      <div class="fpo-facts">
+        <div><span>Ties played</span><b>${s.decided}</b></div>
+        <div><span>Goals</span><b>${s.goals[0]}–${s.goals[1]}</b></div>
+        <div><span>Format</span><b>${t.friendly.size}v${t.friendly.size}</b></div>
+      </div>
+    </div>`;
+  } else {
+    const pl = resultPlacings(t);
+    const c = t.champion || pl.champion, r = t.runnerUp || pl.runner_up, th = t.thirdPlace || pl.third;
+    const step = (pid, k, medal, label) => `<div class="fpo-step s${k}">
+      <div class="fpo-av">${renderAvatar(statPlayer(pid), k===1 ? 150 : 112)}<span class="fpo-medal">${medal}</span></div>
+      <small>${label}</small><b>${pid ? esc(playerName(pid)) : 'TBD'}</b>
+      ${pid && frTeamOf(t, pid)>=0 ? `<span class="fpo-tm"><i class="tm-dot tm-${frTeamOf(t, pid)}"></i>${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : ''}
+      <div class="fpo-plinth">${k}</div></div>`;
+    body = `<div class="fpo">
+      <div class="fpo-kick">Final standings</div>
+      <div class="fpo-podium">${step(r, 2, medalHTML('silver','2',44), 'Runner-up')}${step(c, 1, `<span class="fpo-cup">${ICON.cup}</span>`, 'Champion')}${step(th, 3, medalHTML('bronze','3',44), '3rd place')}</div>
+      <div class="fpo-facts">
+        <div><span>Players</span><b>${t.friendly.size*2}</b></div>
+        <div><span>Goals</span><b>${s.goals[0]}–${s.goals[1]}</b></div>
+        <div><span>Format</span><b>${t.friendly.size}v${t.friendly.size}</b></div>
+      </div>
+      ${frLegendHTML(t)}
+    </div>`;
+  }
+  EXPORT_CTX.zMax = 1.6;
+  const page = fbSheet(t, t.name, `${vs ? 'Team vs Team' : 'Knockout'} · ${esc(frTeamName(t,0))} vs ${esc(frTeamName(t,1))}${t.completedAt ? ` · ${fmtDate(t.completedAt)}` : ''}`, body, 1, 1);
+  return renderSheets([page], FB.w, `${slug(t.name)}_result`);
+}
+
+/* =========================
    TOURNAMENT DETAIL
    ========================= */
 function getT(tid){ const all = DB.get('tournaments'); return {all, t: all.find(x=>x.id===tid)} }
 
 function availableTabs(t){
+  if(isFriendly(t)){
+    const tabs = [['tab-overview','Overview'],['tab-rules','Rules'],['tab-teams','Teams'], frMode(t)==='vs' ? ['tab-ties','Ties'] : ['tab-knockout','Knockout']];
+    if(t.knockoutDrawn) tabs.push(['tab-stats','Stats']);
+    return tabs;
+  }
   const hasStandings = t.format==='group_knockout' || t.format==='league';
   const hasKO = t.format==='group_knockout' || t.format==='single_elimination';
   const tabs = [['tab-overview','Overview'],['tab-rules','Rules'],['tab-registration',`Players (${(t.registrations||[]).length})`]];
@@ -2549,12 +2880,12 @@ function renderTournamentDetail(id){
       <div class="t-meta">
         ${tournamentLogo(t, 52)}
         ${statusBadge(t.status)}
-        <span class="badge badge-format">${formatLabel(t.format)}</span>
+        <span class="badge badge-format">${tFormat(t)}</span>
         <span class="page-sub">${tDateInfo(t).label} ${fmtDateTime(tDateInfo(t).when)} · ${esc(t.game||'eFootball')}</span>
       </div>
       ${admin ? `<div class="toolbar-actions t-actions">
-        ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete tournament</button>`:''}
-        ${(t.groupsDrawn || t.knockoutDrawn) && t.status!=='completed' ? `<button type="button" class="btn btn-secondary" onclick="openMessagePlayersModal('${t.id}')">${TG_SVG} Message players</button>` : ''}
+        ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete ${isFriendly(t)?'friendly':'tournament'}</button>`:''}
+        ${(t.groupsDrawn || t.knockoutDrawn) && t.status!=='completed' && !isFriendly(t) ? `<button type="button" class="btn btn-secondary" onclick="openMessagePlayersModal('${t.id}')">${TG_SVG} Message players</button>` : ''}
         <button type="button" class="btn btn-secondary" onclick="editTournament('${t.id}')">Edit settings</button>
         <button type="button" class="btn btn-danger" onclick="deleteTournament('${t.id}')">Delete</button>
       </div>` : ''}
@@ -2563,13 +2894,18 @@ function renderTournamentDetail(id){
     ${admin && (t.status==='open' || t.status==='draft') ? `
       <div class="start-banner">
         <div class="start-banner-info"><div class="start-banner-title">Ready to start?</div><div class="start-banner-desc">${nextStepText(t)}</div></div>
-        <button type="button" class="btn btn-success" onclick="startTournament('${t.id}')">Start tournament</button>
+        <button type="button" class="btn btn-success" onclick="startTournament('${t.id}')">Start ${isFriendly(t)?'friendly':'tournament'}</button>
       </div>`:''}
 
+    ${t.status==='completed' && frMode(t)==='vs' ? `
+      <div class="start-banner done">
+        <div class="trophy-disc">${ICON.cup}</div>
+        <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Final score</div><div class="start-banner-title" style="font-size:28px">${esc(frTeamName(t,0))} ${frScore(t).ties[0]}–${frScore(t).ties[1]} ${esc(frTeamName(t,1))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}</div></div>
+      </div>`:''}
     ${t.status==='completed' && t.champion ? `
       <div class="start-banner done">
         <div class="trophy-disc">${ICON.cup}</div>
-        <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Champion</div><div class="start-banner-title" style="font-size:32px">${esc(playerName(t.champion))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}${t.runnerUp?` · Runner-up ${esc(playerName(t.runnerUp))}`:''}${t.thirdPlace?` · Third ${esc(playerName(t.thirdPlace))}`:''}</div></div>
+        <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Champion${isFriendly(t) && frTeamOf(t, t.champion)>=0 ? ` · ${esc(frTeamName(t, frTeamOf(t, t.champion)))}` : ''}</div><div class="start-banner-title" style="font-size:32px">${esc(playerName(t.champion))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}${t.runnerUp?` · Runner-up ${esc(playerName(t.runnerUp))}`:''}${t.thirdPlace?` · Third ${esc(playerName(t.thirdPlace))}`:''}</div></div>
       </div>`:''}
 
     <div class="tabs-wrap tabs-sticky">
@@ -2598,7 +2934,9 @@ function revealActiveTab(smooth){
 /* Only the open tab is built; the others are built when first opened. */
 function renderTabPanel(t, tabId){
   const admin = isAdmin(), canEditScores = t.status==='active' || t.status==='completed';
-  if(tabId==='tab-overview') return tournamentIntro(t) + renderTournamentOverview(t);
+  if(tabId==='tab-overview') return tournamentIntro(t) + (isFriendly(t) ? friendlyOverview(t) : renderTournamentOverview(t));
+  if(tabId==='tab-teams') return renderTeamsTab(t, admin);
+  if(tabId==='tab-ties') return renderTiesTab(t, admin);
   if(tabId==='tab-rules') return renderRulesTab(t, admin);
   if(tabId==='tab-registration') return renderRegistrationTab(t, admin);
   if(tabId==='tab-standings') return renderStandingsTab(t, admin, canEditScores);
@@ -2729,6 +3067,7 @@ async function savePrizeIcons(){
 
 function nextStepText(t){
   const n = (t.registrations||[]).length;
+  if(isFriendly(t)) return `${frTeamName(t,0)} vs ${frTeamName(t,1)}, ${t.friendly.size} players each. Starting makes the random draw${frMode(t)==='ko' ? ' (first-round ties are always between the two teams)' : ''}.`;
   if(n<2) return 'Add at least 2 players on the Players tab first.';
   if(t.format==='group_knockout') return `${n} players registered. Starting draws the groups and creates every fixture.`;
   if(t.format==='league') return `${n} players registered. Starting creates the full league schedule.`;
@@ -2761,6 +3100,7 @@ function switchTab(tabId){
 
 function drawTournament(t){
   const regs = t.registrations || [];
+  if(isFriendly(t)){ drawFriendly(t); t.champion = t.runnerUp = t.thirdPlace = t.fourthPlace = null; return }
   if(t.format==='group_knockout'){
     const dist = distributePlayersToGroups(regs.length, t.groups||1);
     const shuffled = shuffle(regs);
@@ -2786,21 +3126,21 @@ function startTournament(tid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const {all, t} = getT(tid);
   if((t.registrations||[]).length < 2){ toast('Add at least 2 players before starting', true); currentTab='tab-registration'; rerender(); return }
-  const alreadyDrawn = t.format==='single_elimination' ? t.knockoutDrawn : t.groupsDrawn;
+  const alreadyDrawn = t.format==='single_elimination' || isFriendly(t) ? t.knockoutDrawn : t.groupsDrawn;
   if(!alreadyDrawn) drawTournament(t);
   t.status = 'active';
   t.startedAt = new Date().toISOString();
   DB.set('tournaments', all);
-  currentTab = t.format==='single_elimination' ? 'tab-knockout' : 'tab-standings';
+  currentTab = frMode(t)==='vs' ? 'tab-ties' : t.format==='single_elimination' ? 'tab-knockout' : 'tab-standings';
   rerender();
-  toast('Tournament started · Fixtures are ready');
+  toast(isFriendly(t) ? 'Friendly started · The draw is made' : 'Tournament started · Fixtures are ready');
 }
 
 async function redraw(tid){
   if(!isAdmin()) return;
   const t0 = STORE.tournaments.find(x=>x.id===tid);
   if((t0.registrations||[]).length < 2){ toast('Add at least 2 players first', true); return }
-  const what = t0.format==='group_knockout' ? 'groups' : t0.format==='league' ? 'league schedule' : 'bracket';
+  const what = frMode(t0)==='vs' ? 'ties' : t0.format==='group_knockout' ? 'groups' : t0.format==='league' ? 'league schedule' : 'bracket';
   const ok = await confirmDialog(`Redraw ${what}`, `Redraw the ${what} with the current ${t0.registrations.length} players? Every score entered so far in this tournament will be cleared.`, 'Redraw');
   if(!ok) return;
   const {all, t} = getT(tid);
@@ -3302,6 +3642,7 @@ function renderStatsTab(t){
   return `
   <section class="st-wrap" aria-label="Tournament stats">
     <div class="h2h-top"><span class="page-sub">Built from every result entered in this tournament</span><button type="button" class="export-btn" onclick="exportStatsSheet('${t.id}')">${ICON_DL} Export stats</button></div>
+    ${isFriendly(t) ? frStatsHTML(t) : ''}
     <div class="st-nums">
       ${statNum('matches','blue','Matches played', matches.length)}
       ${statNum('goals','green','Goals scored', goals)}
@@ -3480,11 +3821,13 @@ function renderKnockoutTab(t, admin, canEditScores){
           ${[['bracket','Bracket'],['cards','<span class="ko-x-long">Match cards</span><span class="ko-x-short">Cards</span>']].map(([v,l])=>`<button type="button" class="seg ${koView()===v?'active':''}" aria-pressed="${koView()===v}" onclick="setKoView('${v}')">${l}</button>`).join('')}
         </div>
       </div>
+      ${isFriendly(t) ? frLegendHTML(t) : ''}
       ${koView()==='cards' ? koCardsHTML(t, admin) : (setTimeout(scrollKoCurrent, 0), bracketHTML(t, admin))}
       <div class="round-export-section no-export">
         <div class="round-export-title">Export</div>
         <div class="ko-exports">
           <button type="button" class="btn btn-primary ko-export" onclick="exportAsJPEG('bracketExport','${slug(t.name)}_bracket')">${ICON_DL} Full bracket</button>
+          ${isFriendly(t) && t.status==='completed' ? `<button type="button" class="btn btn-primary ko-export" onclick="exportFriendlyPoster('${t.id}')">${ICON_DL} Result poster</button>` : ''}
           ${rounds.map((round,ri)=>`<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri})">${esc(roundTitle(round, ri).replace('Final & 3rd Place','Final & 3rd'))}</button>`
             + (round.some(isThirdMatch) ? `<button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri},'final')">Final</button><button type="button" class="btn-soft" onclick="exportRoundAsJPEG('${t.id}',${ri},'third')">3rd Place</button>` : '')).join('')}
         </div>
@@ -3509,9 +3852,12 @@ function scrollKoCurrent(){
 function setKoRound(tid, v){ koRoundPick[tid] = v; rerender() }
 /* Final-round summary: champion on top, then runner-up, 3rd and 4th as they are decided. */
 function koPodiumHTML(t){
-  const pl = decidedPlacings(t) || resultPlacings(t);
+  if(frMode(t)==='vs') return '';
+  const pl = isFriendly(t) && t.status==='completed' && t.champion ? {champion:t.champion, runner_up:t.runnerUp, third:t.thirdPlace, fourth:t.fourthPlace} : decidedPlacings(t) || resultPlacings(t);
   if(!pl || (!pl.champion && !pl.third)) return '';
-  const tile = (k, medal, label) => `<div class="kp kp-${k}">${medal}<div class="kp-txt"><small>${label}</small><b>${pl[k] ? esc(playerName(pl[k])) : 'TBD'}</b></div></div>`;
+  // Friendlies: each player's team under the name.
+  const team = pid => isFriendly(t) && pid && frTeamOf(t, pid)>=0 ? `<span class="kp-tm"><i class="tm-dot tm-${frTeamOf(t, pid)}" aria-hidden="true"></i>${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : '';
+  const tile = (k, medal, label) => `<div class="kp kp-${k}">${medal}<div class="kp-txt"><small>${label}</small><b>${pl[k] ? esc(playerName(pl[k])) : 'TBD'}</b>${team(pl[k])}</div></div>`;
   const hasThird = !!thirdMatchOf(t) || pl.third;
   return `<div class="ko-podium" aria-label="Final placings">
     ${tile('champion', `<span class="kp-cup">${ICON.cup}</span>`, 'Champion')}
@@ -3522,7 +3868,7 @@ function koPodiumHTML(t){
   </div>`;
 }
 /* Extra class for the last round's matches: gold for the Final, bronze for the 3rd place match. */
-const koLastCls = (t, m, ri) => ri===(t.knockoutBracket||[]).length-1 ? (isThirdMatch(m) ? 'final is-third' : 'final is-final') : '';
+const koLastCls = (t, m, ri) => ri===(t.knockoutBracket||[]).length-1 && frMode(t)!=='vs' ? (isThirdMatch(m) ? 'final is-third' : 'final is-final') : '';
 function koCardsHTML(t, admin){
   const rounds = t.knockoutBracket || [], dls = t.rules?.roundDeadlines || {};
   const final = rounds.at(-1)?.[0];
@@ -3567,12 +3913,13 @@ function koMatchBody(t, m, nameFn){
   const name = id => id ? esc(nameFn(id)) : (m.isBye ? 'Bye' : 'TBD');
   const row = side => {
     const id = side===0 ? m.team1 : m.team2;
+    const dot = frDot(t, id);
     const cells = multi ? legs.map(l=>{
       const v = l[side], o = l[1-side];
       return `<span class="km-cell ${hasScore(v)&&hasScore(o)&&v>o?'won':''}">${hasScore(v)?v:'·'}</span>`;
     }).join('') : '';
     const tot = m.isBye ? '' : (r.total ? r.total[side] : '–');
-    return `<div class="km-row bracket-team ${m.winner && m.winner===id?'winner':''} ${!id?'tbd':''}" style="grid-template-columns:${multi?cols:'minmax(0,1fr) 34px'}"><span class="km-name">${name(id)}</span>${cells}<span class="km-total">${tot}</span></div>`;
+    return `<div class="km-row bracket-team ${m.winner && m.winner===id?'winner':''} ${!id?'tbd':''}" style="grid-template-columns:${multi?cols:'minmax(0,1fr) 34px'}"><span class="km-name">${dot}${name(id)}</span>${cells}<span class="km-total">${tot}</span></div>`;
   };
   const head = multi && !m.isBye ? `<div class="km-row km-head" style="grid-template-columns:${cols}"><span></span>${labels.map(l=>`<span>${l}</span>`).join('')}<span>${koTotalLabel(fmt)}</span></div>` : '';
   const pp = m.pens ? [m.pens.a, m.pens.b] : null;
@@ -3590,7 +3937,7 @@ function openKnockoutMatchModal(tid, roundIdx, matchId){
   const t = STORE.tournaments.find(x=>x.id===tid);
   const m = t.knockoutBracket[roundIdx].find(x=>x.id===matchId);
   const fmt = koFmt(t, m), labels = koFieldLabels(fmt), legs = koLegs(t, m);
-  const p = [m.team1, m.team2].map(id=>STORE.players.find(x=>x.id===id) || {name:'Unknown player'});
+  const p = [m.team1, m.team2].map(id=>STORE.players.find(x=>x.id===id) || {name: playerName(id)});
   const v = x => hasScore(x) ? x : '';
   const cols = `minmax(0,1fr) repeat(${labels.length}, minmax(42px,62px))${labels.length>1?' minmax(48px,70px)':''}`;
   const totalHead = labels.length>1 ? `<span class="ko-th ko-total-col">${fmt==='bo3'?'Series':'Aggregate'}</span>` : '';
@@ -3730,6 +4077,7 @@ function saveKnockoutMatch(tid, roundIdx, matchId, clear=false){
 function openCompleteTournamentModal(tid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
+  if(frMode(t)==='vs') return completeFriendlyVs(tid);
   let champ=null, runner=null, third=null, fourth=null;
   if(t.format!=='league' && t.knockoutBracket?.length){
     const final = t.knockoutBracket[t.knockoutBracket.length-1][0];
@@ -3756,7 +4104,7 @@ function openCompleteTournamentModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) count on the leaderboard as soon as each placing is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendlies don\'t count on the leaderboard or in the Hall of Fame. Once completed you can export the result poster with each player\'s team.' : 'Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) count on the leaderboard as soon as each placing is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
@@ -3793,11 +4141,11 @@ function completeTournament(tid){
   const mine = h => h.type in PL && (h.sourceId ? h.sourceId===t.id : String(h.tournament||'').trim().toLowerCase()===nm);
   const day = t.completedAt;
   const add = [['champion',c],['runner_up',r],['third',th]].filter(([,pid])=>pid).map(([type,pid])=>({id:uid(), playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:day.slice(0,7), when:day, note:'', sourceId:t.id, createdAt:day}));
-  DB.set('hof', DB.get('hof').filter(h=>!mine(h)).concat(add).sort(hofSort));
+  if(!isFriendly(t)) DB.set('hof', DB.get('hof').filter(h=>!mine(h)).concat(add).sort(hofSort));
   closeModal();
   currentTab = 'tab-overview';
   rerender();
-  toast('Tournament completed · Leaderboard and Hall of Fame updated');
+  toast(isFriendly(t) ? 'Friendly completed' : 'Tournament completed · Leaderboard and Hall of Fame updated');
 }
 
 function editTournament(tid){
@@ -3811,8 +4159,10 @@ function editTournament(tid){
       ${imageFieldHTML('tlogo', 'Tournament logo', 'Shown on the tournament page, cards and exported images. Drag and zoom to fit it in the square.')}
       <div class="form-row">
         <div class="form-group"><label class="form-label" for="e_datetime_d">Start date &amp; time</label>${dtField('e_datetime', t.startDateTime||'', '20:00')}</div>
-        <div class="form-group"><label class="form-label" for="e_deadline_d">Group stage deadline</label>${dtField('e_deadline', t.groupDeadline||'')}</div>
+        <div class="form-group ${isFriendly(t)?'hidden':''}"><label class="form-label" for="e_deadline_d">Group stage deadline</label>${dtField('e_deadline', t.groupDeadline||'')}</div>
       </div>
+      ${isFriendly(t) ? `<div class="form-row">${[0,1].map(i=>`<div class="form-group"><label class="form-label" for="e_team${i}">Team ${i?'B':'A'} name</label><input class="form-input" id="e_team${i}" maxlength="40" value="${esc(frTeamName(t,i))}"></div>`).join('')}</div>
+        ${!t.knockoutDrawn ? `<div class="text-xs text-muted mb-16">Players are changed with <b>Edit teams</b> on the Teams tab until the friendly starts.</div>` : ''}` : ''}
       <div class="form-row">
         <div class="form-group"><label class="form-label" for="e_status">Status</label>
           <select class="form-select" id="e_status">
@@ -3833,7 +4183,7 @@ function editTournament(tid){
           </select>
         </div>
         ${locked?'<div class="text-xs text-muted mb-16">Group count applies the next time you redraw. Qualifiers and seeding apply when the bracket is drawn.</div>':''}`:''}
-      ${t.format!=='league'?`
+      ${t.format!=='league' && frMode(t)!=='vs'?`
         <div class="form-group"><label class="form-label" for="e_ko">Knockout Match Format</label>
           <select class="form-select" id="e_ko">
             ${[['single','Single Match'],['bo3','Best of 3'],['2leg','2-Leg']].map(([v,l])=>`<option value="${v}" ${t.knockoutFormat===v?'selected':''}>${l}</option>`).join('')}
@@ -3884,7 +4234,8 @@ function saveTournamentEdit(tid){
     t.qualifyPerGroup = Math.max(1, +document.getElementById('e_qualify').value||1);
     t.seeding = document.getElementById('e_seed').value;
   }
-  if(t.format!=='league'){
+  if(isFriendly(t)) [0,1].forEach(i=>{ const v = document.getElementById('e_team'+i)?.value.trim(); if(v) t.friendly.teams[i].name = v });
+  if(t.format!=='league' && frMode(t)!=='vs'){
     const ko = document.getElementById('e_ko').value;
     if(ko!==t.knockoutFormat && (t.knockoutBracket||[]).flat().some(m=>!m.isBye && m.winner)){ toast('Knockout results exist, so the match format stays as it is. Redraw the bracket to change it.', true) }
     else t.knockoutFormat = ko;
@@ -4038,6 +4389,7 @@ const MATCH_FIELDS = [
 function fmtShort(d){ if(!d) return '—'; const dt = new Date(d); if(isNaN(dt)) return '—'; return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' · ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) }
 function ruleSections(t){
   const s = [];
+  if(frMode(t)==='vs') return [{key:'ko', title:'Ties', short:'Ties'}, {key:'tb', title:'Tie-breaker match', short:'Tie-breaker'}];
   if(t.format==='league') s.push({key:'group', title:'League', short:'League'});
   if(t.format==='group_knockout') s.push({key:'group', title:'Group stage', short:'Group stage'});
   if(t.format!=='league') s.push({key:'ko', title: t.format==='single_elimination' ? 'Knockout' : 'Knockout stage', short:'Knockout'});
@@ -4047,6 +4399,8 @@ function ruleSections(t){
 }
 function expectedKoRounds(t){
   if(t.format==='league') return [];
+  if(frMode(t)==='vs') return [FR_ROUND];
+  if(isFriendly(t) && !t.knockoutBracket?.length){ const out = []; for(let m=t.friendly.size; m>=1; m/=2) out.push(roundLabel(m)); return out }
   if(t.knockoutBracket?.length) return t.knockoutBracket.map(r=>r[0]?.round).filter(Boolean);
   const regs = (t.registrations||[]).length;
   const n = t.format==='group_knockout'
@@ -4390,7 +4744,7 @@ function renderHallOfFame(){
   const byYear = {};
   list.forEach(h=>{ const y = h.date ? String(h.date).slice(0,4) : 'Undated'; (byYear[y] = byYear[y] || []).push(h) });
   const years = Object.keys(byYear).sort((a,b)=> a==='Undated' ? 1 : b==='Undated' ? -1 : b.localeCompare(a));
-  const completedWithPlacings = STORE.tournaments.filter(t=>t.status==='completed' && (t.champion||t.runnerUp||t.thirdPlace));
+  const completedWithPlacings = STORE.tournaments.filter(t=>t.status==='completed' && !isFriendly(t) && (t.champion||t.runnerUp||t.thirdPlace));
   const seg = (group, opts) => `<div class="segmented" role="group">${opts.map(([v,l])=>`<button type="button" class="seg ${hofFilter[group]===v?'active':''}" aria-pressed="${hofFilter[group]===v}" onclick="setHofFilter('${group}','${v}')">${l}</button>`).join('')}</div>`;
 
   document.getElementById('main').innerHTML = `
@@ -4575,7 +4929,7 @@ async function importHofFromTournaments(){
   const list = DB.get('hof');
   const have = new Set(list.filter(h=>h.sourceId).map(h=>h.sourceId+':'+h.type));
   const add = [];
-  STORE.tournaments.filter(t=>t.status==='completed').forEach(t=>{
+  STORE.tournaments.filter(t=>t.status==='completed' && !isFriendly(t)).forEach(t=>{
     [['champion',t.champion],['runner_up',t.runnerUp],['third',t.thirdPlace]].forEach(([type,pid])=>{
       if(!pid || have.has(t.id+':'+type)) return;
       const d = t.completedAt || t.startDateTime || t.date || '';
@@ -4803,7 +5157,7 @@ async function sendTelegramFixtures(tid){
    ========================= */
 let H2H = {a:null, b:null};
 function h2hData(a, b){
-  const ts = STORE.tournaments.filter(t=>t.status==='active' || t.status==='completed')
+  const ts = STORE.tournaments.filter(t=>(t.status==='active' || t.status==='completed') && !isFriendly(t))
     .sort((x,y)=> String(y.completedAt||y.startedAt||y.createdAt||'').localeCompare(String(x.completedAt||x.startedAt||x.createdAt||'')));
   const matches = [], ties = [];
   ts.forEach(t=>{

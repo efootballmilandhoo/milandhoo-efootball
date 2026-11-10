@@ -92,7 +92,8 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
 
   // Telegram: everyone gets their fixtures when groups or the bracket are drawn;
   // later, the two players of a knockout tie hear as soon as their opponent is known.
-  if (n.status === "active") {
+  // Friendlies: no Telegram fixtures or certificates (one team's players aren't app players).
+  if (n.status === "active" && !n.friendly) {
     const drew = (!o.groupsDrawn && n.groupsDrawn) || (!o.knockoutDrawn && n.knockoutDrawn) || (o.status !== "active" && (n.groupsDrawn || n.knockoutDrawn));
     if (drew) telegramLater({ action: "auto", tid: id });
     else if (n.knockoutDrawn && o.knockoutDrawn) {
@@ -110,7 +111,7 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
 
   const nm = await names();
   // Short names in notifications ("MG Saanihu" → "Saanihu"); the phone already shows the app name.
-  const P = (pid: string) => (nm[pid] || "TBD").replace(/^MG\s+/i, "");
+  const P = (pid: string) => (nm[pid] || n.guests?.[pid] || "TBD").replace(/^MG\s+/i, "");
   const oldFx = new Map((o.fixtures || []).map((f: Obj) => [f.id, f]));
   const results: Obj[] = [];
   // Group-stage matches are not announced one by one; a group is announced once all its fixtures have scores.
@@ -147,10 +148,14 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
     else if (!semiIds.has(m.id)) eliminated.push(loser);
   });
   // Knocked-out players get a certificate of participation with their tournament stats (one per call, sent once each).
-  if (n.status !== "draft") eliminated.forEach((pid) => telegramLater({ action: "eliminated", tid: id, pids: [pid] }));
+  if (n.status !== "draft" && !n.friendly) eliminated.forEach((pid) => telegramLater({ action: "eliminated", tid: id, pids: [pid] }));
   if (results.length > 3) out.push({ title: `${results.length} new results`, body: `${tn}: tap to see the latest scores`, url, tag: "res-" + id });
   else results.forEach((r, i) => out.push({ ...r, url, tag: `res-${id}-${Date.now()}-${i}` }));
 
+  if (o.status !== "completed" && n.status === "completed" && n.friendly?.mode === "vs") {
+    const tm = n.friendly.teams || [], r = n.friendly.result || [0, 0];
+    out.push({ title: `${tm[0]?.name || "Team A"} ${r[0]}–${r[1]} ${tm[1]?.name || "Team B"}`, body: `${tn} · Final score`, url, tag: "t-" + id });
+  }
   if (o.status !== "completed" && n.status === "completed" && n.champion) out.push({ title: `🏆 ${P(n.champion)} won ${tn}!`, body: n.runnerUp ? `Runner-up: ${P(n.runnerUp)}${n.thirdPlace ? " · Third: " + P(n.thirdPlace) : ""}` : "Tournament complete", url, tag: "t-" + id });
   return out;
 }

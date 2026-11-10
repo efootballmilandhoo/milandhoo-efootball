@@ -111,3 +111,5 @@
 :root[data-theme="dark"] .ko-card.is-third .ko-code{color:#F2B48A}
 :root[data-theme="dark"] .ko-card.is-third,:root[data-theme="dark"] .bracket-match.is-third,:root[data-theme="dark"] .kp-third,:root[data-theme="dark"] .bc-third{border-color:#9A5B33}
 :root[data-theme="dark"] .kp-champion{background:linear-gradient(180deg,#2C2410,#121B2E)}
+:root[data-theme="dark"]{--tm0:#5B8CFF;--tm1:#FF9A3D}
+:root[data-theme="dark"] .fpo-av .player-avatar{border-color:#16213A;box-shadow:0 10px 26px rgba(0,0,0,.4)}
