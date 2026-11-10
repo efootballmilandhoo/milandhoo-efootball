@@ -81,13 +81,15 @@ async function eventsFor(body: Obj): Promise<Obj[]> {
   if (coll !== "tournaments" || n.status === "draft") return out;
   const tn = n.name || "Tournament";
   const url = `/#t=${id}`;
+  const fr = n.friendly ? `${n.friendly.teams?.[0]?.name || "Team A"} vs ${n.friendly.teams?.[1]?.name || "Team B"}` : "";
+  const newTitle = n.friendly ? `New friendly: ${tn}` : `New tournament: ${tn}`;
   if (!o) {
-    if (fresh(n.createdAt) && n.status !== "completed") out.push({ title: `New tournament: ${tn}`, body: n.status === "open" ? "Registration is open. Check it out!" : "Added to tournaments", url, tag: "t-" + id });
+    if (fresh(n.createdAt) && n.status !== "completed") out.push({ title: newTitle, body: fr || (n.status === "open" ? "Registration is open. Check it out!" : "Added to tournaments"), url, tag: "t-" + id });
     return out;
   }
-  if (o.status === "draft" && n.status !== "draft") out.push({ title: `New tournament: ${tn}`, body: "Registration is open. Check it out!", url, tag: "t-" + id });
+  if (o.status === "draft" && n.status !== "draft") out.push({ title: newTitle, body: fr || "Registration is open. Check it out!", url, tag: "t-" + id });
   if (!o.groupsDrawn && n.groupsDrawn) out.push({ title: `${tn} has started`, body: "Groups and fixtures are out", url, tag: "t-" + id });
-  else if (o.status !== "active" && n.status === "active" && !n.groupsDrawn) out.push({ title: `${tn} has started`, body: "The bracket is out", url, tag: "t-" + id });
+  else if (o.status !== "active" && n.status === "active" && !n.groupsDrawn) out.push({ title: `${tn} has started`, body: n.friendly?.mode === "vs" ? "The ties are drawn" : "The bracket is out", url, tag: "t-" + id });
   if (n.format === "group_knockout" && !o.knockoutDrawn && n.knockoutDrawn) out.push({ title: `${tn}: knockout draw is out`, body: "See who plays who in the bracket", url, tag: "t-" + id });
 
   // Telegram: everyone gets their fixtures when groups or the bracket are drawn;
@@ -212,7 +214,7 @@ async function dueReminders(): Promise<Obj[]> {
       const left = matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).length;
       if (!left) continue;
       out.push({
-        tg: { action: "remind", tid: row.id, round, clock: clock(ms), left: Object.fromEntries(matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).flatMap((m: Obj) => [[m.team1, 1], [m.team2, 1]])) },
+        tg: t.friendly ? undefined : { action: "remind", tid: row.id, round, clock: clock(ms), left: Object.fromEntries(matches.filter((m: Obj) => !m.isBye && m.team1 && m.team2 && !m.winner).flatMap((m: Obj) => [[m.team1, 1], [m.team2, 1]])) },
         key: `k:${row.id}:${round}:${val}`,
         title: `⏰ 2 hours left: ${tn} · ${round}`,
         body: `${round} deadline is ${clock(ms)}. ${left} match${left > 1 ? "es" : ""} still to be played.`,
