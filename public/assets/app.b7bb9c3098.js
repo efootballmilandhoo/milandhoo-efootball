@@ -2840,6 +2840,23 @@ const frTeams = t => t?.friendly?.teams || [];
 function frTeamOf(t, pid){ return frTeams(t).findIndex(tm=>(tm.players||[]).includes(pid)) }
 function frTeamName(t, i){ return frTeams(t)[i]?.name || (i ? 'Team B' : 'Team A') }
 const frDot = (t, pid) => { if(!isFriendly(t)) return ''; const i = frTeamOf(t, pid); return i<0 ? '' : `<i class="tm-dot tm-${i}" aria-hidden="true"></i>` };
+/* A team's crest: its uploaded logo, or its initials in the team colour (Team MG → MG, Team Faafu → FA). */
+function frInitials(name){
+  const w = String(name||'').replace(/\bteam\b/ig,'').trim().split(/\s+/).filter(Boolean);
+  if(!w.length) return '?';
+  if(w.length===1) return (w[0].length<=3 ? w[0] : w[0].slice(0,2)).toUpperCase();
+  return (w[0][0] + w[1][0]).toUpperCase();
+}
+function frCrest(t, i, size, cls=''){
+  const tm = frTeams(t)[i] || {};
+  const st = `style="--cs:${size}"`;
+  return tm.logo && isImgSrc(tm.logo)
+    ? `<span class="fr-crest img ${cls}" ${st}><img src="${esc(tm.logo)}"${imgAttrs(tm.logo)} alt=""></span>`
+    : `<span class="fr-crest tm-bg-${i} ${cls}" ${st} aria-hidden="true">${esc(frInitials(tm.name))}</span>`;
+}
+/* Small team mark for chips and legends: the logo when there is one, otherwise the team-colour dot. */
+const frMark = (t, i) => frTeams(t)[i]?.logo ? frCrest(t, i, '20px', 'mini') : `<i class="tm-dot tm-${i}" aria-hidden="true"></i>`;
+const TEAM_LOGO_OPTS = {shape:'square', fit:'contain', out:320, rec:IMG_SIZES.logo};
 function tFormat(t){
   if(!isFriendly(t)) return formatLabel(t.format);
   const n = t.friendly.size;
@@ -2896,12 +2913,14 @@ function openFriendlyModal(tid){
     return `<fieldset class="fr-tf">
       <legend><i class="tm-dot tm-${i}" aria-hidden="true"></i>Team ${i ? 'B' : 'A'}</legend>
       <div class="form-group"><label class="form-label" for="fr_n${i}">Team name</label><input class="form-input" id="fr_n${i}" maxlength="40" value="${esc(tm.name||'')}" placeholder="${i ? 'e.g. Team Faafu' : 'Team MG'}"></div>
+      ${imageFieldHTML('frlogo'+i, 'Team logo (optional)', 'Shown on the scoreboard and exports. A square logo works best.')}
       <div class="segmented fr-src" role="group" aria-label="Team ${i?'B':'A'} players">
         <button type="button" class="seg ${src==='profiles'?'active':''}" aria-pressed="${src==='profiles'}" onclick="frSource(${i},'profiles')">From player profiles</button>
         <button type="button" class="seg ${src==='names'?'active':''}" aria-pressed="${src==='names'}" onclick="frSource(${i},'names')">Type names</button>
       </div>
       <input type="hidden" id="fr_src${i}" value="${src}">
       <div id="fr_pp${i}" class="${src==='profiles'?'':'hidden'}">
+        <div class="fr-chips" id="fr_sel${i}" aria-live="polite"></div>
         <input class="form-input fr-search" type="search" placeholder="Search players" aria-label="Search players" oninput="frFilter(${i}, this.value)">
         <div class="player-check-list fr-list" id="fr_list${i}">
           ${STORE.players.map(p=>`<label class="player-check-item ${picked.has(p.id)?'selected':''}" data-nm="${esc(p.name.toLowerCase())}">
@@ -2954,6 +2973,7 @@ function openFriendlyModal(tid){
       <button type="button" class="btn btn-primary" onclick="saveFriendly(${t ? `'${t.id}'` : ''})">${t ? 'Save teams' : 'Create friendly'}</button>
     </div>`, 'xl');
   if(!t) initImageField('tlogo', LOGO_OPTS, null);
+  [0,1].forEach(i=>{ const tm = f.teams[i] || {}; initImageField('frlogo'+i, TEAM_LOGO_OPTS, tm.logoSrc ? {src:tm.logoSrc, crop:tm.logoCrop} : tm.logo ? {image:tm.logo} : null) });
   frSetMode(f.mode);
 }
 const frFirstRound = (mode, n) => mode==='vs' ? FR_ROUND : roundLabel(n);
@@ -2981,8 +3001,16 @@ function frPicked(i){
   if(document.getElementById('fr_src'+i).value==='profiles') return {ids:[...document.querySelectorAll(`#fr_list${i} input:checked`)].map(c=>c.value), names:[]};
   return {ids:[], names: document.getElementById('fr_names'+i).value.split('\n').map(s=>s.trim().replace(/\s+/g,' ')).filter(Boolean)};
 }
+/* Selected players as chips above the list; tapping × unticks them. */
+function frChips(i){
+  const box = document.getElementById('fr_sel'+i); if(!box) return;
+  const ids = [...document.querySelectorAll(`#fr_list${i} input:checked`)].map(c=>c.value);
+  box.innerHTML = ids.length ? ids.map(id=>{ const p = STORE.players.find(x=>x.id===id) || {name:playerName(id)}; return `<span class="fr-chip">${renderAvatar(p, 22)}<span>${esc(p.name)}</span><button type="button" aria-label="Remove ${esc(p.name)}" onclick="frUntick(${i},'${id}')">${ICON_X}</button></span>` }).join('') : '<span class="fr-chips-empty">No players selected yet</span>';
+}
+function frUntick(i, id){ const c = document.querySelector(`#fr_list${i} input[value="${id}"]`); if(c){ c.checked = false; c.closest('.player-check-item').classList.remove('selected') } frCount() }
 function frCount(){
   if(!document.getElementById('fr_c0')) return;
+  [0,1].forEach(frChips);
   const n = frSize();
   [0,1].forEach(i=>{ const p = frPicked(i), k = p.ids.length + p.names.length, el = document.getElementById('fr_c'+i);
     el.className = 'fr-count ' + (k===n ? 'ok' : k>n ? 'over' : '');
@@ -3008,7 +3036,12 @@ function saveFriendly(tid){
   const teams = [0,1].map(i=>{
     const src = document.getElementById('fr_src'+i).value;
     const players = src==='profiles' ? picks[i].ids : picks[i].names.map(nm=>{ const id = oldIds[nm.toLowerCase()] && !guests[oldIds[nm.toLowerCase()]] ? oldIds[nm.toLowerCase()] : 'gx-'+uid(); guests[id] = nm; return id });
-    return {name: tnames[i], source: src, players};
+    const prev = (t.friendly?.teams || [])[i] || {};
+    const team = {name: tnames[i], source: src, players};
+    ['logo','logoSrc','logoCrop'].forEach(k=>{ if(prev[k]) team[k] = prev[k] });
+    applyImage(team, 'logo', imageFieldValue('frlogo'+i));
+    if(!team.logo){ delete team.logo; delete team.logoSrc; delete team.logoCrop }
+    return team;
   });
   const dl = readDT('fr_dl');
   Object.assign(t, {
@@ -3037,18 +3070,18 @@ function saveFriendly(tid){
 /* ---- Views ---- */
 function frBoardHTML(t, big){
   const s = frScore(t), lead = frLead(s), done = t.status==='completed' || (s.total && s.decided===s.total);
-  // Each team's name sits above its own score.
-  const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}"><div class="fr-nm"><i class="tm-dot tm-${i}" aria-hidden="true"></i><b>${esc(frTeamName(t, i))}</b></div><span class="fr-num">${s.ties[i]}</span></div>`;
+  // Crest and name on each side, the score in the middle.
+  const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}">${frCrest(t, i, 'var(--crest)')}<b class="fr-tn">${esc(frTeamName(t, i))}</b></div>`;
   return `<section class="fr-board ${big?'big':''}" aria-label="Score">
-    <div class="fr-board-row">${side(0)}<em class="fr-dash">–</em>${side(1)}</div>
+    <div class="fr-board-row">${side(0)}<div class="fr-mid"><span class="fr-num ${done && lead===0?'w':''}">${s.ties[0]}</span><em class="fr-dash">–</em><span class="fr-num ${done && lead===1?'w':''}">${s.ties[1]}</span></div>${side(1)}</div>
     <div class="fr-board-sub">${s.total ? `${done ? (lead<0 ? 'Level' : `${esc(frTeamName(t, lead))} win`) : `${s.decided} of ${s.total} ties decided`} · Goals ${s.goals[0]}–${s.goals[1]}` : 'Ties are drawn when the friendly starts'}</div>
   </section>`;
 }
-function frLegendHTML(t){ return `<div class="fr-legend">${frTeams(t).map((tm,i)=>`<span><i class="tm-dot tm-${i}" aria-hidden="true"></i>${esc(tm.name)} <small>${(tm.players||[]).length}</small></span>`).join('')}</div>` }
+function frLegendHTML(t){ return `<div class="fr-legend">${frTeams(t).map((tm,i)=>`<span>${frMark(t, i)}${esc(tm.name)} <small>${(tm.players||[]).length}</small></span>`).join('')}</div>` }
 function renderTeamsTab(t, admin){
   return `${admin && (t.status==='open' || t.status==='draft') && !t.knockoutDrawn ? `<div class="hof-bar"><div><h2 class="card-title">Teams</h2><div class="page-sub">The draw is made when you start the friendly.</div></div><div class="hof-bar-actions"><button type="button" class="btn btn-secondary" onclick="openFriendlyModal('${t.id}')">Edit teams</button></div></div>` : ''}
   <div class="fr-teams">${frTeams(t).map((tm,i)=>`<section class="card fr-team">
-    <div class="fr-team-h"><i class="tm-dot tm-${i}" aria-hidden="true"></i><h3>${esc(tm.name)}</h3><span class="page-sub">${(tm.players||[]).length} players</span></div>
+    <div class="fr-team-h">${frCrest(t, i, '44px')}<h3>${esc(tm.name)}</h3><span class="page-sub">${(tm.players||[]).length} players</span></div>
     <ol class="fr-roster">${(tm.players||[]).map((pid,k)=>`<li><span class="n">${k+1}</span>${renderAvatar(statPlayer(pid), 30)}<span class="nm">${esc(playerName(pid))}</span></li>`).join('')}</ol>
   </section>`).join('')}</div>`;
 }
@@ -3083,7 +3116,7 @@ function frStatsHTML(t){
   const s = frScore(t);
   const bar = (label, a, b) => { const tot = a+b || 1; return `<div class="fr-sbar"><div class="fr-sbar-h"><b>${a}</b><span>${label}</span><b>${b}</b></div><div class="fr-sbar-t"><i class="tm-0" style="width:${a/tot*100}%"></i><i class="tm-1" style="width:${b/tot*100}%"></i></div></div>` };
   return `<div class="st-card fr-stats">
-    <div class="fr-stats-h"><span><i class="tm-dot tm-0" aria-hidden="true"></i>${esc(frTeamName(t,0))}</span><span>${esc(frTeamName(t,1))}<i class="tm-dot tm-1" aria-hidden="true"></i></span></div>
+    <div class="fr-stats-h"><span>${frCrest(t, 0, '30px')}${esc(frTeamName(t,0))}</span><span>${esc(frTeamName(t,1))}${frCrest(t, 1, '30px')}</span></div>
     ${bar('Goals scored', s.goals[0], s.goals[1])}
     ${frMode(t)==='vs' ? bar('Ties won', s.ties[0], s.ties[1]) : ''}
   </div>`;
@@ -3108,11 +3141,11 @@ function exportFriendlyPoster(tid){
   let body;
   if(vs){
     const lead = frLead(s);
-    const side = i => `<div class="fpo-team ${lead===i?'w':''}"><div class="fpo-nm"><i class="tm-dot tm-${i}"></i><b>${esc(frTeamName(t, i))}</b></div><span class="fpo-num">${s.ties[i]}</span></div>`;
+    const side = i => `<div class="fpo-team ${lead===i?'w':''}">${frCrest(t, i, 'calc(150px*var(--z))', 'fpo-crest')}<b>${esc(frTeamName(t, i))}</b></div>`;
     body = `<div class="fpo">
       <div class="fpo-kick">Final result</div>
-      <div class="fpo-board">${side(0)}<i class="fpo-dash">–</i>${side(1)}</div>
-      <div class="fpo-win">${lead<0 ? 'All square' : `${esc(frTeamName(t, lead))} win`}</div>
+      <div class="fpo-board">${side(0)}<div class="fpo-sc"><span class="${lead===0?'w':''}">${s.ties[0]}</span><i>–</i><span class="${lead===1?'w':''}">${s.ties[1]}</span></div>${side(1)}</div>
+      <div class="fpo-win">${lead<0 ? 'All square' : `${ICON.cup}<span>${esc(frTeamName(t, lead))} win</span>`}</div>
       <div class="fpo-facts">
         <div><span>Ties played</span><b>${s.decided}</b></div>
         <div><span>Goals</span><b>${s.goals[0]}–${s.goals[1]}</b></div>
@@ -3125,7 +3158,7 @@ function exportFriendlyPoster(tid){
     const step = (pid, k, medal, label) => `<div class="fpo-step s${k}">
       <div class="fpo-av">${renderAvatar(statPlayer(pid), k===1 ? 150 : 112)}<span class="fpo-medal">${medal}</span></div>
       <small>${label}</small><b>${pid ? esc(playerName(pid)) : 'TBD'}</b>
-      ${pid && frTeamOf(t, pid)>=0 ? `<span class="fpo-tm"><i class="tm-dot tm-${frTeamOf(t, pid)}"></i>${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : ''}
+      ${pid && frTeamOf(t, pid)>=0 ? `<span class="fpo-tm">${frCrest(t, frTeamOf(t, pid), 'calc(30px*var(--z))')}${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : ''}
       <div class="fpo-plinth">${k}</div></div>`;
     body = `<div class="fpo">
       <div class="fpo-kick">Final standings</div>
@@ -3135,10 +3168,10 @@ function exportFriendlyPoster(tid){
         <div><span>Goals</span><b>${s.goals[0]}–${s.goals[1]}</b></div>
         <div><span>Format</span><b>${t.friendly.size}v${t.friendly.size}</b></div>
       </div>
-      ${frLegendHTML(t)}
+      <div class="fpo-teams">${[0,1].map(i=>`<span>${frCrest(t, i, 'calc(40px*var(--z))')}${esc(frTeamName(t, i))}</span>`).join('<i>vs</i>')}</div>
     </div>`;
   }
-  EXPORT_CTX.zMax = 1.6;
+  EXPORT_CTX.zMax = 1.3;
   const page = fbSheet(t, t.name, `${vs ? 'Team vs Team' : 'Knockout'} · ${esc(frTeamName(t,0))} vs ${esc(frTeamName(t,1))}${t.completedAt ? ` · ${fmtDate(t.completedAt)}` : ''}`, body, 1, 1);
   return renderSheets([page], FB.w, `${slug(t.name)}_result`);
 }
@@ -4154,7 +4187,7 @@ function koPodiumHTML(t){
   const pl = isFriendly(t) && t.status==='completed' && t.champion ? {champion:t.champion, runner_up:t.runnerUp, third:t.thirdPlace, fourth:t.fourthPlace} : decidedPlacings(t) || resultPlacings(t);
   if(!pl || (!pl.champion && !pl.third)) return '';
   // Friendlies: each player's team under the name.
-  const team = pid => isFriendly(t) && pid && frTeamOf(t, pid)>=0 ? `<span class="kp-tm"><i class="tm-dot tm-${frTeamOf(t, pid)}" aria-hidden="true"></i>${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : '';
+  const team = pid => isFriendly(t) && pid && frTeamOf(t, pid)>=0 ? `<span class="kp-tm">${frMark(t, frTeamOf(t, pid))}${esc(frTeamName(t, frTeamOf(t, pid)))}</span>` : '';
   const tile = (k, medal, label) => `<div class="kp kp-${k}">${medal}<div class="kp-txt"><small>${label}</small><b>${pl[k] ? esc(playerName(pl[k])) : 'TBD'}</b>${team(pl[k])}</div></div>`;
   const hasThird = !!thirdMatchOf(t) || pl.third;
   return `<div class="ko-podium" aria-label="Final placings">
