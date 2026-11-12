@@ -923,19 +923,20 @@ async function renderFbSheets(pages, width, base, format, ready){
       await deliverFiles(files);
     }
   }catch(e){ console.error(e); toast('Export failed. Try again.', true) }
-  finally{ built.forEach(b=>b.host.remove()); EXPORT_CTX.zPerPage = false; EXPORT_CTX.zMax = 0 }
+  finally{ built.forEach(b=>b.host.remove()); EXPORT_CTX.zPerPage = false; EXPORT_CTX.zMax = 0; EXPORT_CTX.zMin = 0 }
 }
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1) }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1) && [...sheet.querySelectorAll('.ftm-h b, .ftm-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
   const max = EXPORT_CTX.zMax || FB_Z.max;
   if(fbFits(sheet, max)) return max;
-  if(!fbFits(sheet, FB_Z.min)) return FB_Z.min;
-  let lo = FB_Z.min, hi = max;
+  const min = EXPORT_CTX.zMin || FB_Z.min;
+  if(!fbFits(sheet, min)) return min;
+  let lo = min, hi = max;
   for(let k=0;k<9;k++){ const mid = (lo+hi)/2; if(fbFits(sheet, mid)) lo = mid; else hi = mid }
   return lo;
 }
@@ -3153,7 +3154,9 @@ function frBoardHTML(t, big){
 }
 function frLegendHTML(t){ return `<div class="fr-legend">${frTeams(t).map((tm,i)=>`<span>${frMark(t, i)}${esc(tm.name)} <small>${(tm.players||[]).length}</small></span>`).join('')}</div>` }
 function renderTeamsTab(t, admin){
-  return `${admin && (t.status==='open' || t.status==='draft') && !t.knockoutDrawn ? `<div class="hof-bar"><div><h2 class="card-title">Teams</h2><div class="page-sub">The draw is made when you start the friendly.</div></div><div class="hof-bar-actions"><button type="button" class="btn btn-secondary" onclick="openFriendlyModal('${t.id}')">Edit teams</button></div></div>` : ''}
+  const canEdit = admin && (t.status==='open' || t.status==='draft') && !t.knockoutDrawn;
+  return `<div class="hof-bar"><div><h2 class="card-title">Teams</h2><div class="page-sub">${canEdit ? 'The draw is made when you start the friendly.' : `${t.friendly.size} players a side`}</div></div>
+    <div class="hof-bar-actions">${canEdit ? `<button type="button" class="btn btn-secondary" onclick="openFriendlyModal('${t.id}')">Edit teams</button>` : ''}<button type="button" class="btn btn-primary" onclick="exportFriendlyTeams('${t.id}')">${ICON_DL} Export teams</button></div></div>
   <div class="fr-teams">${frTeams(t).map((tm,i)=>`<section class="card fr-team">
     <div class="fr-team-h">${frCrest(t, i, '44px')}<h3>${esc(tm.name)}</h3><span class="page-sub">${(tm.players||[]).length} players</span></div>
     <ol class="fr-roster">${(tm.players||[]).map((pid,k)=>`<li><span class="n">${k+1}</span>${renderAvatar(statPlayer(pid), 30)}<span class="nm">${esc(playerName(pid))}</span></li>`).join('')}</ol>
@@ -3206,6 +3209,23 @@ async function completeFriendlyVs(tid){
   t.friendly.result = s.ties;
   DB.set('tournaments', all); rerender();
   toast('Friendly completed');
+}
+
+/* ---- Team lists (one 1080 × 1350 page). Up to 16 a side the teams sit side by side; bigger teams are stacked,
+   each roster split into columns. The text size grows until the page is full. ---- */
+function exportFriendlyTeams(tid){
+  const t = STORE.tournaments.find(x=>x.id===tid); if(!t) return;
+  const n = Math.max(...frTeams(t).map(tm=>(tm.players||[]).length), 1);
+  // Layout by team size: small teams stacked in 2 columns, 7–16 side by side, bigger teams stacked in 2 or 3 columns.
+  const stacked = n <= 6 || n > 16, cols = n <= 6 ? 2 : n <= 16 ? 1 : n <= 24 ? 2 : 3;
+  const team = i => { const tm = frTeams(t)[i] || {}, ps = tm.players || [], rows = Math.ceil(ps.length/cols) || 1;
+    return `<section class="ftm">
+      <div class="ftm-h">${frCrest(t, i, 'calc(56px*var(--z))')}<div><b>${esc(tm.name)}</b><span>${ps.length} players</span></div></div>
+      <ol class="ftm-list ${cols===3?'c3':''}" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},1fr)">${ps.map((pid,k)=>`<li class="${k%rows===0?'top':''}"><span class="ftm-n">${k+1}</span><span class="ftm-av">${renderAvatar(statPlayer(pid), 40)}</span><span class="ftm-nm">${esc(playerName(pid))}</span></li>`).join('')}</ol>
+    </section>` };
+  EXPORT_CTX.zMax = 2.2; EXPORT_CTX.zMin = 0.56;   // very big teams may go a little smaller so everything stays on one page
+  const page = fbSheet(t, t.name, `Teams · ${esc(frTeamName(t,0))} vs ${esc(frTeamName(t,1))} · ${n}v${n}`, `<div class="ftm-wrap ${stacked?'stacked':''}">${team(0)}${team(1)}</div>`, 1, 1);
+  return renderSheets([page], FB.w, `${slug(t.name)}_teams`);
 }
 
 /* ---- Result poster (1080 × 1350) ---- */

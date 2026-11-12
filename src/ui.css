@@ -2280,3 +2280,21 @@
 .fr-board-row{align-items:start}
 .fr-mid{align-self:start;height:var(--crest)}
 .fbp .fr-mid{height:var(--crest)}
+/* Team lists export: rosters stretch to fill the page */
+.ftm-wrap{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(16px*var(--z));align-items:stretch}
+.ftm-wrap.stacked{grid-template-columns:minmax(0,1fr);grid-template-rows:1fr 1fr}
+.ftm{display:flex;flex-direction:column;min-width:0;border:1px solid var(--border);border-radius:22px;background:var(--surface);overflow:hidden}
+.ftm-h{display:flex;align-items:center;gap:calc(14px*var(--z));padding:calc(14px*var(--z)) calc(18px*var(--z));background:var(--surface-2);border-bottom:1px solid var(--border)}
+.ftm-h > div{flex:1;min-width:0;display:flex;flex-direction:column;gap:calc(4px*var(--z))}
+.ftm-h b{font-family:var(--font-display);font-size:calc(28px*var(--z));line-height:1.1;color:var(--ink);overflow-wrap:normal}
+.ftm-h span{font-size:calc(15px*var(--z));font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.ftm-list{flex:1;list-style:none;margin:0;padding:calc(4px*var(--z)) calc(10px*var(--z));display:grid;grid-auto-flow:column;column-gap:calc(16px*var(--z))}
+.ftm-list li{display:flex;align-items:center;gap:calc(10px*var(--z));min-width:0;padding:calc(7px*var(--z)) calc(6px*var(--z));border-top:1px solid var(--divider)}
+.ftm-list li.top{border-top:0}
+.ftm-n{flex:none;width:calc(26px*var(--z));text-align:right;font-size:calc(16px*var(--z));font-weight:800;color:var(--muted)}
+.ftm-av{flex:none;display:inline-flex}
+.ftm-av .player-avatar{width:calc(40px*var(--z)) !important;height:calc(40px*var(--z)) !important;font-size:calc(14px*var(--z)) !important}
+.ftm-nm{min-width:0;font-size:calc(21px*var(--z));font-weight:700;line-height:1.15;color:var(--ink);overflow-wrap:normal}
+.ftm-list.c3 li{padding:calc(5px*var(--z)) calc(4px*var(--z));gap:calc(8px*var(--z))}
+.ftm-list.c3 .ftm-av .player-avatar{width:calc(34px*var(--z)) !important;height:calc(34px*var(--z)) !important}
+.ftm-list.c3 .ftm-n{width:calc(24px*var(--z))}
