@@ -78,7 +78,7 @@ def build():
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>MG Efootball</title>
 <meta name="description" content="Tournaments, live results, brackets, leaderboard and Hall of Fame for the MG Efootball community.">
 <meta name="theme-color" content="#0B1B3F">

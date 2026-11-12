@@ -2299,8 +2299,8 @@
 .ftm-list.c3 .ftm-av .player-avatar{width:calc(34px*var(--z)) !important;height:calc(34px*var(--z)) !important}
 .ftm-list.c3 .ftm-n{width:calc(24px*var(--z))}
 /* Phones and tablets: tapping a text box must not zoom the page (iOS zooms in on text smaller than 16px),
-   and a quick double tap must not zoom either. Pinch-to-zoom still works. */
-html{touch-action:manipulation}
+   and the page doesn't zoom on pinch or double tap either. */
+html,body{touch-action:pan-x pan-y}   /* scrolling only: no pinch or double-tap zoom */
 @media (hover:none) and (pointer:coarse){
   input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea,
   .form-input,.form-select,.form-textarea,.search-box input,.dt-part input{font-size:16px !important}

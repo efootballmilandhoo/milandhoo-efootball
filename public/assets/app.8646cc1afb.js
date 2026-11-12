@@ -2671,6 +2671,10 @@ function draftsStripHTML(){
     </div>`).join('')}</div>`;
 }
 window.addEventListener('pagehide', saveFormDraft);
+/* No pinch or double-tap zoom anywhere (Safari on iPhone ignores the page setting, so it is blocked here too).
+   The photo cropper has its own zoom slider and drag. */
+['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev, e=>e.preventDefault(), {passive:false}));
+document.addEventListener('touchmove', e=>{ if(e.touches.length>1) e.preventDefault() }, {passive:false});
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveFormDraft() });
 
 /* =========================
