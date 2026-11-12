@@ -2169,7 +2169,7 @@
 /* teams tab */
 .fr-teams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
 @media (max-width:720px){ .fr-teams{grid-template-columns:minmax(0,1fr)} }
-.fr-team-h{display:flex;align-items:center;gap:2px;margin-bottom:12px}
+.fr-team-h{display:flex;align-items:center;gap:12px;margin-bottom:12px}
 .fr-team-h h3{margin:0 10px 0 0;font-family:var(--font-display);font-size:22px;color:var(--ink)}
 .fr-roster{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
 .fr-roster li{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--divider);min-width:0}
@@ -2298,3 +2298,10 @@
 .ftm-list.c3 li{padding:calc(5px*var(--z)) calc(4px*var(--z));gap:calc(8px*var(--z))}
 .ftm-list.c3 .ftm-av .player-avatar{width:calc(34px*var(--z)) !important;height:calc(34px*var(--z)) !important}
 .ftm-list.c3 .ftm-n{width:calc(24px*var(--z))}
+/* Phones and tablets: tapping a text box must not zoom the page (iOS zooms in on text smaller than 16px),
+   and a quick double tap must not zoom either. Pinch-to-zoom still works. */
+html{touch-action:manipulation}
+@media (hover:none) and (pointer:coarse){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),select,textarea,
+  .form-input,.form-select,.form-textarea,.search-box input,.dt-part input{font-size:16px !important}
+}

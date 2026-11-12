@@ -147,6 +147,17 @@ async function offloadImages(){
       const v = STORE.settings && STORE.settings[f];
       if(isDataImg(v)){ const url = await uploadDataUrl(v, 'brand'); if(STORE.settings[f]===v) saveSettings({[f]:url}) }
     }
+    // friendly team logos
+    for(const t of [...STORE.tournaments]){
+      for(const [i, tm] of (t.friendly?.teams || []).entries()){
+        for(const f of ['logo','logoSrc']){
+          const v = tm[f]; if(!isDataImg(v)) continue;
+          const url = await uploadDataUrl(v, 'logos');
+          const cur = STORE.tournaments.find(x=>x.id===t.id);
+          if(cur?.friendly?.teams?.[i]?.[f]===v) DB.set('tournaments', STORE.tournaments.map(x=> x.id!==t.id ? x : {...x, friendly:{...x.friendly, teams:x.friendly.teams.map((y,k)=> k===i ? {...y, [f]:url} : y)}}));
+        }
+      }
+    }
     const pi = STORE.settings && STORE.settings.prizeIcons;
     if(pi && Object.values(pi).some(isDataImg)){
       const next = {...pi};

@@ -4065,7 +4065,8 @@ function koFieldLabels(fmt){ return fmt==='bo3' ? ['Game 1','Game 2','Game 3'] :
 function openKnockoutMatchModal(tid, roundIdx, matchId){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = STORE.tournaments.find(x=>x.id===tid);
-  const m = t.knockoutBracket[roundIdx].find(x=>x.id===matchId);
+  const m = t?.knockoutBracket?.[roundIdx]?.find(x=>x.id===matchId);
+  if(!m){ toast('This match is no longer in the bracket. Refresh and try again.', true); return }
   const fmt = koFmt(t, m), labels = koFieldLabels(fmt), legs = koLegs(t, m);
   const p = [m.team1, m.team2].map(id=>STORE.players.find(x=>x.id===id) || {name: playerName(id)});
   const v = x => hasScore(x) ? x : '';
@@ -4291,7 +4292,10 @@ function editTournament(tid){
         <div class="form-group"><label class="form-label" for="e_datetime_d">Start date &amp; time</label>${dtField('e_datetime', t.startDateTime||'', '20:00')}</div>
         <div class="form-group ${isFriendly(t)?'hidden':''}"><label class="form-label" for="e_deadline_d">Group stage deadline</label>${dtField('e_deadline', t.groupDeadline||'')}</div>
       </div>
-      ${isFriendly(t) ? `<div class="form-row">${[0,1].map(i=>`<div class="form-group"><label class="form-label" for="e_team${i}">Team ${i?'B':'A'} name</label><input class="form-input" id="e_team${i}" maxlength="40" value="${esc(frTeamName(t,i))}"></div>`).join('')}</div>
+      ${isFriendly(t) ? `<div class="fr-tgrid mb-16">${[0,1].map(i=>`<fieldset class="fr-tf"><legend><i class="tm-dot tm-${i}" aria-hidden="true"></i>Team ${i?'B':'A'}</legend>
+          <div class="form-group"><label class="form-label" for="e_team${i}">Team name</label><input class="form-input" id="e_team${i}" maxlength="40" value="${esc(frTeamName(t,i))}"></div>
+          ${imageFieldHTML('elogo'+i, 'Team logo', 'Shown on the scoreboard and exports. A square logo works best.')}
+        </fieldset>`).join('')}</div>
         ${!t.knockoutDrawn ? `<div class="text-xs text-muted mb-16">Players are changed with <b>Edit teams</b> on the Teams tab until the friendly starts.</div>` : ''}` : ''}
       <div class="form-row">
         <div class="form-group"><label class="form-label" for="e_status">Status</label>
@@ -4344,6 +4348,7 @@ function editTournament(tid){
       <button class="btn btn-primary" onclick="saveTournamentEdit('${tid}')">Save Changes</button>
     </div>`, 'lg');
   initImageField('tlogo', LOGO_OPTS, t.logo ? {image:t.logo, src:t.logoSrc, crop:t.logoCrop} : null);
+  if(isFriendly(t)) frTeams(t).forEach((tm,i)=>initImageField('elogo'+i, TEAM_LOGO_OPTS, tm.logo ? {image:tm.logo, src:tm.logoSrc, crop:tm.logoCrop} : null));
 }
 
 function saveTournamentEdit(tid){
@@ -4364,7 +4369,8 @@ function saveTournamentEdit(tid){
     t.qualifyPerGroup = Math.max(1, +document.getElementById('e_qualify').value||1);
     t.seeding = document.getElementById('e_seed').value;
   }
-  if(isFriendly(t)) [0,1].forEach(i=>{ const v = document.getElementById('e_team'+i)?.value.trim(); if(v) t.friendly.teams[i].name = v });
+  if(isFriendly(t)) [0,1].forEach(i=>{ const tm = t.friendly.teams[i], v = document.getElementById('e_team'+i)?.value.trim(); if(v) tm.name = v;
+    applyImage(tm, 'logo', imageFieldValue('elogo'+i)); if(!tm.logo){ delete tm.logo; delete tm.logoSrc; delete tm.logoCrop } });
   if(t.format!=='league' && frMode(t)!=='vs'){
     const ko = document.getElementById('e_ko').value;
     if(ko!==t.knockoutFormat && (t.knockoutBracket||[]).flat().some(m=>!m.isBye && m.winner)){ toast('Knockout results exist, so the match format stays as it is. Redraw the bracket to change it.', true) }
