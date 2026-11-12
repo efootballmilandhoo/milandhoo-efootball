@@ -855,3 +855,8 @@
   .size-table dd{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
   .size-table dd b{font-size:13px;color:var(--ink);font-variant-numeric:tabular-nums}
   .size-table dd span{font-size:11px;color:var(--muted)}
+/* Stage chip on the Rules tab stays on one line on every phone. */
+.rules-chip{white-space:nowrap;max-width:100%;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.rules-card-head > .rules-chip{flex:0 1 auto}
+.rules-card-actions{flex:none}
+@media (max-width:480px){ .rules-chip{font-size:15px;padding:6px 12px;letter-spacing:.04em} }

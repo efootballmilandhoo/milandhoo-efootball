@@ -634,7 +634,7 @@ async function renderFbSheets(pages, width, base, format, ready){
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1) && [...sheet.querySelectorAll('.ftm-h b, .ftm-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1) && [...sheet.querySelectorAll('.ftm-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
@@ -676,11 +676,16 @@ function fbFill(sheet){
   const set = new Set(cand);
   const rows = cand.filter(el=>![...el.querySelectorAll('*')].some(d=>set.has(d)));
   if(!rows.length){ fbSetZ(sheet, fbZ(sheet), false); fbShrink(sheet); return }
-  const base = rows.map(el=>{ const cs = getComputedStyle(el); return {el, h:el.offsetHeight, tr:cs.display==='table-row', pt:parseFloat(cs.paddingTop)||0, pb:parseFloat(cs.paddingBottom)||0} });
-  const apply = f => base.forEach(r=>{ const add = r.h*f;
+  const kindOf = x => x.tagName + '|' + (x.classList[0] || '');
+  const base = rows.map(el=>{ const cs = getComputedStyle(el); return {el, kind:kindOf(el), h:el.offsetHeight, tr:cs.display==='table-row', pt:parseFloat(cs.paddingTop)||0, pb:parseFloat(cs.paddingBottom)||0} });
+  // Rows of the same kind get the same height (the tallest one's), so lists and side-by-side boxes line up.
+  const tallest = {}; base.forEach(r=>{ tallest[r.kind] = Math.max(tallest[r.kind]||0, r.h) });
+  let eq = true;
+  const apply = f => base.forEach(r=>{ const add = (eq ? tallest[r.kind] : r.h)*(1+f) - r.h;
     if(r.tr) r.el.style.height = (r.h + add)+'px';
     else { r.el.style.paddingTop = (r.pt + add/2)+'px'; r.el.style.paddingBottom = (r.pb + add/2)+'px' } });
   let lo = 0, hi = 0.9;
+  apply(0); if(sheet.scrollHeight > FB.h){ eq = false; apply(0) }
   apply(hi);
   if(sheet.scrollHeight > FB.h){ for(let k=0;k<10;k++){ const mid = (lo+hi)/2; apply(mid); if(sheet.scrollHeight <= FB.h) lo = mid; else hi = mid } apply(lo) } else lo = hi;
   fbSetZ(sheet, fbZ(sheet), false);
@@ -688,7 +693,10 @@ function fbFill(sheet){
 }
 /* Single-line values in fixed-width tiles shrink until they fit instead of being cut off. */
 function fbShrink(sheet){
-  sheet.querySelectorAll('.fb-psum b').forEach(el=>{ let fs = parseFloat(getComputedStyle(el).fontSize), k = 0; while(el.scrollWidth > el.clientWidth + 1 && fs > 12 && k++ < 40){ fs -= 1; el.style.fontSize = fs+'px' } });
+  sheet.querySelectorAll('.fb-psum b, .ftm-h b, .fb-hof .end i').forEach(el=>{ let fs = parseFloat(getComputedStyle(el).fontSize), k = 0; while(el.scrollWidth > el.clientWidth + 1 && fs > 12 && k++ < 40){ fs -= 1; el.style.fontSize = fs+'px' } });
+  // Matching labels (the two team names) keep one shared size.
+  const tn = [...sheet.querySelectorAll('.ftm-h b')];
+  if(tn.length > 1){ const min = Math.min(...tn.map(el=>parseFloat(getComputedStyle(el).fontSize))); tn.forEach(el=>{ el.style.fontSize = min+'px' }) }
 }
 const fbZ = sheet => parseFloat(sheet.querySelector('.fbp')?.style.getPropertyValue('--z')) || 1;
 /* Height of a page at a given text size, measured off-screen. */
@@ -699,7 +707,7 @@ function fbPack(items, makePage, opts={}){
   const groups = []; let cur = [];
   items.forEach(it=>{
     const trial = [...cur, it];
-    if(cur.length && fbMeasure(makePage(trial, 0, 9), z) > FB.h){ groups.push(cur); cur = [it] } else cur = trial;
+    if(cur.length && ((opts.max && cur.length >= opts.max) || fbMeasure(makePage(trial, 0, 9), z) > FB.h)){ groups.push(cur); cur = [it] } else cur = trial;
   });
   if(cur.length) groups.push(cur);
   let out = groups;
@@ -855,7 +863,8 @@ function fbHof(){
   if(!list.length){ toast('Nothing to export yet', true); return }
   const page = (part, i, n) => fbSheet(null, yr ? `Hall of Fame ${yr}` : 'Hall of Fame', `${list.length} achievement${list.length===1?'':'s'}${yr ? ` in ${yr}` : ''} · ${fmtDate(new Date())}`,
     `<div class="fb-card fb-list">${part.map(h=>{ const ty = HOF_TYPES[h.type] || HOF_TYPES.award; return `<div class="fb-hof">${medalHTML(ty.cls, ty.medal, 48)}<div class="mid"><b>${esc(hofPlayer(h).name)}</b><span>${esc(hofTitle(h))} · ${esc(h.tournament||'')}</span></div><div class="end"><i>${esc(hofOrg(h))}</i><span>${esc(hofDate(h))||''}</span></div></div>` }).join('')}</div>`, i+1, n);
-  return renderSheets(fbPack(list, page, {even:true}), FB.w, yr ? `hall_of_fame_${yr}` : 'hall_of_fame');
+  if(list.length <= 6) EXPORT_CTX.zMax = 2;
+  return renderSheets(fbPack(list, page, {even:true, max:10}), FB.w, yr ? `hall_of_fame_${yr}` : 'hall_of_fame');
 }
 
 function fbDecorated(){
@@ -872,16 +881,16 @@ function fbDecorated(){
 
 function fbRules(tid, key){
   const t = STORE.tournaments.find(x=>x.id===tid);
-  const secs = ruleSections(t).filter(s=>!key || s.key===key).filter(s=>key || stageHasContent(t, s.key));
+  const secs = ruleSections(t).filter(s=>!key || s.id===key).filter(s=>key || secHasContent(t, s));
   if(!secs.length){ toast('Nothing to export yet', true); return }
   // A stage stays on one page whenever it fits at a readable size; otherwise rules first, then settings.
-  const wrap = (sec, body) => `<div class="fb-card fb-rulecard"><span class="fb-chip">${esc(sec.title)}</span>${body}</div>`;
-  const sheet = (sec, body, i=1, n=1) => fbSheet(t, t.name, `${esc(sec.title)} · Rules &amp; match settings`, wrap(sec, body), i, n);
+  const wrap = (sec, body) => `<div class="fb-card fb-rulecard"><span class="fb-chip">${esc(secLabel(sec))}</span>${body}</div>`;
+  const sheet = (sec, body, i=1, n=1) => fbSheet(t, t.name, sec.part ? esc(secLabel(sec)) : `${esc(sec.title)} · Rules &amp; match settings`, wrap(sec, body), i, n);
   const fits = (sec, body) => fbMeasure(sheet(sec, body), 0.85) <= FB.h;
   const parts = [];
   secs.forEach(sec=>{
-    const lines = ruleLines(stageData(t, sec.key).rules), set = settingsList(t, sec.key);
-    const dl = t.rules?.roundDeadlines || {}, rounds = sec.key==='ko' ? koDeadlineRounds(t).filter(x=>dl[x]) : [];
+    const lines = sec.part==='settings' ? [] : ruleLines(stageData(t, sec.key).rules), set = sec.part==='rules' ? [] : settingsList(t, sec.key);
+    const dl = t.rules?.roundDeadlines || {}, rounds = sec.key==='ko' && sec.part!=='rules' ? koDeadlineRounds(t).filter(x=>dl[x]) : [];
     const rulesHTML = (list, start=1) => list.length ? `<div class="fb-sec"><h3>Rules</h3><ol class="fb-rules" style="counter-reset:fbr ${start-1}">${list.map(l=>`<li>${esc(l)}</li>`).join('')}</ol></div>` : '';
     const setHTML = set.length ? `<div class="fb-sec"><h3>Match settings</h3><div class="fb-set">${set.map(x=>`<div><span>${esc(x.label)}</span><b>${esc(x.value)}</b></div>`).join('')}</div></div>` : '';
     const dlHTML = rounds.length ? `<div class="fb-sec"><h3>Round deadlines</h3><div class="fb-set dl">${rounds.map(x=>`<div><span>${esc(x)}</span><b>${fmtShort(dl[x])}</b></div>`).join('')}</div></div>` : '';
@@ -900,8 +909,8 @@ function fbRules(tid, key){
       else { if(set.length) parts.push({sec, body: setHTML}); if(rounds.length) parts.push({sec, body: dlHTML}) }
     }
   });
-  EXPORT_CTX.zPerPage = true;
-  return renderSheets(parts.map((pt, i)=>sheet(pt.sec, pt.body, i+1, parts.length)), FB.w, `${slug(t.name)}_rules`);
+  EXPORT_CTX.zPerPage = true; EXPORT_CTX.zMax = 2.4;   // short stages (Final, tie-breaker) use bigger text instead of empty space
+  return renderSheets(parts.map((pt, i)=>sheet(pt.sec, pt.body, i+1, parts.length)), FB.w, `${slug(t.name)}_${key ? slug(secLabel(secs[0])) + "_" : ""}rules`);
 }
 
 /* Stats export: two pages. 1) tournament numbers and the six leader boards, 2) match records and unbeaten players.
@@ -4588,13 +4597,21 @@ const MATCH_FIELDS = [
 function fmtShort(d){ if(!d) return '—'; const dt = new Date(d); if(isNaN(dt)) return '—'; return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' · ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) }
 function ruleSections(t){
   const s = [];
-  if(frMode(t)==='vs') return [{key:'ko', title:'Ties', short:'Ties'}, {key:'tb', title:'Tie-breaker match', short:'Tie-breaker'}];
+  if(frMode(t)==='vs') return [{key:'ko', id:'ko', title:'Ties', short:'Ties'}, {key:'tb', id:'tb', title:'Tie-breaker match', short:'Tie-breaker'}];
   if(t.format==='league') s.push({key:'group', title:'League', short:'League'});
   if(t.format==='group_knockout') s.push({key:'group', title:'Group stage', short:'Group stage'});
-  if(t.format!=='league') s.push({key:'ko', title: t.format==='single_elimination' ? 'Knockout' : 'Knockout stage', short:'Knockout'});
+  if(t.format!=='league'){ const title = t.format==='single_elimination' ? 'Knockout' : 'Knockout stage';
+    s.push({key:'ko', part:'rules', title, short:'Knockout'}, {key:'ko', id:'ko-set', part:'settings', title, short:'Knockout'}) }
   if(t.format!=='league') s.push({key:'final', title: t.thirdPlaceMatch ? 'Final & 3rd place' : 'Final', short:'Final'});
   if(t.format!=='league' && (t.knockoutFormat==='2leg' || finalFmt(t)==='2leg')) s.push({key:'tb', title:'Tie-breaker match', short:'Tie-breaker'});
-  return s;
+  return s.map(x=>({...x, id: x.id || x.key}));
+}
+/* A card's label: "Knockout stage · Rules" for split stages, else the stage name. */
+const secLabel = sec => sec.part==='rules' ? `${sec.title} · Rules` : sec.part==='settings' ? `${sec.title} · Match settings` : sec.title;
+function secHasContent(t, sec){
+  if(sec.part==='rules') return !!stageData(t, sec.key).rules.trim();
+  if(sec.part==='settings') return settingsList(t, sec.key).length>0 || Object.values(t.rules?.roundDeadlines||{}).some(Boolean);
+  return stageHasContent(t, sec.key);
 }
 function expectedKoRounds(t){
   if(t.format==='league') return [];
@@ -4643,7 +4660,7 @@ function stageHasContent(t, key){
   const dl = key==='ko' && Object.values(t.rules?.roundDeadlines||{}).some(Boolean);
   return !!(d.rules.trim() || settingsList(t, key).length || dl);
 }
-function hasRules(t){ return ruleSections(t).some(s=>stageHasContent(t, s.key)) }
+function hasRules(t){ return ruleSections(t).some(s=>secHasContent(t, s)) }
 function ruleLines(text){ return String(text||'').split('\n').map(x=>x.replace(/^\s*(\d+[.)]|[-•*])\s*/,'').trim()).filter(Boolean) }
 
 function rulesSectionHTML(t, sec, admin){
@@ -4655,25 +4672,25 @@ function rulesSectionHTML(t, sec, admin){
   const finDl = t.rules?.roundDeadlines?.Final;
   const groupDl = sec.key==='group' && t.groupDeadline ? `<div class="rules-deadline"><span>${ICON.calendar}</span><div><small>${t.format==='league'?'League deadline':'Group stage deadline'}</small><b>${fmtDateTime(t.groupDeadline)}</b></div></div>`
     : sec.key==='final' && finDl ? `<div class="rules-deadline"><span>${ICON.calendar}</span><div><small>Final deadline</small><b>${fmtDateTime(finDl)}</b></div></div>` : '';
-  const has = stageHasContent(t, sec.key);
-  return `<section class="rules-card" id="rules-${sec.key}">
+  const has = secHasContent(t, sec), showR = sec.part!=='settings', showS = sec.part!=='rules';
+  return `<section class="rules-card" id="rules-${sec.id}">
     <div class="rules-card-head">
       <span class="rules-chip">${esc(sec.title)}</span>
       <span class="rules-card-actions no-export">
-        ${has ? `<button type="button" class="btn-icon-square" onclick="exportRulesSheet('${t.id}','${sec.key}')" aria-label="Export ${esc(sec.title)} rules (image or PDF)" title="Export ${esc(sec.title)} (image or PDF)">${ICON_DL}</button>` : ''}
+        ${has ? `<button type="button" class="btn-icon-square" onclick="exportRulesSheet('${t.id}','${sec.id}')" aria-label="Export ${esc(secLabel(sec))} (image or PDF)" title="Export ${esc(secLabel(sec))} (image or PDF)">${ICON_DL}</button>` : ''}
         ${admin ? `<button type="button" class="btn btn-primary btn-sm" style="min-height:44px" onclick="openRulesModal('${t.id}','${sec.key}')">${has?'Edit':'Add rules'}</button>` : ''}
       </span>
     </div>
     ${groupDl}
-    <div class="rules-block rb-rules">
+    ${showR ? `<div class="rules-block rb-rules">
       <h3>Rules</h3>
       ${lines.length ? `<ol class="rules-list">${lines.map(l=>`<li>${esc(l)}</li>`).join('')}</ol>` : `<p class="rules-empty">No rules added yet.</p>`}
-    </div>
-    <div class="rules-block rb-settings">
+    </div>` : ''}
+    ${showS ? `<div class="rules-block rb-settings">
       <h3>Match settings</h3>
       ${settings.length ? `<dl class="settings-grid">${settings.map(x=>`<div><dt>${esc(x.label)}</dt><dd class="${String(x.value).length>12?'long':''}">${esc(x.value)}</dd></div>`).join('')}</dl>` : `<p class="rules-empty">No match settings added yet.</p>`}
-    </div>
-    ${sec.key==='ko' ? `<div class="rules-block rb-dl">
+    </div>` : ''}
+    ${sec.key==='ko' && showS ? `<div class="rules-block rb-dl">
       <h3>Round deadlines</h3>
       ${hasDl ? `<div class="deadline-list">${rounds.map(x=>{ const d = dl[x]; const past = d && new Date(d) < new Date(); return `<div class="${past?'past':''}"><span>${esc(x)}</span>${past?'<i>Passed</i>':''}<b>${d ? fmtDateTime(d) : 'Not set'}</b></div>` }).join('')}</div>` : `<p class="rules-empty">No round deadlines set yet.</p>`}
     </div>` : ''}
@@ -4848,7 +4865,7 @@ function saveRules(tid, key){
 const X54 = {w:1500, h:1200};
 function exportRulesSheet(tid, key){
   const t = STORE.tournaments.find(x=>x.id===tid);
-  const secs = ruleSections(t).filter(s=>!key || s.key===key).filter(s=>key || stageHasContent(t, s.key));
+  const secs = ruleSections(t).filter(s=>!key || s.id===key).filter(s=>key || secHasContent(t, s));
   if(!secs.length){ toast('Nothing to export yet', true); return }
   // One 5:4 page per stage: rules on the left, match settings and deadlines on the right.
   const pages = secs.map((sec, i)=>{
@@ -4857,9 +4874,9 @@ function exportRulesSheet(tid, key){
     if(sec.key==='ko'){ const fin = (t.rules?.roundDeadlines||{})['Final']; if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
     if(sec.key==='tb') dlBits.push('Used when a 2-leg tie is level on aggregate');
     if(sec.key==='final'){ const fin = (t.rules?.roundDeadlines||{})['Final']; dlBits.push(koLabel(finalFmt(t))); if(fin) dlBits.push(`Final by ${fmtDateTime(fin)}`) }
-    return `<div class="x54 x54-rules">${sheetHeader(t, t.name, [`${sec.title} · Rules &amp; match settings`, ...dlBits].join(' · '))}${rulesSectionHTML(t, sec, false)}${sheetFoot(i+1, secs.length)}</div>`;
+    return `<div class="x54 x54-rules">${sheetHeader(t, t.name, [sec.part ? secLabel(sec) : `${sec.title} · Rules &amp; match settings`, ...dlBits].join(' · '))}${rulesSectionHTML(t, sec, false)}${sheetFoot(i+1, secs.length)}</div>`;
   });
-  return renderSheets(pages, X54.w, `${slug(t.name)}_${key ? slug(secs[0].title) + '_' : ''}rules`);
+  return renderSheets(pages, X54.w, `${slug(t.name)}_${key ? slug(secLabel(secs[0])) + '_' : ''}rules`);
 }
 
 /* =========================
