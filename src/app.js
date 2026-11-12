@@ -1395,7 +1395,7 @@ function sheetHeader(t, title, subtitle){
   return `<div class="xs-head">
     ${t && t.logo && isImgSrc(t.logo) ? `<span class="xs-tlogo"><img src="${esc(t.logo)}"${imgAttrs(t.logo)} alt=""></span>` : ''}
     <div class="xs-titles">
-      <div class="xs-kicker">${esc(commFull().toUpperCase().replace(/EFOOTBALL/g,'eFOOTBALL'))}</div>
+      <div class="xs-kicker">${esc(commFull().toUpperCase())}</div>
       <div class="xs-title">${esc(title)}</div>
       ${subtitle ? `<div class="xs-sub">${subtitle}</div>` : ''}
     </div>
@@ -2665,6 +2665,8 @@ function saveTournament(){
 const FR_ROUND = 'Ties';
 const isFriendly = t => !!t?.friendly;
 const frMode = t => t?.friendly?.mode || '';
+/* Export subtitle for a friendly, e.g. "8v8 Friendly knockout tournament". */
+const frKindLabel = t => { const n = t?.friendly?.size || ''; return `${n ? `${n}v${n} ` : ''}Friendly ${frMode(t)==='vs' ? 'team vs team' : 'knockout tournament'}` };
 const isGuest = id => typeof id==='string' && id.startsWith('gx-');
 function guestName(id){ for(const t of STORE.tournaments){ const n = t.guests?.[id]; if(n) return n } return '' }
 const frTeams = t => t?.friendly?.teams || [];
@@ -2987,7 +2989,7 @@ function exportFriendlyTeams(tid){
       <ol class="ftm-list ${cols===3?'c3':''}" style="grid-template-columns:repeat(${cols},minmax(0,1fr));grid-template-rows:repeat(${rows},1fr)">${ps.map((pid,k)=>`<li class="${k%rows===0?'top':''}"><span class="ftm-n">${k+1}</span><span class="ftm-av">${renderAvatar(statPlayer(pid), 40)}</span><span class="ftm-nm">${esc(playerName(pid))}</span></li>`).join('')}</ol>
     </section>` };
   EXPORT_CTX.zMax = 2.2; EXPORT_CTX.zMin = 0.56;   // very big teams may go a little smaller so everything stays on one page
-  const page = fbSheet(t, t.name, `Teams · ${esc(frTeamName(t,0))} vs ${esc(frTeamName(t,1))} · ${n}v${n}`, `<div class="ftm-wrap ${stacked?'stacked':''}">${team(0)}${team(1)}</div>`, 1, 1);
+  const page = fbSheet(t, t.name, frKindLabel(t), `<div class="ftm-wrap ${stacked?'stacked':''}">${team(0)}${team(1)}</div>`, 1, 1);
   return renderSheets([page], FB.w, `${slug(t.name)}_teams`);
 }
 
@@ -3032,7 +3034,7 @@ function exportFriendlyPoster(tid){
     </div>`;
   }
   EXPORT_CTX.zMax = 1.3;
-  const page = fbSheet(t, t.name, `${vs ? 'Team vs Team' : 'Knockout'} · ${esc(frTeamName(t,0))} vs ${esc(frTeamName(t,1))}${t.completedAt ? ` · ${fmtDate(t.completedAt)}` : ''}`, body, 1, 1);
+  const page = fbSheet(t, t.name, `${frKindLabel(t)}${t.completedAt ? ` · ${fmtDate(t.completedAt)}` : ''}`, body, 1, 1);
   return renderSheets([page], FB.w, `${slug(t.name)}_result`);
 }
 
