@@ -719,8 +719,8 @@
 
   /* ---------- Facebook exports: 1080 × 1350 (4:5) ----------
      Sizes inside the page body use --z, which the exporter tunes per export so the content fills the page. */
-  .xs.fb{padding:44px;gap:0;--muted:#3E4A66;--text-2:#253049;--divider:#E1E8F3;--line:#D3DCEB;-webkit-font-smoothing:antialiased}
-  .fbp{--z:1;display:flex;flex-direction:column;gap:22px;min-height:1262px}
+  .xs.fb{padding:32px;gap:0;--muted:#3E4A66;--text-2:#253049;--divider:#E1E8F3;--line:#D3DCEB;-webkit-font-smoothing:antialiased}
+  .fbp{--z:1;display:flex;flex-direction:column;gap:18px;min-height:1286px}
   .fb .xs-head{padding:24px 30px;border-radius:24px;gap:22px}
   .fb .xs-tlogo{width:92px;height:92px;border-radius:20px}
   .fb .xs-kicker{font-size:16px;letter-spacing:.14em;color:#C9D4EE}
@@ -728,7 +728,7 @@
   .fb .xs-sub{font-size:22px;color:#E3E9F7;margin-top:10px;line-height:1.35}
   .fb .xs-clogo .logo-mark{width:72px !important;height:72px !important}
   .fb .xs-titles{flex:1;max-width:none}
-  .fb .xs-fbar{font-size:17px;gap:20px;flex-wrap:nowrap;padding-top:16px}
+  .fb .xs-fbar{font-size:17px;gap:20px;flex-wrap:nowrap;padding-top:12px}
   .fb .xs-fbar-follow{display:none}
   .fb .xs-fbar-social svg{width:20px;height:20px}
   .fb-body{display:flex;flex-direction:column;gap:calc(20px*var(--z));flex:1}
@@ -1673,9 +1673,9 @@
 
 /* Knockout exports: whatever space is left is shared above and below the ties, so the round sits in the middle */
 .fb-body:has(> .fb-round){justify-content:center}
-.fb-ties.one{max-width:calc(820px*var(--z));width:100%;margin:0 auto}
+.fb-ties.one{width:100%}
 
-.fb-ties.stack{grid-template-columns:minmax(0,1fr);max-width:calc(860px*var(--z));width:100%;margin:0 auto}
+.fb-ties.stack{grid-template-columns:minmax(0,1fr);width:100%}
 .fb-round-h{flex-wrap:wrap;row-gap:4px}
 .fb-round-h b{white-space:nowrap}
 
@@ -2206,7 +2206,7 @@
 .fbp .fr-board-sub{font-size:calc(20px*var(--z))}
 .fbp .fr-crest.mini{--cs:calc(26px*var(--z)) !important;margin-right:calc(10px*var(--z))}
 .fbp .fr-stats-h .fr-crest{--cs:calc(40px*var(--z)) !important}
-.fbp .fr-legend{justify-content:center;gap:calc(10px*var(--z)) calc(28px*var(--z));font-size:calc(20px*var(--z));margin:0 0 calc(16px*var(--z))}
+.fbp .fr-legend{justify-content:center;gap:calc(10px*var(--z)) calc(28px*var(--z));font-size:calc(20px*var(--z));margin:0}
 .fbp .fr-stats{margin-bottom:calc(16px*var(--z));gap:calc(14px*var(--z));padding:calc(18px*var(--z)) calc(22px*var(--z));border-radius:20px;border:1px solid var(--border);background:var(--surface)}
 .fbp .fr-stats-h{font-size:calc(22px*var(--z))}
 .fbp .fr-sbar-h b{font-size:calc(38px*var(--z))}

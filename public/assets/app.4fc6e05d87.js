@@ -889,8 +889,10 @@ async function renderFbSheets(pages, width, base, format, ready){
     // Lists keep one text size on every page; mixed pages (rules, stats) each fill their own page.
     if(designed){
       const zs = built.map(b=>fbBestZ(b.sheet));
-      if(EXPORT_CTX.zPerPage) built.forEach((b,i)=>fbSetZ(b.sheet, zs[i]));
-      else { const z = Math.min(...zs); built.forEach(b=>fbSetZ(b.sheet, z)) }
+      if(EXPORT_CTX.zPerPage) built.forEach((b,i)=>fbSetZ(b.sheet, zs[i], true));
+      else { const z = Math.min(...zs); built.forEach(b=>fbSetZ(b.sheet, z, true)) }
+      // Every page is a full 1080 × 1350 post: leftover height goes into the rows, not into empty bands.
+      built.forEach(b=>fbFill(b.sheet));
     }
     const canvases = [];
     for(let i=0;i<built.length;i++){
@@ -899,18 +901,21 @@ async function renderFbSheets(pages, width, base, format, ready){
       const W = Math.ceil(sh.scrollWidth), H = Math.ceil(sh.scrollHeight);
       if(designed && H > FB.h + 2) console.warn('fb export taller than 1350, scaled to fit:', base, i+1, H);
       const c = await sheetCanvas(sh, W, H, S);
-      const out = document.createElement('canvas'); out.width = FW; out.height = FH;
-      const g = out.getContext('2d'); g.fillStyle = exportBg(); g.fillRect(0,0,FW,FH);
+      // 1080 wide; as tall as the content (at most 1350, the 4:5 Facebook size).
       const k = Math.min(FW/c.width, FH/c.height);
       const dw = c.width*k, dh = c.height*k;
+      const OH = FH;
+      const out = document.createElement('canvas'); out.width = FW; out.height = OH;
+      const g = out.getContext('2d'); g.fillStyle = exportBg(); g.fillRect(0,0,FW,OH);
       g.imageSmoothingQuality = 'high';
-      g.drawImage(c, (FW-dw)/2, designed ? 0 : (FH-dh)/2, dw, dh);
+      g.drawImage(c, (FW-dw)/2, designed ? 0 : (OH-dh)/2, dw, dh);
       canvases.push(out);
     }
     const name = `${base}_facebook`;
     if(format==='pdf'){
-      const pdf = new window.jspdf.jsPDF({orientation:'portrait', unit:'px', format:[FB.w, FB.h], hotfixes:['px_scaling'], compress:true});
-      canvases.forEach((c,i)=>{ if(i) pdf.addPage([FB.w, FB.h], 'portrait'); pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, FB.w, FB.h, undefined, 'FAST') });
+      const sz = c => [FB.w, Math.round(c.height/S)], ori = c => c.height > c.width ? 'portrait' : 'landscape';
+      const pdf = new window.jspdf.jsPDF({orientation:ori(canvases[0]), unit:'px', format:sz(canvases[0]), hotfixes:['px_scaling'], compress:true});
+      canvases.forEach((c,i)=>{ const [w,h] = sz(c); if(i) pdf.addPage([w, h], ori(c)); pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, w, h, undefined, 'FAST') });
       await deliverFiles([{name:`${name}.pdf`, blob:pdf.output('blob')}]);
     } else {
       const files = [];
@@ -931,14 +936,59 @@ function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= 
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
-  const max = EXPORT_CTX.zMax || FB_Z.max;
-  if(fbFits(sheet, max)) return max;
-  const min = EXPORT_CTX.zMin || FB_Z.min;
-  if(!fbFits(sheet, min)) return min;
-  let lo = min, hi = max;
-  for(let k=0;k<9;k++){ const mid = (lo+hi)/2; if(fbFits(sheet, mid)) lo = mid; else hi = mid }
-  return lo;
+  const max = EXPORT_CTX.zMax || FB_Z.max, min = EXPORT_CTX.zMin || FB_Z.min;
+  const search = ok => { if(ok(max)) return max; if(!ok(min)) return min; let lo = min, hi = max; for(let k=0;k<9;k++){ const mid = (lo+hi)/2; if(ok(mid)) lo = mid; else hi = mid } return lo };
+  const loose = search(z=>fbFits(sheet, z));
+  // Names and match headers on one line look tidier: use that size when it is still a normal text size.
+  if(!sheet.querySelector('.fbk-row .nm, .fbk-h .cd')) return loose;
+  const strict = search(z=>fbFits(sheet, z) && fbOneLine(sheet));
+  return strict >= Math.min(1, loose) ? strict : loose;
 }
+const fbIsWrapped = n => { const cs = getComputedStyle(n), fs = parseFloat(cs.fontSize), lh = parseFloat(cs.lineHeight) || fs*1.2; return n.scrollHeight > lh*1.45 + 2 };
+const FB_NAMES = '.fbk-row .nm, .fbk-h .cd, .fb-champ b, .fpo-team b, .fbt-lb .lb-nm';
+function fbOneLine(sheet){ return ![...sheet.querySelectorAll('.fbk-row .nm, .fbk-h .cd')].some(fbIsWrapped) }
+function fbWrapped(sheet){ return [...sheet.querySelectorAll(FB_NAMES)].filter(fbIsWrapped).length }
+/* Spreads a page's spare height over its repeated rows (table rows, fixture rows, list items...) so the
+   content fills the 1350 px post evenly instead of leaving an empty band. Rows grow by at most 90%. */
+function fbFill(sheet){
+  const body = sheet.querySelector('.fbp .fb-body'); if(!body) return;
+  // A short page (often the last one of an export) first grows its own text a little, up to 30%.
+  if(FB.h - sheet.scrollHeight > FB.h*0.08){
+    const z0 = fbZ(sheet), cap = Math.min(Math.max(EXPORT_CTX.zMax || FB_Z.max, z0), z0*1.3);
+    const wrapped0 = fbWrapped(sheet);   // growing never pushes more names onto a second line
+    const ok = z => fbFits(sheet, z) && fbWrapped(sheet) <= wrapped0;
+    let lo = z0, hi = cap;
+    if(ok(hi)) lo = hi; else for(let k=0;k<8;k++){ const mid = (lo+hi)/2; if(ok(mid)) lo = mid; else hi = mid }
+    fbSetZ(sheet, lo, true);
+  }
+  const left = FB.h - sheet.scrollHeight;
+  if(left < 6) { fbSetZ(sheet, fbZ(sheet), false); fbShrink(sheet); return }
+  const OK = new Set(['block','flex','grid','table-row','list-item','inline-flex','inline-block']);
+  const cand = [...body.querySelectorAll('*')].filter(el=>{
+    if(!el.parentElement || el.offsetHeight < 14 || !OK.has(getComputedStyle(el).display)) return false;
+    const kind = x => x.tagName + '|' + (x.classList[0] || '');   // winner/loser rows share their first class
+    const key = kind(el), sib = [...el.parentElement.children].filter(x=>kind(x)===key);
+    // Rows stack vertically; cells side by side on one line are not rows.
+    return sib.length >= 2 && new Set(sib.map(x=>x.offsetTop)).size > 1;
+  });
+  const set = new Set(cand);
+  const rows = cand.filter(el=>![...el.querySelectorAll('*')].some(d=>set.has(d)));
+  if(!rows.length){ fbSetZ(sheet, fbZ(sheet), false); fbShrink(sheet); return }
+  const base = rows.map(el=>{ const cs = getComputedStyle(el); return {el, h:el.offsetHeight, tr:cs.display==='table-row', pt:parseFloat(cs.paddingTop)||0, pb:parseFloat(cs.paddingBottom)||0} });
+  const apply = f => base.forEach(r=>{ const add = r.h*f;
+    if(r.tr) r.el.style.height = (r.h + add)+'px';
+    else { r.el.style.paddingTop = (r.pt + add/2)+'px'; r.el.style.paddingBottom = (r.pb + add/2)+'px' } });
+  let lo = 0, hi = 0.9;
+  apply(hi);
+  if(sheet.scrollHeight > FB.h){ for(let k=0;k<10;k++){ const mid = (lo+hi)/2; apply(mid); if(sheet.scrollHeight <= FB.h) lo = mid; else hi = mid } apply(lo) } else lo = hi;
+  fbSetZ(sheet, fbZ(sheet), false);
+  fbShrink(sheet);
+}
+/* Single-line values in fixed-width tiles shrink until they fit instead of being cut off. */
+function fbShrink(sheet){
+  sheet.querySelectorAll('.fb-psum b').forEach(el=>{ let fs = parseFloat(getComputedStyle(el).fontSize), k = 0; while(el.scrollWidth > el.clientWidth + 1 && fs > 12 && k++ < 40){ fs -= 1; el.style.fontSize = fs+'px' } });
+}
+const fbZ = sheet => parseFloat(sheet.querySelector('.fbp')?.style.getPropertyValue('--z')) || 1;
 /* Height of a page at a given text size, measured off-screen. */
 function fbMeasure(html, z=1){ const b = buildSheet(html, FB.w); b.sheet.classList.add('fb'); fbSetZ(b.sheet, z, true); const h = b.sheet.scrollHeight; b.host.remove(); return h }
 /* Splits items into as few pages as fit at a comfortable text size, then evens them out. */
@@ -1052,12 +1102,12 @@ function fbBracketPages(t, rounds, only){
     const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
     chunk(ties, 8).forEach((set, k, all)=>blocks.push({title, dl, set, part: all.length>1 ? ` (${k+1}/${all.length})` : '', isFinal: ri===t.knockoutBracket.length-1}));
   });
-  const blockHTML = x => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
-    <div class="fb-ties ${x.set.length===1?'one':''} ${rounds.length===1 && x.set.length<=4 ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
+  const blockHTML = (x, stack) => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
+    <div class="fb-ties ${x.set.length===1?'one':''} ${stack ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
     ${x.isFinal && only!=='third' && final?.winner && frMode(t)!=='vs' ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
     ${x.isFinal && only==='third' && thirdMatchOf(t)?.winner ? `<div class="fb-champ bronze">${medalHTML('bronze','3',56)}<div><small>Third place</small><b>${esc(playerName(thirdMatchOf(t).winner))}</b></div></div>` : ''}</div>`;
   const board = frMode(t)==='vs' ? frBoardHTML(t, true) : isFriendly(t) ? frLegendHTML(t) : '';
-  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, (i===0 ? board : '') + set.map(blockHTML).join(''), i+1, n);
+  const page = (set, i, n) => fbSheet(t, t.name, `${set.map(x=>esc(x.title)).filter((v,k,a)=>a.indexOf(v)===k).join(' · ')} · ${set.length===1 && set[0].isFinal ? koLabel(finalFmt(t)) : set.every(x=>!x.isFinal) ? koLabel(t.knockoutFormat) : koFmtLabel(t)}`, (i===0 ? board : '') + set.map(x=>blockHTML(x, set.reduce((k, y)=>k + y.set.length, 0) <= 4)).join(''), i+1, n);
   return fbPack(blocks, page);
 }
 function fbBracket(t){
