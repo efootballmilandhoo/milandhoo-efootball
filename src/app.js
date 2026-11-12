@@ -503,7 +503,6 @@ function koTotalLabel(fmt){ return fmt==='bo3' ? 'Won' : fmt==='2leg' ? 'Agg' : 
 /* Every match played in the app: group/league games with a real result, plus each knockout leg, game and tie-breaker that has a score. */
 function matchesPlayedAll(){
   return STORE.tournaments.reduce((n,t)=>{
-    if(isFriendly(t)) return n;
     n += (t.fixtures||[]).filter(realResult).length;
     (t.knockoutBracket||[]).flat().forEach(m=>{
       if(!m || m.isBye || !m.team1 || !m.team2) return;
@@ -939,10 +938,11 @@ setTimeout(()=>{
    Everything is recalculated from the saved results each time, so edits and deletions
    are reflected straight away and nothing can be counted twice.
    ========================= */
-const PTS = {win:3, draw:1, loss:0, koBonus:2, place:{champion:20, runner_up:12, third:7, fourth:4}};
+const PTS = {win:3, draw:1, loss:0, koBonus:0, place:{champion:10, runner_up:0, third:0, fourth:0}};
+const PLACE_RANK = {champion:4, runner_up:3, third:2, fourth:1};
 function ptsLegendHTML(){ const [h, rest] = PTS_LEGEND.split(': '); return `${esc(h)}: ` + rest.split(' | ').map(x=>`<span style="white-space:nowrap">${esc(x)}</span>`).join(' | ') }
-const PTS_LEGEND = 'Ranking Points: Win +3 | Draw +1 | Loss 0 | Knockout Win +2 bonus | Champion +20 | Runner-up +12 | 3rd +7 | 4th +4';
-const PTS_RANKING = 'Ranking: Highest total points first.';
+const PTS_LEGEND = 'Ranking Points: Win +3 | Draw +1 | Loss 0 | Champion +10';
+const PTS_RANKING = 'Only tournaments organised by MG count, friendlies included. Highest total points first.';
 /* With a cutoff (ISO time), results entered at or after it are left out: the table as it stood before. */
 function calculateAllStats(cutoff){
   const players = STORE.players, tournaments = STORE.tournaments;
@@ -951,9 +951,9 @@ function calculateAllStats(cutoff){
   players.forEach(p=>{ stats[p.id] = {matches:0, wins:0, draws:0, losses:0, gf:0, ga:0, koWins:0, tourneyWins:0, tourneyRunnerUp:0, tourneyThird:0, tourneyFourth:0, pts:0, ptsMatch:0, ptsKo:0, ptsPlace:0, achievements:[], titles:[], lastAt:'', addedAt:String(p.createdAt||'')} });
   // One placing per player per tournament; the best one counts (bonuses never stack).
   const place = {};
-  const addPlace = (key, pid, kind) => { if(!stats[pid]) return; const k = key+'|'+pid; if(!place[k] || PTS.place[kind] > PTS.place[place[k].kind]) place[k] = {pid, kind} };
+  const addPlace = (key, pid, kind) => { if(!stats[pid]) return; const k = key+'|'+pid; if(!place[k] || PLACE_RANK[kind] > PLACE_RANK[place[k].kind]) place[k] = {pid, kind} };
   tournaments.forEach(t=>{
-    if(isFriendly(t)) return;   // friendlies don't count on the leaderboard
+    // Every tournament in the app is organised by MG, friendlies included (guests have no stats entry).
     const tWhen = String(t.completedAt || t.startedAt || t.createdAt || '');
     const touch = pid => { const s = stats[pid]; if(s && tWhen > s.lastAt) s.lastAt = tWhen };
     (t.fixtures||[]).forEach(f=>{
@@ -973,12 +973,12 @@ function calculateAllStats(cutoff){
         const s = stats[pid]; if(!s) return;
         s.matches++;
         if(r.goals){ s.gf += r.goals[side]; s.ga += r.goals[1-side] }
-        if(m.winner===pid){ s.wins++; s.koWins++; s.ptsMatch+=PTS.win; s.ptsKo+=PTS.koBonus } else s.losses++;
+        if(m.winner===pid){ s.wins++; s.koWins++; s.ptsMatch+=PTS.win } else s.losses++;
       });
     }));
     // Placing bonuses count as soon as each placing is decided (the Final, the 3rd place match, a finished league);
     // once the tournament is completed, the organisers' picks are used.
-    const pl = decidedPlacings(t);
+    const pl = isFriendly(t) ? friendlyPlacings(t) : decidedPlacings(t);
     if(pl){
       const key = 't:'+t.id;
       ['champion','runner_up','third','fourth'].forEach(k=>{ if(pl[k] && !after(pl.at[k])) addPlace(key, pl[k], k) });
@@ -988,7 +988,7 @@ function calculateAllStats(cutoff){
   // so the same tournament never pays out twice.
   const appIds = new Set(tournaments.map(t=>t.id)), appNames = new Set(tournaments.map(t=>String(t.name||'').trim().toLowerCase()));
   (STORE.hof||[]).forEach(h=>{
-    if(!h.playerId || !PTS.place[h.type]) return;
+    if(!h.playerId || !PLACE_RANK[h.type] || h.organizer==='other') return;   // MG tournaments only
     const nm = String(h.tournament||'').trim().toLowerCase();
     if((h.sourceId && appIds.has(h.sourceId)) || appNames.has(nm)) return;
     addPlace('h:'+(nm || h.id), h.playerId, h.type);
@@ -1027,6 +1027,14 @@ function resultPlacings(t){
   return out;
 }
 /* Placings that count for a tournament: live ones while it is being played, the organisers' picks once completed. */
+/* A friendly's champion for the leaderboard: the organisers' pick once completed, else the Final's winner. */
+function friendlyPlacings(t){
+  if(!t || (t.status!=='active' && t.status!=='completed')) return null;
+  const done = t.status==='completed' && t.champion;
+  const r = done ? null : resultPlacings(t);
+  const pid = done ? t.champion : r.champion;
+  return pid ? {champion:pid, at:{champion: done ? String(t.completedAt||'') : r.at.champion}} : null;
+}
 function decidedPlacings(t){
   if(!t || isFriendly(t) || (t.status!=='active' && t.status!=='completed')) return null;
   if(t.status==='completed'){
@@ -2036,11 +2044,10 @@ function updatedLine(parts){ const p = parts.filter(Boolean); return p.length ? 
    (everything entered within 3 hours of the newest result counts as one batch). */
 function latestBatchCutoff(){
   let newest = '';
-  STORE.tournaments.forEach(t=>{ if(isFriendly(t)) return; const u = updatedAtOf(t); if(u > newest) newest = u; if(t.status==='completed' && t.completedAt > newest) newest = t.completedAt });
+  STORE.tournaments.forEach(t=>{ const u = updatedAtOf(t); if(u > newest) newest = u; if(t.status==='completed' && t.completedAt > newest) newest = t.completedAt });
   if(!newest) return null;
   const all = [];
   STORE.tournaments.forEach(t=>{
-    if(isFriendly(t)) return;
     (t.fixtures||[]).forEach(f=>{ if(f.scoredAt) all.push(f.scoredAt) });
     (t.knockoutBracket||[]).flat().forEach(m=>{ if(m && m.scoredAt) all.push(m.scoredAt) });
     if(t.status==='completed' && t.completedAt) all.push(t.completedAt);
@@ -2603,7 +2610,7 @@ function saveTournament(){
      tie won is 1 point for the team, so the final score reads e.g. Team MG 8–7 Team X.
    · Knockout ('ko'): 4v4, 8v8 or 16v16. The first round always pairs players from different teams.
    Players come from the player profiles or are typed in (guests, stored on the tournament).
-   Friendlies don't count on the leaderboard, in the Hall of Fame or in head-to-head.
+   Friendlies count on the leaderboard (matches + champion bonus) but not in the Hall of Fame or head-to-head.
    ========================= */
 const FR_ROUND = 'Ties';
 const isFriendly = t => !!t?.friendly;
@@ -4239,7 +4246,7 @@ function openCompleteTournamentModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendlies don\'t count on the leaderboard or in the Hall of Fame. Once completed you can export the result poster with each player\'s team.' : 'Placing points (Champion +20, Runner-up +12, 3rd +7, 4th +4) count on the leaderboard as soon as each placing is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendly matches and the champion bonus (+10) count on the leaderboard; friendlies stay out of the Hall of Fame. Once completed you can export the result poster with each player\'s team.' : 'The champion gets +10 on the leaderboard as soon as the Final is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
@@ -5148,8 +5155,8 @@ function lbPodCard(group){
 function lbLegend(){
   const it = (l, v) => `<span><b>${v}</b>${l}</span>`;
   return `<div class="lb-legend">
-    <div class="lb-legend-items">${it('Win','+3')}${it('Draw','+1')}${it('Loss','0')}${it('Knockout win bonus','+2')}${it('Champion','+20')}${it('Runner-up','+12')}${it('3rd','+7')}${it('4th','+4')}</div>
-    <div class="lb-legend-note">Highest total points first. Players on equal points share the position (listed by win %, then total wins). Placing points are added when a tournament is completed; only a player's best placing in each tournament counts. Hall of Fame placings from before the app count too.</div>
+    <div class="lb-legend-items">${it('Win','+3')}${it('Draw','+1')}${it('Loss','0')}${it('Champion','+10')}</div>
+    <div class="lb-legend-note">Highest total points first. Players on equal points share the position (listed by win %, then total wins). Only tournaments organised by MG count, friendlies included. The champion bonus is added as soon as the Final is decided. MG titles from before the app (Hall of Fame) count too.</div>
   </div>`;
 }
 
@@ -5161,7 +5168,7 @@ function lbTable(rows, offset){
           <tbody>
             ${rows.length===0 ? `<tr><td colspan="12" class="t-center text-muted" style="padding:40px">No players yet</td></tr>` :
               rows.map((x,j)=>{ const i = offset + j; const gd = x.s.gf-x.s.ga; const top = x.rank<=3 && x.s.pts>0; return `
-                <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsKo} knockout bonus + ${x.s.ptsPlace} placing pts">
+                <tr class="${top?'top':''}" title="${x.s.ptsMatch} match pts + ${x.s.ptsPlace} champion bonus">
                   <td><span class="rk-wrap">${rankMark(x)}</span></td>
                   <td class="l"><span class="who">${renderAvatar(x.p, 34)}<span>${esc(x.p.name)}</span>${moveBadge(x.move)}</span></td>
                   <td>${x.s.matches}</td><td>${x.s.wins}</td><td>${x.s.draws}</td><td>${x.s.losses}</td>
