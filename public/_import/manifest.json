@@ -1,0 +1,200 @@
+{
+ "p-mg-abo": {
+  "photo": "p-mg-abo.jpg",
+  "src": "p-mg-abo.src.jpg",
+  "crop": {
+   "zoom": 1.006,
+   "x": -1,
+   "y": 33
+  }
+ },
+ "p-mg-absal": {
+  "photo": "p-mg-absal.jpg",
+  "src": "p-mg-absal.src.jpg",
+  "crop": {
+   "zoom": 1.108,
+   "x": -3,
+   "y": 52
+  }
+ },
+ "p-mg-absam": {
+  "photo": "p-mg-absam.jpg",
+  "src": "p-mg-absam.src.jpg",
+  "crop": {
+   "zoom": 1.211,
+   "x": 3,
+   "y": 73
+  }
+ },
+ "p-mg-ace": {
+  "photo": "p-mg-ace.jpg",
+  "src": "p-mg-ace.src.jpg",
+  "crop": {
+   "zoom": 1.175,
+   "x": -2,
+   "y": 63
+  }
+ },
+ "p-mg-ameen": {
+  "photo": "p-mg-ameen.jpg",
+  "src": "p-mg-ameen.src.jpg",
+  "crop": {
+   "zoom": 1.021,
+   "x": 2,
+   "y": 28
+  }
+ },
+ "p-mg-arys": {
+  "photo": "p-mg-arys.jpg",
+  "src": "p-mg-arys.src.jpg",
+  "crop": {
+   "zoom": 1.118,
+   "x": 1,
+   "y": 46
+  }
+ },
+ "p-mg-dilk": {
+  "photo": "p-mg-dilk.jpg",
+  "src": "p-mg-dilk.src.jpg",
+  "crop": {
+   "zoom": 1.154,
+   "x": -4,
+   "y": 57
+  }
+ },
+ "p-mg-dhagey": {
+  "photo": "p-mg-dhagey.jpg",
+  "src": "p-mg-dhagey.src.jpg",
+  "crop": {
+   "zoom": 1.081,
+   "x": -6,
+   "y": 47
+  }
+ },
+ "p-mg-izaan": {
+  "photo": "p-mg-izaan.jpg",
+  "src": "p-mg-izaan.src.jpg",
+  "crop": {
+   "zoom": 1.073,
+   "x": -4,
+   "y": 38
+  }
+ },
+ "p-mg-lahufaan": {
+  "photo": "p-mg-lahufaan.jpg",
+  "src": "p-mg-lahufaan.src.jpg",
+  "crop": {
+   "zoom": 1.108,
+   "x": 0,
+   "y": 43
+  }
+ },
+ "p-mg-leo": {
+  "photo": "p-mg-leo.jpg",
+  "src": "p-mg-leo.src.jpg",
+  "crop": {
+   "zoom": 1.014,
+   "x": -2,
+   "y": 28
+  }
+ },
+ "p-mg-neo": {
+  "photo": "p-mg-neo.jpg",
+  "src": "p-mg-neo.src.jpg",
+  "crop": {
+   "zoom": 1.307,
+   "x": -1,
+   "y": 86
+  }
+ },
+ "p-mg-raisan": {
+  "photo": "p-mg-raisan.jpg",
+  "src": "p-mg-raisan.src.jpg",
+  "crop": {
+   "zoom": 1.085,
+   "x": 1,
+   "y": 61
+  }
+ },
+ "p-mg-rasihu": {
+  "photo": "p-mg-rasihu.jpg",
+  "src": "p-mg-rasihu.src.jpg",
+  "crop": {
+   "zoom": 1.163,
+   "x": 0,
+   "y": 56
+  }
+ },
+ "p-mg-rawaah": {
+  "photo": "p-mg-rawaah.jpg",
+  "src": "p-mg-rawaah.src.jpg",
+  "crop": {
+   "zoom": 1.073,
+   "x": -1,
+   "y": 47
+  }
+ },
+ "p-mg-rixaan": {
+  "photo": "p-mg-rixaan.jpg",
+  "src": "p-mg-rixaan.src.jpg",
+  "crop": {
+   "zoom": 1.042,
+   "x": -4,
+   "y": 43
+  }
+ },
+ "p-mg-saanihu": {
+  "photo": "p-mg-saanihu.jpg",
+  "src": "p-mg-saanihu.src.jpg",
+  "crop": {
+   "zoom": 1.026,
+   "x": -1,
+   "y": 18
+  }
+ },
+ "p-mg-samin": {
+  "photo": "p-mg-samin.jpg",
+  "src": "p-mg-samin.src.jpg",
+  "crop": {
+   "zoom": 0.999,
+   "x": 0,
+   "y": 7
+  }
+ },
+ "p-mg-senssu": {
+  "photo": "p-mg-senssu.jpg",
+  "src": "p-mg-senssu.src.jpg",
+  "crop": {
+   "zoom": 1.158,
+   "x": 0,
+   "y": 49
+  }
+ },
+ "p-mg-shaun": {
+  "photo": "p-mg-shaun.jpg",
+  "src": "p-mg-shaun.src.jpg",
+  "crop": {
+   "zoom": 1.05,
+   "x": -4,
+   "y": 38
+  }
+ },
+ "p-mg-thoheem": {
+  "photo": "p-mg-thoheem.jpg",
+  "src": "p-mg-thoheem.src.jpg",
+  "crop": {
+   "zoom": 1.107,
+   "x": 5,
+   "y": 14
+  }
+ },
+ "p-mg-zaalif": {
+  "photo": "p-mg-zaalif.jpg",
+  "src": "p-mg-zaalif.src.jpg",
+  "crop": {
+   "zoom": 1.002,
+   "x": 0,
+   "y": 21
+  }
+ }
+}
