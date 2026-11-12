@@ -598,7 +598,12 @@ function routeTo(hash){
   const h = String(hash||'').replace(/^#/, '');
   if(!h || /access_token|type=|error=/.test(h)) { if(h) history.replaceState(null, '', location.pathname); return }
   const m = h.match(/^t=([A-Za-z0-9_\-.~:@+]{1,120})$/);
-  if(m && STORE.tournaments.some(t=>t.id===m[1])) navigate('tournament-detail', m[1]);
+  if(m && STORE.tournaments.some(t=>t.id===m[1])){
+    navigate('tournament-detail', m[1]);
+    // After an automatic update, reopen the tab the person was on.
+    try{ const r = JSON.parse(sessionStorage.getItem('mg-resume') || 'null'); sessionStorage.removeItem('mg-resume');
+      if(r && r.tid===m[1] && r.tab && r.tab!==currentTab && availableTabs(STORE.tournaments.find(t=>t.id===m[1])).some(x=>x[0]===r.tab)) switchTab(r.tab) }catch{}
+  }
   else if(['halloffame','players','leaderboard','tournaments','admin','dashboard','h2h'].includes(h)) navigate(h);
   else if(h==='reset') navigate('admin');
   history.replaceState(null, '', location.pathname);
@@ -6409,12 +6414,26 @@ function watchForUpdates(reg){
   if(!reg) return;
   const hadController = !!navigator.serviceWorker.controller;
   let shown = false;
-  /* A new version is applied automatically, never with a button:
-     straight away while the app is still opening, otherwise the next time it goes to the background. */
+  /* A new version is applied automatically, never with a button: as soon as nobody is typing or has a
+     window open, the app reloads quietly on the same page (and tab). An old copy left running could
+     misread newer data, e.g. show friendly guests as "Unknown player". */
   const showBar = ()=>{
     if(shown) return; shown = true;
-    const later = ()=>{ if(document.visibilityState==='hidden'){ try{ sessionStorage.removeItem('mg-splash-fast') }catch{} location.reload() } };
-    document.addEventListener('visibilitychange', later);
+    const busy = ()=> document.getElementById('modal')?.classList.contains('show') || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '');
+    const reloadHere = ()=>{
+      try{
+        sessionStorage.removeItem('mg-splash-fast'); sessionStorage.setItem('mg-nosplash','1');
+        const s = typeof navState==='function' ? navState() : {};
+        sessionStorage.setItem('mg-resume', JSON.stringify(s));
+        const hash = s.view==='tournament-detail' && s.tid ? '#t='+s.tid : (s.view && s.view!=='dashboard' ? '#'+s.view : '');
+        history.replaceState(null, '', location.pathname + hash);
+      }catch{}
+      location.reload();
+    };
+    const tryNow = ()=>{ if(document.visibilityState==='hidden' || !busy()){ reloadHere(); return true } return false };
+    if(tryNow()) return;
+    const timer = setInterval(()=>{ if(tryNow()) clearInterval(timer) }, 2000);
+    document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') reloadHere() });
   };
   navigator.serviceWorker.addEventListener('controllerchange', ()=>{
     if(!hadController || shown) return;

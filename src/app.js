@@ -300,7 +300,12 @@ function routeTo(hash){
   const h = String(hash||'').replace(/^#/, '');
   if(!h || /access_token|type=|error=/.test(h)) { if(h) history.replaceState(null, '', location.pathname); return }
   const m = h.match(/^t=([A-Za-z0-9_\-.~:@+]{1,120})$/);
-  if(m && STORE.tournaments.some(t=>t.id===m[1])) navigate('tournament-detail', m[1]);
+  if(m && STORE.tournaments.some(t=>t.id===m[1])){
+    navigate('tournament-detail', m[1]);
+    // After an automatic update, reopen the tab the person was on.
+    try{ const r = JSON.parse(sessionStorage.getItem('mg-resume') || 'null'); sessionStorage.removeItem('mg-resume');
+      if(r && r.tid===m[1] && r.tab && r.tab!==currentTab && availableTabs(STORE.tournaments.find(t=>t.id===m[1])).some(x=>x[0]===r.tab)) switchTab(r.tab) }catch{}
+  }
   else if(['halloffame','players','leaderboard','tournaments','admin','dashboard','h2h'].includes(h)) navigate(h);
   else if(h==='reset') navigate('admin');
   history.replaceState(null, '', location.pathname);
