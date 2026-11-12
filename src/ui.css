@@ -775,9 +775,9 @@
   .fb-ties{display:grid;grid-template-columns:1fr 1fr;gap:calc(16px*var(--z))}
   .fb-ties.one{grid-template-columns:1fr}
   .fbk{background:#FFFFFF;border:1px solid var(--line);border-radius:20px;overflow:hidden}
-  .fbk-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 calc(20px*var(--z));height:calc(64px*var(--z));font-size:calc(25px*var(--z));font-weight:600;color:var(--ink)}
+  .fbk-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:calc(6px*var(--z)) calc(20px*var(--z));min-height:calc(64px*var(--z));font-size:calc(25px*var(--z));font-weight:600;color:var(--ink)}
   .fbk-row + .fbk-row{border-top:1px solid var(--divider)}
-  .fbk-row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fbk-row .nm{min-width:0;line-height:1.14;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:break-word}
   .fbk-row .tot{font-family:var(--font-display);font-weight:800;font-size:calc(32px*var(--z));min-width:40px;text-align:right;color:var(--muted)}
   .fbk-row.w{background:#EEF4FF;color:var(--primary-dark);font-weight:800}
   .fbk-row.w .tot{color:var(--primary-dark)}
@@ -2184,7 +2184,8 @@
 /* stats */
 .fr-stats{display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
 .fr-stats-h{display:flex;justify-content:space-between;gap:12px;font-weight:800;color:var(--ink)}
-.fr-stats-h span{display:inline-flex;align-items:center;min-width:0}
+.fr-stats-h span{display:inline-flex;align-items:center;gap:10px;min-width:0}
+.fbp .fr-stats-h span{gap:calc(12px*var(--z))}
 .fr-stats-h span:last-child .tm-dot{margin:0 0 0 7px}
 .fr-sbar-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
 .fr-sbar-h b{font-family:var(--font-display);font-size:26px;line-height:1;color:var(--ink)}
@@ -2220,7 +2221,7 @@
 .fpo-team.w b{color:var(--gold-ink)}
 .fpo-crest{border-radius:calc(var(--cs)*.24);box-shadow:0 14px 34px rgba(11,27,63,.22)}
 .fpo-sc{display:flex;align-items:center;align-self:start;height:calc(150px*var(--z));gap:calc(14px*var(--z));font-family:var(--font-display);font-weight:800;line-height:1}
-.fpo-sc span{font-size:calc(128px*var(--z));color:var(--ink);min-width:calc(110px*var(--z));text-align:center}
+.fpo-sc span{font-size:calc(116px*var(--z));color:var(--ink);min-width:calc(90px*var(--z));text-align:center}
 .fpo-sc span.w{color:var(--gold-ink)}
 .fpo-sc i{font-style:normal;font-size:calc(60px*var(--z));color:var(--muted)}
 .fpo-win{display:inline-flex;align-items:center;gap:calc(12px*var(--z));padding:calc(12px*var(--z)) calc(28px*var(--z));border-radius:999px;background:var(--gold-pale);border:1.5px solid var(--gold-line);font-family:var(--font-display);font-weight:800;font-size:calc(30px*var(--z));text-transform:uppercase;color:var(--gold-ink)}
@@ -2248,3 +2249,34 @@
 .fpo-plinth{width:100%;margin-top:calc(8px*var(--z));display:flex;align-items:flex-start;justify-content:center;padding-top:calc(10px*var(--z));border-radius:18px 18px 0 0;font-family:var(--font-display);font-weight:800;font-size:calc(44px*var(--z));color:#FFFFFF;background:linear-gradient(180deg,#9AA8C0,#7D8BA6);height:calc(110px*var(--z))}
 .fpo-step.s1 .fpo-plinth{background:linear-gradient(180deg,#F4C542,#D9A21B);height:calc(160px*var(--z))}
 .fpo-step.s3 .fpo-plinth{background:linear-gradient(180deg,#D9925C,#B8703D);height:calc(80px*var(--z))}
+/* Unsaved form drafts */
+.draft-note{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-bottom:16px;border-radius:14px;background:var(--primary-light,rgba(20,99,255,.08));border:1px solid var(--border)}
+.draft-note > svg{width:20px;height:20px;flex:none;color:var(--primary)}
+.draft-note div{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.draft-note b{font-size:14px;color:var(--ink)}
+.draft-note span{font-size:12.5px;color:var(--muted)}
+.draft-strip{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.draft-row{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;border:1px dashed var(--border-2,var(--border));background:var(--surface)}
+.draft-ic{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:var(--surface-2);color:var(--primary);flex:none}
+.draft-ic svg{width:20px;height:20px}
+.draft-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.draft-txt b{font-size:15px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.draft-txt span{font-size:12.5px;color:var(--muted)}
+.draft-acts{display:flex;gap:6px;flex:none}
+@media (max-width:480px){ .draft-row{flex-wrap:wrap} .draft-acts{width:100%;justify-content:flex-end} }
+@media (max-width:600px){ .t-new{display:grid;grid-template-columns:1fr 1fr;width:100%} .t-new .btn{justify-content:center;padding-left:10px;padding-right:10px} }
+/* exports: a wrapped name lines up under its first word, not under the team dot */
+.fbp .fbk-row .nm.dotted{position:relative;padding-left:calc(23px*var(--z))}
+.fbp .fbk-row .nm.dotted .tm-dot{position:absolute;left:0;top:calc(.62em - 6px*var(--z));margin:0}
+.fr-final-title{font-size:28px;line-height:1.15;overflow-wrap:break-word}
+@media (max-width:480px){ .fr-final-title{font-size:21px} }
+@media (max-width:400px){
+  .fr-board .fr-tn.lw{font-size:14px}
+  .fr-board .fr-num,.fr-board.big .fr-num{font-size:28px;min-width:40px;padding:8px 4px;border-radius:12px}
+  .fr-board,.fr-board.big{--crest:46px;padding:16px 10px}
+  .fr-board-row{gap:4px}
+}
+/* logos line up on top, the score sits level with them whatever the name lengths */
+.fr-board-row{align-items:start}
+.fr-mid{align-self:start;height:var(--crest)}
+.fbp .fr-mid{height:var(--crest)}

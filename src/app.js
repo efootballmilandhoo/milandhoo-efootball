@@ -630,7 +630,7 @@ async function renderFbSheets(pages, width, base, format, ready){
 /* Height a Facebook page would have, measured off-screen. */
 const FB_Z = {min:0.72, max:1.6};
 function fbSetZ(sheet, z, measuring){ const p = sheet.querySelector('.fbp'); if(!p) return; p.style.setProperty('--z', z.toFixed(3)); p.style.minHeight = measuring ? '0' : '' }
-function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1) }
+function fbFits(sheet, z){ fbSetZ(sheet, z, true); return sheet.scrollHeight <= FB.h && [...sheet.querySelectorAll('.fb-card')].every(c=>c.scrollWidth <= c.clientWidth + 1) && [...sheet.querySelectorAll('.fbk-row .nm, .fbt-lb .lb-nm')].every(n=>n.scrollWidth <= n.clientWidth + 1 && n.scrollHeight <= n.clientHeight + 1) }
 /* Largest text size (within limits) at which this page's content fits 1080 × 1350. */
 function fbBestZ(sheet){
   if(!sheet.querySelector('.fbp')) return 1;
@@ -734,7 +734,7 @@ function fbTie(t, m){
   const row = side => {
     const id = side ? m.team2 : m.team1;
     const cells = multi ? legs.map(l=>{ const v = l[side], o = l[1-side], has = hasScore(v) && hasScore(o); return `<span class="lg ${has && v>o?'won':''} ${has?'':'na'}">${has ? v : '–'}</span>` }).join('') : '';
-    return `<div class="fbk-row ${multi?'legs':''} ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"${cols}><span class="nm">${frDot(t, id)}${name(id)}</span>${cells}<span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>`;
+    return `<div class="fbk-row ${multi?'legs':''} ${m.winner && m.winner===id?'w':''} ${!id?'tbd':''}"${cols}><span class="nm ${frDot(t, id) ? 'dotted' : ''}">${frDot(t, id)}${name(id)}</span>${cells}<span class="tot">${m.isBye ? '' : r.total ? r.total[side] : '–'}</span></div>`;
   };
   const bits = [];
   if(m.tb && hasScore(m.tb.a) && hasScore(m.tb.b)) bits.push(`Tie-breaker ${m.tb.a}–${m.tb.b}`);
@@ -1258,6 +1258,7 @@ function openModal(html, size='md'){
 }
 let _confirmResolve = null;
 function closeModal(){
+  if(FORM_DRAFT.kind){ clearTimeout(FORM_DRAFT.timer); saveFormDraft(); const k = FORM_DRAFT.kind; FORM_DRAFT.kind = null; if(readDraft(k) && currentView==='tournaments') setTimeout(rerender, 0) }
   document.getElementById('modal').classList.remove('show');
   if(_confirmResolve){ const r=_confirmResolve; _confirmResolve=null; r(false) }
 }
@@ -2261,6 +2262,7 @@ function renderTournaments(){
       </div>
       ${isAdmin() ? `<div class="t-new"><button type="button" class="btn btn-secondary" onclick="openFriendlyModal()">${ICON.plus} New friendly</button><button type="button" class="btn btn-primary" onclick="openCreateTournament()">${ICON.plus} New Tournament</button></div>` : ''}
     </div>
+    ${draftsStripHTML()}
     <div class="grid grid-3" id="tourneyGrid"></div>`;
   filterTournaments(tourneyFilter);
 }
@@ -2313,10 +2315,71 @@ function filterTournaments(status){
 }
 
 /* =========================
+   UNFINISHED FORMS
+   The New Tournament and New Friendly forms save themselves on this device as you type, so closing the window,
+   pressing back or leaving the app loses nothing. Reopening the form carries on from the draft; the Tournaments
+   page lists unfinished drafts with Continue and Discard. (Uploaded logos aren't kept in a draft.)
+   ========================= */
+const DRAFT_KINDS = {tournament:{label:'tournament', open:()=>openCreateTournament()}, friendly:{label:'friendly', open:()=>openFriendlyModal()}};
+const FORM_DRAFT = {kind:null, base:'', timer:0};
+const draftKey = kind => 'mg-form-draft-'+kind;
+function readDraft(kind){ try{ return JSON.parse(localStorage.getItem(draftKey(kind)) || 'null') }catch{ return null } }
+function clearDraft(kind){ try{ localStorage.removeItem(draftKey(kind)) }catch{} if(FORM_DRAFT.kind===kind) FORM_DRAFT.kind = null }
+function formSnapshot(){
+  const m = document.querySelector('#modal .modal'); if(!m) return null;
+  const v = {}, lists = {};
+  m.querySelectorAll('input[id],select[id],textarea[id]').forEach(el=>{ if(el.type==='file' || el.type==='search') return; v[el.id] = el.type==='checkbox' ? el.checked : el.value });
+  m.querySelectorAll('.player-check-list[id]').forEach(l=>{ lists[l.id] = [...l.querySelectorAll('input[type=checkbox]:checked')].map(c=>c.value) });
+  return {v, lists, mode: FORM_DRAFT.kind==='friendly' ? FR_FORM?.mode : undefined};
+}
+/* Saves only when the form differs from how it opened; an untouched form leaves no draft. */
+function saveFormDraft(){
+  const kind = FORM_DRAFT.kind; if(!kind) return;
+  const snap = formSnapshot(); if(!snap) return;
+  const body = JSON.stringify(snap);
+  if(body===FORM_DRAFT.base){ try{ localStorage.removeItem(draftKey(kind)) }catch{} return }   // back to how it opened
+  try{ localStorage.setItem(draftKey(kind), JSON.stringify({...snap, at:new Date().toISOString(), label:String(snap.v.t_name || snap.v.fr_name || '').trim()})) }catch{}
+}
+function startFormDraft(kind, restored){
+  FORM_DRAFT.kind = kind;
+  const m = document.querySelector('#modal .modal'); if(!m) return;
+  FORM_DRAFT.base = restored ? '' : JSON.stringify(formSnapshot());
+  const later = () => { clearTimeout(FORM_DRAFT.timer); FORM_DRAFT.timer = setTimeout(saveFormDraft, 300) };
+  m.addEventListener('input', later); m.addEventListener('change', later);
+  m.addEventListener('click', e=>{ if(e.target.closest('.seg, .fr-chip button, .btn-ghost')) later() });
+}
+function restoreFormDraft(snap){
+  Object.entries(snap.v||{}).forEach(([id,val])=>{ const el = document.getElementById(id); if(!el || el.type==='file') return; if(el.type==='checkbox') el.checked = !!val; else el.value = val });
+  Object.entries(snap.lists||{}).forEach(([id,vals])=>{ const l = document.getElementById(id); if(!l) return; const on = new Set(vals);
+    l.querySelectorAll('input[type=checkbox]').forEach(c=>{ c.checked = on.has(c.value); c.closest('.player-check-item')?.classList.toggle('selected', c.checked) }) });
+}
+const draftBanner = (kind, d) => `<div class="draft-note" role="status">${ICON.calendar}<div><b>Continuing your unsaved ${DRAFT_KINDS[kind].label}</b><span>Saved ${fmtDateTime(localDT(new Date(d.at)))}. Logos need uploading again.</span></div><button type="button" class="btn btn-ghost btn-sm" onclick="discardDraft('${kind}', true)">Start fresh</button></div>`;
+function saveDraftAndClose(){ const kind = FORM_DRAFT.kind; saveFormDraft(); const d = readDraft(kind);
+  FORM_DRAFT.kind = null; closeModal(); toast(d ? 'Draft saved. Continue it from Tournaments.' : 'Nothing to save yet'); if(currentView==='tournaments') rerender() }
+async function discardDraft(kind, reopen){
+  if(!reopen){ const ok = await confirmDialog('Discard draft', `Delete this unsaved ${DRAFT_KINDS[kind].label}? This can't be undone.`, 'Discard'); if(!ok) return }
+  clearDraft(kind);
+  if(reopen){ closeModal(); DRAFT_KINDS[kind].open() } else rerender();
+}
+function draftsStripHTML(){
+  if(!isAdmin()) return '';
+  const rows = Object.keys(DRAFT_KINDS).map(k=>[k, readDraft(k)]).filter(([,d])=>d);
+  if(!rows.length) return '';
+  return `<div class="draft-strip">${rows.map(([k,d])=>`<div class="draft-row">
+      <span class="draft-ic">${k==='friendly' ? ICON.users : ICON.trophy}</span>
+      <div class="draft-txt"><b>${esc(d.label || `Untitled ${DRAFT_KINDS[k].label}`)}</b><span>Unfinished ${DRAFT_KINDS[k].label} · saved ${fmtDateTime(localDT(new Date(d.at)))}</span></div>
+      <div class="draft-acts"><button type="button" class="btn btn-ghost btn-sm" onclick="discardDraft('${k}')">Discard</button><button type="button" class="btn btn-primary btn-sm" onclick="DRAFT_KINDS['${k}'].open()">Continue</button></div>
+    </div>`).join('')}</div>`;
+}
+window.addEventListener('pagehide', saveFormDraft);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden') saveFormDraft() });
+
+/* =========================
    CREATE TOURNAMENT
    ========================= */
 function openCreateTournament(){
   if(!isAdmin()){ toast('Admin access required', true); return }
+  const draft = readDraft('tournament');
   const players = STORE.players, stats = calculateAllStats();
   openModal(`
     <div class="modal-head">
@@ -2324,6 +2387,7 @@ function openCreateTournament(){
       <button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button>
     </div>
     <div class="modal-body">
+      ${draft ? draftBanner('tournament', draft) : ''}
       <div class="form-group">
         <label class="form-label" for="t_name">Tournament Name</label>
         <input class="form-input" id="t_name" placeholder="e.g. Milandhoo Champions League Season 5" maxlength="80">
@@ -2441,11 +2505,13 @@ function openCreateTournament(){
       </div>
     </div>
     <div class="modal-foot">
-      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-secondary" onclick="saveDraftAndClose()">Save draft</button>
       <button class="btn btn-primary" onclick="saveTournament()">Create Tournament</button>
     </div>`, 'xl');
   toggleFormatFields();
   initImageField('tlogo', LOGO_OPTS, null);
+  if(draft){ restoreFormDraft(draft); toggleFormatFields(); updateConfigHelper(); updateSelectionSummary('createPlayerList') }
+  startFormDraft('tournament', !!draft);
 }
 
 function toggleCheckItem(cb, listId){
@@ -2519,6 +2585,7 @@ function saveTournament(){
   const tourneys = DB.get('tournaments');
   tourneys.unshift(t);
   DB.set('tournaments', tourneys);
+  clearDraft('tournament');
   closeModal();
   navigate('tournament-detail', t.id);
   toast(`Tournament created with ${checked.length} participant${checked.length!==1?'s':''}`);
@@ -2604,6 +2671,7 @@ let FR_FORM = null;
 function openFriendlyModal(tid){
   if(!isAdmin()){ toast('Admin access required', true); return }
   const t = tid ? STORE.tournaments.find(x=>x.id===tid) : null;
+  const draft = t ? null : readDraft('friendly');
   if(t && t.knockoutDrawn){ toast('The draw is made, so the teams are fixed. Team names can be changed in Edit settings.', true); return }
   const f = t?.friendly || {mode:'vs', size:15, teams:[{name:'Team MG', source:'profiles', players:[]}, {name:'', source:'names', players:[]}]};
   FR_FORM = {mode: f.mode};
@@ -2639,6 +2707,7 @@ function openFriendlyModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">${t ? 'Edit friendly teams' : 'New friendly'}</div><button type="button" class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
+      ${draft ? draftBanner('friendly', draft) : ''}
       <div class="form-group"><label class="form-label" for="fr_name">Name</label><input class="form-input" id="fr_name" maxlength="80" value="${esc(t?.name||'')}" placeholder="e.g. MG vs Faafu Friendly"></div>
       ${t ? '' : imageFieldHTML('tlogo', 'Logo (optional)', 'Shown on the page and on exported images.')}
       <div class="form-group">
@@ -2671,12 +2740,14 @@ function openFriendlyModal(tid){
       <div class="form-group"><label class="form-label" for="fr_desc">Description (optional)</label><textarea class="form-textarea" id="fr_desc" rows="3"></textarea></div>`}
     </div>
     <div class="modal-foot">
-      <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button type="button" class="btn btn-secondary" onclick="${t ? 'closeModal()' : 'saveDraftAndClose()'}">${t ? 'Cancel' : 'Save draft'}</button>
       <button type="button" class="btn btn-primary" onclick="saveFriendly(${t ? `'${t.id}'` : ''})">${t ? 'Save teams' : 'Create friendly'}</button>
     </div>`, 'xl');
   if(!t) initImageField('tlogo', LOGO_OPTS, null);
   [0,1].forEach(i=>{ const tm = f.teams[i] || {}; initImageField('frlogo'+i, TEAM_LOGO_OPTS, tm.logoSrc ? {src:tm.logoSrc, crop:tm.logoCrop} : tm.logo ? {image:tm.logo} : null) });
-  frSetMode(f.mode);
+  if(draft){ restoreFormDraft(draft); [0,1].forEach(i=>frSource(i, draft.v['fr_src'+i] || (i ? 'names' : 'profiles'))) }
+  frSetMode(draft?.mode || f.mode);
+  if(!t) startFormDraft('friendly', !!draft);
 }
 const frFirstRound = (mode, n) => mode==='vs' ? FR_ROUND : roundLabel(n);
 const frSize = () => FR_FORM?.mode==='ko' ? +document.getElementById('fr_ksize').value : Math.max(1, Math.min(40, parseInt(document.getElementById('fr_size').value)||0));
@@ -2764,6 +2835,7 @@ function saveFriendly(tid){
     all.unshift(t);
   }
   DB.set('tournaments', all);
+  if(!tid) clearDraft('friendly');
   closeModal();
   if(tid) rerender(); else navigate('tournament-detail', t.id);
   toast(tid ? 'Teams saved' : `Friendly created · ${teams[0].name} vs ${teams[1].name}`);
@@ -2773,7 +2845,9 @@ function saveFriendly(tid){
 function frBoardHTML(t, big){
   const s = frScore(t), lead = frLead(s), done = t.status==='completed' || (s.total && s.decided===s.total);
   // Crest and name on each side, the score in the middle.
-  const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}">${frCrest(t, i, 'var(--crest)')}<b class="fr-tn">${esc(frTeamName(t, i))}</b></div>`;
+  // A team name with a long word gets a smaller size so the word never splits.
+  const longWord = [0,1].some(i=>frTeamName(t, i).split(/\s+/).some(w=>w.length>=8));
+  const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}">${frCrest(t, i, 'var(--crest)')}<b class="fr-tn ${longWord?'lw':''}">${esc(frTeamName(t, i))}</b></div>`;
   return `<section class="fr-board ${big?'big':''}" aria-label="Score">
     <div class="fr-board-row">${side(0)}<div class="fr-mid"><span class="fr-num ${done && lead===0?'w':''}">${s.ties[0]}</span><em class="fr-dash">–</em><span class="fr-num ${done && lead===1?'w':''}">${s.ties[1]}</span></div>${side(1)}</div>
     <div class="fr-board-sub">${s.total ? `${done ? (lead<0 ? 'Level' : `${esc(frTeamName(t, lead))} win`) : `${s.decided} of ${s.total} ties decided`} · Goals ${s.goals[0]}–${s.goals[1]}` : 'Ties are drawn when the friendly starts'}</div>
@@ -2843,7 +2917,10 @@ function exportFriendlyPoster(tid){
   let body;
   if(vs){
     const lead = frLead(s);
-    const side = i => `<div class="fpo-team ${lead===i?'w':''}">${frCrest(t, i, 'calc(150px*var(--z))', 'fpo-crest')}<b>${esc(frTeamName(t, i))}</b></div>`;
+    // Team names are sized so their longest word fits the column; every word stays whole.
+    const longest = Math.max(...[0,1].map(i=>Math.max(...frTeamName(t, i).split(/\s+/).map(w=>w.length))));
+    const fs = Math.max(22, Math.min(38, Math.floor(190 / (longest*0.66))));
+    const side = i => `<div class="fpo-team ${lead===i?'w':''}">${frCrest(t, i, 'calc(150px*var(--z))', 'fpo-crest')}<b style="font-size:calc(${fs}px*var(--z))">${esc(frTeamName(t, i))}</b></div>`;
     body = `<div class="fpo">
       <div class="fpo-kick">Final result</div>
       <div class="fpo-board">${side(0)}<div class="fpo-sc"><span class="${lead===0?'w':''}">${s.ties[0]}</span><i>–</i><span class="${lead===1?'w':''}">${s.ties[1]}</span></div>${side(1)}</div>
@@ -2933,7 +3010,7 @@ function renderTournamentDetail(id){
     ${t.status==='completed' && frMode(t)==='vs' ? `
       <div class="start-banner done">
         <div class="trophy-disc">${ICON.cup}</div>
-        <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Final score</div><div class="start-banner-title" style="font-size:28px">${esc(frTeamName(t,0))} ${frScore(t).ties[0]}–${frScore(t).ties[1]} ${esc(frTeamName(t,1))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}</div></div>
+        <div class="start-banner-info"><div class="countdown-label" style="color:var(--gold-ink)">Final score</div><div class="start-banner-title fr-final-title">${esc(frTeamName(t,0))} ${frScore(t).ties[0]}–${frScore(t).ties[1]} ${esc(frTeamName(t,1))}</div><div class="start-banner-desc">Completed ${fmtDate(t.completedAt)}</div></div>
       </div>`:''}
     ${t.status==='completed' && t.champion ? `
       <div class="start-banner done">
