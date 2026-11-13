@@ -1115,7 +1115,7 @@ function fbBracketPages(t, rounds, only){
     const ties = round.filter(m=>!m.isBye || m.team1 || m.team2);
     chunk(ties, 8).forEach((set, k, all)=>blocks.push({title, dl, set, part: all.length>1 ? ` (${k+1}/${all.length})` : '', isFinal: ri===t.knockoutBracket.length-1}));
   });
-  const blockHTML = (x, stack) => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
+  const blockHTML = (x, stack) => `<div class="fb-round"><div class="fb-round-h"><b>${esc(x.title)}${x.part}</b>${x.dl && !isFriendly(t)?`<span>Deadline ${fmtShort(x.dl)}</span>`:''}</div>
     <div class="fb-ties ${x.set.length===1?'one':''} ${stack ? 'stack' : ''}">${x.set.map(m=>fbTie(t, m)).join('')}</div>
     ${x.isFinal && only!=='third' && final?.winner && frMode(t)!=='vs' ? `<div class="fb-champ">${ICON.cup}<div><small>Champion</small><b>${esc(playerName(final.winner))}</b></div></div>` : ''}
     ${x.isFinal && only==='third' && thirdMatchOf(t)?.winner ? `<div class="fb-champ bronze">${medalHTML('bronze','3',56)}<div><small>Third place</small><b>${esc(playerName(thirdMatchOf(t).winner))}</b></div></div>` : ''}</div>`;
@@ -3225,7 +3225,7 @@ function frBoardHTML(t, big){
   const longWord = [0,1].some(i=>frTeamName(t, i).split(/\s+/).some(w=>w.length>=8));
   const side = i => `<div class="fr-col ${done && lead===i ? 'win' : ''}">${frCrest(t, i, 'var(--crest)')}<b class="fr-tn ${longWord?'lw':''}">${esc(frTeamName(t, i))}</b></div>`;
   return `<section class="fr-board ${big?'big':''}" aria-label="Score">
-    <div class="fr-board-row">${side(0)}<div class="fr-mid"><span class="fr-num ${done && lead===0?'w':''}">${s.ties[0]}</span><em class="fr-dash">–</em><span class="fr-num ${done && lead===1?'w':''}">${s.ties[1]}</span></div>${side(1)}</div>
+    <div class="fr-board-row">${side(0)}<div class="fr-mid"><span class="fr-num tm-n0 ${done && lead===0?'w':''} ${lead===1?'trail':''}">${s.ties[0]}</span><em class="fr-dash">–</em><span class="fr-num tm-n1 ${done && lead===1?'w':''} ${lead===0?'trail':''}">${s.ties[1]}</span></div>${side(1)}</div>
     <div class="fr-board-sub">${s.total ? `${done ? (lead<0 ? 'Level' : `${esc(frTeamName(t, lead))} win`) : `${s.decided} of ${s.total} ties decided`} · Goals ${s.goals[0]}–${s.goals[1]}` : 'Ties are drawn when the friendly starts'}</div>
   </section>`;
 }

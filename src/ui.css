@@ -2313,3 +2313,23 @@ html,body{touch-action:pan-x pan-y}   /* scrolling only: no pinch or double-tap 
 .fb-hof .end{max-width:38%}
 .fb-hof .end i{max-width:100%;overflow:hidden;white-space:nowrap}
 .ftm > *{min-width:0}
+/* Friendly scoreboard: bigger crests with a soft ring, one bold score pair level with them, clearer team names. */
+.fr-crest.img{box-shadow:0 0 0 1px var(--border),0 8px 22px rgba(0,0,0,.28)}
+.fr-board .fr-num{background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.fr-board .fr-num.trail{color:var(--muted)}
+.fr-board .fr-mid{align-items:center}
+.fr-board .fr-tn{font-size:20px;letter-spacing:.01em}
+.fr-board.big .fr-tn{font-size:23px}
+@media (max-width:480px){ .fr-board .fr-tn,.fr-board.big .fr-tn{font-size:18px} }
+@media (max-width:400px){ .fr-board .fr-tn.lw{font-size:15px} }
+/* Exports */
+.fbp .fr-board{--crest:calc(132px*var(--z));padding:calc(30px*var(--z)) calc(28px*var(--z)) calc(24px*var(--z));gap:calc(18px*var(--z))}
+.fbp .fr-board-row{gap:calc(28px*var(--z))}
+.fbp .fr-col{gap:calc(14px*var(--z))}
+.fbp .fr-tn{font-size:calc(42px*var(--z));line-height:1.08}
+.fbp .fr-mid{gap:calc(14px*var(--z))}
+.fbp .fr-num{font-size:calc(100px*var(--z));min-width:calc(132px*var(--z));height:var(--crest);display:flex;align-items:center;justify-content:center;padding:0 calc(16px*var(--z));border-radius:calc(26px*var(--z))}
+.fbp .fr-dash{font-size:calc(54px*var(--z))}
+.fbp .fr-board-sub{font-size:calc(22px*var(--z));font-weight:700}
+.fbp .fr-board .fr-num{background:var(--surface-2);box-shadow:none;border:2px solid var(--border)}
+.fbp .fr-board .fr-num.w{background:var(--gold-pale);border-color:var(--gold-line)}
