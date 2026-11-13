@@ -1391,7 +1391,7 @@ function resultPlacings(t){
 /* Placings that count for a tournament: live ones while it is being played, the organisers' picks once completed. */
 /* A friendly's champion for the leaderboard: the organisers' pick once completed, else the Final's winner. */
 function friendlyPlacings(t){
-  if(!t || (t.status!=='active' && t.status!=='completed')) return null;
+  if(!t || (t.status!=='active' && t.status!=='completed') || frMode(t)==='vs') return null;   // Team vs Team has no single champion
   const done = t.status==='completed' && t.champion;
   const r = done ? null : resultPlacings(t);
   const pid = done ? t.champion : r.champion;
@@ -1413,11 +1413,31 @@ function decidedPlacings(t){
    Whatever the Hall of Fame already holds for that tournament and placing (saved automatically or added by hand) wins. */
 function hofFromTournaments(){
   const have = new Set();
-  (STORE.hof||[]).forEach(h=>{ if(h.sourceId) have.add(h.sourceId+':'+h.type); have.add('n:'+String(h.tournament||'').trim().toLowerCase()+':'+h.type) });
+  (STORE.hof||[]).forEach(h=>{ const n = 'n:'+String(h.tournament||'').trim().toLowerCase()+':'+h.type;
+    if(h.sourceId){ have.add(h.sourceId+':'+h.type); have.add(h.sourceId+':'+h.type+':'+h.playerId) }
+    have.add(n); have.add(n+':'+h.playerId) });
   const out = [];
+  const entry = (t, pid, type, when, extra={}) => ({id:'auto-'+t.id+'-'+type+(extra.team ? '-'+pid : ''), auto:true, live:t.status!=='completed', playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:when.slice(0,7), when, note:'', sourceId:t.id, ...extra});
   STORE.tournaments.forEach(t=>{
-    const pl = decidedPlacings(t); if(!pl) return;
     const nm = String(t.name||'').trim().toLowerCase();
+    // Friendlies: the knockout champion, or every player (with a profile) of the team that won a Team vs Team friendly.
+    if(isFriendly(t)){
+      if(frMode(t)==='vs'){
+        if(t.status!=='completed') return;
+        const res = t.friendly?.result || frScore(t).ties, w = res[0]>res[1] ? 0 : res[1]>res[0] ? 1 : -1;
+        if(w<0) return;
+        const team = frTeams(t)[w] || {}, when = String(t.completedAt||'') || new Date().toISOString();
+        (team.players||[]).filter(pid=>!isGuest(pid) && STORE.players.some(p=>p.id===pid)).forEach(pid=>{
+          if(have.has(t.id+':champion:'+pid) || have.has('n:'+nm+':champion:'+pid)) return;
+          out.push(entry(t, pid, 'champion', when, {title:`Friendly win · ${team.name||'Team'}`, team:team.name||'', friendly:'vs'}));
+        });
+      } else {
+        const pl = friendlyPlacings(t); if(!pl || isGuest(pl.champion) || have.has(t.id+':champion') || have.has('n:'+nm+':champion')) return;
+        out.push(entry(t, pl.champion, 'champion', pl.at.champion || String(t.completedAt||'') || new Date().toISOString(), {title:'Friendly champion', friendly:'ko'}));
+      }
+      return;
+    }
+    const pl = decidedPlacings(t); if(!pl) return;
     ['champion','runner_up','third'].forEach(type=>{
       const pid = pl[type]; if(!pid || have.has(t.id+':'+type) || have.has('n:'+nm+':'+type)) return;
       // One time for the whole tournament, so its placings stay together in order (champion, runner-up, 3rd).
@@ -2972,7 +2992,7 @@ function saveTournament(){
      tie won is 1 point for the team, so the final score reads e.g. Team MG 8–7 Team X.
    · Knockout ('ko'): 4v4, 8v8 or 16v16. The first round always pairs players from different teams.
    Players come from the player profiles or are typed in (guests, stored on the tournament).
-   Friendlies count on the leaderboard (matches + champion bonus) but not in the Hall of Fame or head-to-head.
+   Friendlies count on the leaderboard (matches + champion bonus) and in the Hall of Fame (friendly wins), not in head-to-head.
    ========================= */
 const FR_ROUND = 'Ties';
 const isFriendly = t => !!t?.friendly;
@@ -3305,7 +3325,8 @@ async function friendlyKoToVs(tid){
 /* ---- Completing ---- */
 async function completeFriendlyVs(tid){
   const t0 = STORE.tournaments.find(x=>x.id===tid), s = frScore(t0), left = s.total - s.decided;
-  const ok = await confirmDialog('Complete friendly', `Final score: ${frTeamName(t0,0)} ${s.ties[0]}–${s.ties[1]} ${frTeamName(t0,1)}.${left ? ` ${left} tie${left>1?'s are':' is'} still undecided and won't count.` : ''}`, 'Complete');
+  const w = s.ties[0]>s.ties[1] ? 0 : s.ties[1]>s.ties[0] ? 1 : -1;
+  const ok = await confirmDialog('Complete friendly', `Final score: ${frTeamName(t0,0)} ${s.ties[0]}–${s.ties[1]} ${frTeamName(t0,1)}.${left ? ` ${left} tie${left>1?'s are':' is'} still undecided and won't count.` : ''}${w>=0 ? ` Every ${frTeamName(t0,w)} player with a profile goes into the Hall of Fame (Friendly win).` : ''}`, 'Complete');
   if(!ok) return;
   const {all, t} = getT(tid);
   t.status = 'completed'; t.completedAt = new Date().toISOString(); t.resultsAt = t.completedAt;
@@ -4637,7 +4658,7 @@ function openCompleteTournamentModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendly matches and the champion bonus (+10) count on the leaderboard; friendlies stay out of the Hall of Fame. Once completed you can export the result poster with each player\'s team.' : 'The champion gets +10 on the leaderboard as soon as the Final is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendly matches and the champion bonus (+10) count on the leaderboard; the champion goes into the Hall of Fame as Friendly champion. Once completed you can export the result poster with each player\'s team.' : 'The champion gets +10 on the leaderboard as soon as the Final is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
