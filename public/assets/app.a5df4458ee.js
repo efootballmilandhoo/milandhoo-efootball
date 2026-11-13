@@ -1413,11 +1413,11 @@ function decidedPlacings(t){
    Whatever the Hall of Fame already holds for that tournament and placing (saved automatically or added by hand) wins. */
 function hofFromTournaments(){
   const have = new Set();
-  (STORE.hof||[]).forEach(h=>{ const n = 'n:'+String(h.tournament||'').trim().toLowerCase()+':'+h.type;
+  (STORE.hof||[]).filter(h=>!hofOldFriendlyWin(h)).forEach(h=>{ const n = 'n:'+String(h.tournament||'').trim().toLowerCase()+':'+h.type;
     if(h.sourceId){ have.add(h.sourceId+':'+h.type); have.add(h.sourceId+':'+h.type+':'+h.playerId) }
     have.add(n); have.add(n+':'+h.playerId) });
   const out = [];
-  const entry = (t, pid, type, when, extra={}) => ({id:'auto-'+t.id+'-'+type+(extra.team ? '-'+pid : ''), auto:true, live:t.status!=='completed', playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:when.slice(0,7), when, note:'', sourceId:t.id, ...extra});
+  const entry = (t, pid, type, when, extra={}) => ({id:'auto-'+t.id+'-'+type, auto:true, live:t.status!=='completed', playerId:pid, playerName:playerName(pid), type, title:'', tournament:t.name, organizer:'ours', organizerName:'', date:when.slice(0,7), when, note:'', sourceId:t.id, ...extra});
   STORE.tournaments.forEach(t=>{
     const nm = String(t.name||'').trim().toLowerCase();
     // Friendlies: the knockout champion, or every player (with a profile) of the team that won a Team vs Team friendly.
@@ -1427,13 +1427,13 @@ function hofFromTournaments(){
         const res = t.friendly?.result || frScore(t).ties, w = res[0]>res[1] ? 0 : res[1]>res[0] ? 1 : -1;
         if(w<0) return;
         const team = frTeams(t)[w] || {}, when = String(t.completedAt||'') || new Date().toISOString();
-        (team.players||[]).filter(pid=>!isGuest(pid) && STORE.players.some(p=>p.id===pid)).forEach(pid=>{
-          if(have.has(t.id+':champion:'+pid) || have.has('n:'+nm+':champion:'+pid)) return;
-          out.push(entry(t, pid, 'champion', when, {title:`Friendly win · ${team.name||'Team'}`, team:team.name||'', friendly:'vs'}));
-        });
+        if(have.has(t.id+':champion') || have.has('n:'+nm+':champion')) return;
+        out.push(entry(t, null, 'champion', when, {playerName:team.name||'Team', title:'Winner', team:team.name||'', teamIdx:w, friendly:'vs'}));
       } else {
-        const pl = friendlyPlacings(t); if(!pl || isGuest(pl.champion) || have.has(t.id+':champion') || have.has('n:'+nm+':champion')) return;
-        out.push(entry(t, pl.champion, 'champion', pl.at.champion || String(t.completedAt||'') || new Date().toISOString(), {title:'Friendly champion', friendly:'ko'}));
+        // Knockout friendly: the champion's team is the winner.
+        const pl = friendlyPlacings(t), w = pl ? frTeamOf(t, pl.champion) : -1;
+        if(w<0 || have.has(t.id+':champion') || have.has('n:'+nm+':champion')) return;
+        out.push(entry(t, null, 'champion', pl.at.champion || String(t.completedAt||'') || new Date().toISOString(), {playerName:frTeamName(t, w), title:'Winner', team:frTeamName(t, w), teamIdx:w, friendly:'ko', note:`Champion: ${playerName(pl.champion)}`}));
       }
       return;
     }
@@ -1448,13 +1448,21 @@ function hofFromTournaments(){
   return out;
 }
 /* The Hall of Fame as shown everywhere: saved entries plus placings already decided in the app's tournaments. */
-function hofAll(){ return (STORE.hof||[]).concat(hofFromTournaments()).sort(hofSort) }
+function hofAll(){ return (STORE.hof||[]).filter(h=>!hofOldFriendlyWin(h)).concat(hofFromTournaments()).sort(hofSort) }
+/* Team vs Team friendly wins were first saved once per player; they are now one entry for the team. */
+function hofOldFriendlyWin(h){ return !!h.friendly && !!h.playerId }
+/* A team's crest for a team entry (a friendly won as a team), else the player's photo. */
+function hofAvatar(h, size){
+  if(h.team){ const t = STORE.tournaments.find(x=>x.id===h.sourceId); if(t && isFriendly(t)) return frCrest(t, h.teamIdx ?? frTeams(t).findIndex(tm=>tm.name===h.team), size+'px', 'hof-crest') }
+  return renderAvatar(hofPlayer(h), size);
+}
 /* Completed tournaments are saved into the Hall of Fame automatically, once per placing,
    by the first organiser's app that has the live data. */
 function syncHofCompleted(){
   if(!isAdmin() || STORE.mode!=='shared' || !STORE.loaded.hof || !STORE.loaded.tournaments) return;
   const add = hofFromTournaments().filter(h=>!h.live).map(({auto, live, ...h})=>({...h, id:uid(), createdAt:new Date().toISOString()}));
-  if(add.length) DB.set('hof', DB.get('hof').concat(add).sort(hofSort));
+  const cur = DB.get('hof'), old = cur.filter(hofOldFriendlyWin);
+  if(add.length || old.length) DB.set('hof', cur.filter(h=>!hofOldFriendlyWin(h)).concat(add).sort(hofSort));
 }
 
 function visibleTournaments(){ return isAdmin() ? STORE.tournaments : STORE.tournaments.filter(t=>t.status!=='draft') }
@@ -2336,7 +2344,7 @@ function renderDashboard(){
       <div class="recent-row" role="button" tabindex="0" onclick="navigate('tournament-detail','${t.id}')" onkeydown="if(event.key==='Enter')navigate('tournament-detail','${t.id}')">
         ${t.logo ? tournamentLogo(t, 48) : `<div class="code-tile" style="background:${tColor(t)}">${esc(tCode(t))}</div>`}
         <div class="recent-main"><b>${esc(t.name)}</b><span><span style="color:var(--success);font-weight:600">Completed</span> · ${(t.registrations||[]).length} players</span></div>
-        <div class="champ-mini">${t.champion?`<span>Champion</span><b>${esc(playerName(t.champion))}</b>`:''}</div>
+        <div class="champ-mini">${frWinner(t) ? (frWinner(t).idx>=0 ? `<span>Winner</span><b>${esc(frWinner(t).name)}</b>` : `<span>Result</span><b>Level</b>`) : t.champion?`<span>Champion</span><b>${esc(playerName(t.champion))}</b>`:''}</div>
       </div>`).join('');
 
   // Top 5 positions; everyone sharing the 5th place (or any place) is included.
@@ -2667,7 +2675,9 @@ function renderTournamentCards(list){
   if(list.length===0) return `<div class="card empty" style="grid-column:1/-1"><div class="empty-title">No tournaments here yet</div><div class="text-sm">${isAdmin()?'Create one with New Tournament.':'New tournaments will appear here.'}</div></div>`;
   return list.map(t=>{
     const n = (t.registrations||[]).length;
-    const champ = t.champion ? `<div class="champ-box">${ICON.cup.replace('width="36" height="36"','width="26" height="26"')}<div style="min-width:0"><small>CHAMPION</small><b>${esc(playerName(t.champion))}</b>${t.completedAt?`<span class="champ-ended">Ended on ${fmtDate(t.completedAt)}</span>`:''}</div></div>`
+    const fw = frWinner(t);
+    const champ = fw ? `<div class="champ-box">${fw.idx>=0 ? frCrest(t, fw.idx, '36px') : ICON.cup.replace('width="36" height="36"','width="26" height="26"')}<div style="min-width:0"><small>${fw.idx>=0 ? 'WINNER' : 'RESULT'}</small><b>${fw.idx>=0 ? esc(fw.name) : 'Level'} <span class="champ-score">${fw.score}</span></b>${t.completedAt?`<span class="champ-ended">Ended on ${fmtDate(t.completedAt)}</span>`:''}</div></div>`
+      : t.champion ? `<div class="champ-box">${ICON.cup.replace('width="36" height="36"','width="26" height="26"')}<div style="min-width:0"><small>CHAMPION</small><b>${esc(playerName(t.champion))}</b>${t.completedAt?`<span class="champ-ended">Ended on ${fmtDate(t.completedAt)}</span>`:''}</div></div>`
       : `<div class="champ-box" style="background:var(--surface-2)"><span class="stat-icon tint-blue" style="width:36px;height:36px;border-radius:10px">${ICON.calendar}</span><div style="min-width:0"><small style="color:var(--muted)">${tDateInfo(t).label.toUpperCase()}</small><b style="font-size:18px">${fmtDateTime(tDateInfo(t).when)}</b></div></div>`;
     return `
     <button type="button" class="t-card" onclick="navigate('tournament-detail','${t.id}')">
@@ -3002,6 +3012,12 @@ const frKindLabel = t => { const n = t?.friendly?.size || ''; return `${n ? `${n
 const isGuest = id => typeof id==='string' && id.startsWith('gx-');
 function guestName(id){ for(const t of STORE.tournaments){ const n = t.guests?.[id]; if(n) return n } return '' }
 const frTeams = t => t?.friendly?.teams || [];
+/* The winning team of a completed Team vs Team friendly: {idx (-1 when level), name, score "8–0"}. */
+function frWinner(t){
+  if(!isFriendly(t) || frMode(t)!=='vs' || t.status!=='completed') return null;
+  const res = t.friendly.result || frScore(t).ties, idx = res[0]>res[1] ? 0 : res[1]>res[0] ? 1 : -1;
+  return {idx, name: idx>=0 ? frTeamName(t, idx) : '', score: `${res[Math.max(idx,0)]}–${res[idx===1?0:1]}`};
+}
 function frTeamOf(t, pid){ return frTeams(t).findIndex(tm=>(tm.players||[]).includes(pid)) }
 function frTeamName(t, i){ return frTeams(t)[i]?.name || (i ? 'Team B' : 'Team A') }
 const frDot = (t, pid) => { if(!isFriendly(t)) return ''; const i = frTeamOf(t, pid); return i<0 ? '' : `<i class="tm-dot tm-${i}" aria-hidden="true"></i>` };
@@ -4658,7 +4674,7 @@ function openCompleteTournamentModal(tid){
   openModal(`
     <div class="modal-head"><div class="modal-title">Complete Tournament</div><button class="btn btn-ghost btn-icon" onclick="closeModal()" aria-label="Close">${ICON_X}</button></div>
     <div class="modal-body">
-      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendly matches and the champion bonus (+10) count on the leaderboard; the champion goes into the Hall of Fame as Friendly champion. Once completed you can export the result poster with each player\'s team.' : 'The champion gets +10 on the leaderboard as soon as the Final is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
+      <div class="text-sm text-muted mb-16">Placings are filled in from the results. ${t.format!=='league' && !thirdMatchOf(t)?'Third place defaults to the losing semi-finalist with more wins. ':''}${isFriendly(t) ? 'Friendly matches and the champion bonus (+10) count on the leaderboard; the champion\'s team goes into the Hall of Fame as Winner. Once completed you can export the result poster with each player\'s team.' : 'The champion gets +10 on the leaderboard as soon as the Final is decided. Completing confirms them and adds the champion, runner-up and 3rd place to the Hall of Fame.'}</div>
       <div class="form-group"><label class="form-label" for="ct_champ">Champion</label><select class="form-select ct-pick" id="ct_champ" onchange="syncPlacings()">${options(champ)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_runner">Runner-up</label><select class="form-select ct-pick" id="ct_runner" onchange="syncPlacings()">${options(runner)}</select></div>
       <div class="form-group"><label class="form-label" for="ct_third">Third place</label><select class="form-select ct-pick" id="ct_third" onchange="syncPlacings()">${options(third)}</select></div>
@@ -5262,7 +5278,7 @@ function hofRow(h){
   const t = HOF_TYPES[h.type] || HOF_TYPES.award, p = hofPlayer(h);
   return `<div class="row-grid hof-row">
     ${medalHTML(t.cls, t.medal, 26)}
-    ${renderAvatar(p, 30)}
+    ${hofAvatar(h, 30)}
     <span class="row-stack"><b>${esc(p.name)}</b><span>${esc(hofTitle(h))} · ${esc(h.tournament||'')}</span></span>
     <span class="row-date">${esc(hofDate(h)) || '—'}</span>
   </div>`;
@@ -5275,7 +5291,7 @@ function hofItem(h, admin){
   const t = HOF_TYPES[h.type] || HOF_TYPES.award, p = hofPlayer(h);
   return `<div class="hof-li ${t.cls}">
     <span class="hof-li-medal">${medalHTML(t.cls, t.medal, 30)}</span>
-    <span class="hof-li-av">${renderAvatar(p, 40)}</span>
+    <span class="hof-li-av">${hofAvatar(h, 40)}</span>
     <span class="hof-li-main">
       <b>${esc(p.name)}</b>
       <span class="hof-li-sub"><i class="hof-chip ${t.cls}">${esc(hofTitle(h))}</i><span class="hof-li-t">${esc(h.tournament||'')}</span></span>
@@ -5364,7 +5380,7 @@ function renderHallOfFame(){
 /* Most decorated: titles first, then runner-up, third place and awards. */
 function hofTally(all){
   const tally = {};
-  all.forEach(h=>{ const k = hofKey(h); const t = tally[k] = tally[k] || {key:k, h, champion:0, runner_up:0, third:0, award:0, total:0}; t[h.type in t ? h.type : 'award']++; t.total++ });
+  all.filter(h=>!h.team).forEach(h=>{ const k = hofKey(h); const t = tally[k] = tally[k] || {key:k, h, champion:0, runner_up:0, third:0, award:0, total:0}; t[h.type in t ? h.type : 'award']++; t.total++ });
   return tally;
 }
 function hofRanked(tally){

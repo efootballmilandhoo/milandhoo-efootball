@@ -860,3 +860,6 @@
 .rules-card-head > .rules-chip{flex:0 1 auto}
 .rules-card-actions{flex:none}
 @media (max-width:480px){ .rules-chip{font-size:15px;padding:6px 12px;letter-spacing:.04em} }
+.champ-box .champ-score{font-family:var(--font-display);font-size:.8em;color:var(--gold-ink);margin-left:4px}
+.champ-box .fr-crest{border-radius:10px}
+.hof-crest{border-radius:10px}
