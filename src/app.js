@@ -2978,6 +2978,32 @@ function frStatsHTML(t){
   </div>`;
 }
 
+/* ---- Knockout friendly → Team vs Team. The first-round matches become the ties exactly as they are:
+   same pairings, same home/away order, every entered score, penalty and result kept. The later rounds are
+   cancelled; they are kept aside in t.koCancelled so nothing is lost. ---- */
+async function friendlyKoToVs(tid){
+  const t0 = STORE.tournaments.find(x=>x.id===tid);
+  if(!t0 || !isFriendly(t0) || frMode(t0)!=='ko' || !t0.knockoutBracket?.length) return;
+  const first = t0.knockoutBracket[0], later = t0.knockoutBracket.slice(1).flat().filter(m=>m && (m.winner || koLegsAny(m))).length;
+  const ok = await confirmDialog('Switch to Team vs Team',
+    `The ${first.length} ${roundTitle(first, 0)} matches become the ${first.length} ties, with the same players and every entered result kept. Each tie won is 1 point for that team. The later knockout rounds are cancelled${later ? ` (${later} match${later>1?'es':''} with results there will no longer count)` : ''}.`, 'Switch');
+  if(!ok) return;
+  const {all, t} = getT(tid);
+  const r0 = t.knockoutBracket[0], oldRound = r0[0]?.round;
+  t.koCancelled = {at:new Date().toISOString(), rounds:t.knockoutBracket.slice(1), firstRound:oldRound};
+  r0.forEach(m=>{ m.round = FR_ROUND; m.label = '' });
+  t.knockoutBracket = [r0];
+  t.friendly.mode = 'vs';
+  t.thirdPlaceMatch = false;
+  t.champion = t.runnerUp = t.thirdPlace = t.fourthPlace = null;
+  const dl = {...(t.rules?.roundDeadlines||{})}, keep = oldRound && dl[oldRound];
+  t.rules = {...(t.rules||{}), roundDeadlines: keep ? {[FR_ROUND]: keep} : {}};
+  if(t.description) t.description = t.description.replace(/friendly knockout tournament/i, m=>m[0]==='F' ? 'Friendly team vs team tournament' : 'friendly team vs team tournament');
+  DB.set('tournaments', all);
+  currentTab = 'tab-ties'; rerender();
+  toast('Switched to Team vs Team');
+}
+
 /* ---- Completing ---- */
 async function completeFriendlyVs(tid){
   const t0 = STORE.tournaments.find(x=>x.id===tid), s = frScore(t0), left = s.total - s.decided;
@@ -3094,6 +3120,7 @@ function renderTournamentDetail(id){
         ${t.status==='active' ? `<button type="button" class="btn btn-primary" onclick="openCompleteTournamentModal('${t.id}')">Complete ${isFriendly(t)?'friendly':'tournament'}</button>`:''}
         ${(t.groupsDrawn || t.knockoutDrawn) && t.status!=='completed' && !isFriendly(t) ? `<button type="button" class="btn btn-secondary" onclick="openMessagePlayersModal('${t.id}')">${TG_SVG} Message players</button>` : ''}
         <button type="button" class="btn btn-secondary" onclick="editTournament('${t.id}')">Edit settings</button>
+        ${isFriendly(t) && frMode(t)==='ko' && t.knockoutDrawn && t.status==='active' ? `<button type="button" class="btn btn-secondary" onclick="friendlyKoToVs('${t.id}')">Switch to Team vs Team</button>` : ''}
         <button type="button" class="btn btn-danger" onclick="deleteTournament('${t.id}')">Delete</button>
       </div>` : ''}
     </div>
